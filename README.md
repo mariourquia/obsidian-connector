@@ -308,6 +308,12 @@ update the config.
 See [TOOLS_CONTRACT.md](TOOLS_CONTRACT.md) for the canonical JSON envelope schema,
 typed error hierarchy, and full command reference.
 
+## Daily optimization guide
+
+18 recipes for using the connector to think clearer, decide better, and ship
+more -- organized as a four-phase daily operating system (Awareness, Decision-Making,
+Execution, Reflection). See [docs/daily-optimization.md](docs/daily-optimization.md).
+
 ## License
 
 MIT
