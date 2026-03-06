@@ -1,3 +1,10 @@
+---
+title: "Roadmap"
+status: verified
+owner: "mariourquia"
+last_reviewed: "2026-03-06"
+---
+
 # Roadmap
 
 Prioritized backlog for obsidian-connector. Items are tagged by type and

@@ -15,6 +15,7 @@ here or in a sub-index linked from here.
 
 - [Design Docs](./design-docs/index.md)
 - [Distribution](./distribution/index.md)
+- [Planning Docs](./plans/index.md)
 - [Quality Scores](./quality/QUALITY_SCORE.md)
 - [Reliability](./reliability/CLAUDE_DESKTOP_DEBUGGING.md)
 
@@ -28,9 +29,8 @@ here or in a sub-index linked from here.
 ## Execution plans
 
 - [Active Plans](./exec-plans/active/) -- in-progress agent/human work
-  - [Graph-Aware Roadmap](./exec-plans/active/graph-aware-roadmap.md) -- ranked implementation roadmap (9 epics, 3 milestones)
 - [Completed Plans](./exec-plans/completed/) -- archived plans
-- [Cache Layer Plan](./plans/2026-03-05-cache-layer.md) -- in-memory TTL cache (completed)
+- [Archived Planning Docs](./plans/archived/) -- completed features (cache layer, second brain assistant, etc.)
 
 ## Root-level docs (outside docs/)
 
