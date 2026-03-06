@@ -170,6 +170,58 @@ def test_uninstall_cli_dry_run(tmp_path):
     assert venv.exists()
     assert config_file.exists()
 
+def test_uninstall_cli_force_mode(tmp_path):
+    """Test CLI uninstall subcommand with --force flag."""
+    from pathlib import Path
+    import io
+    import sys
+
+    # Test CLI with --force flag (without actually removing anything, just parsing)
+    from obsidian_connector.cli import main
+
+    # Capture output
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+
+    try:
+        result = main(["--vault", str(tmp_path), "uninstall", "--force", "--remove-venv", "--dry-run"])
+        output = sys.stdout.getvalue()
+    finally:
+        sys.stdout = old_stdout
+
+    # Should succeed
+    assert result == 0
+
+def test_uninstall_cli_json_output(tmp_path):
+    """Test CLI uninstall subcommand with --json flag."""
+    from pathlib import Path
+
+    # Setup fake installation
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+
+    # Test CLI with --dry-run and --json
+    from obsidian_connector.cli import main
+    import io
+    import sys
+
+    # Capture output
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+
+    try:
+        result = main(["--vault", str(tmp_path), "--json", "uninstall", "--dry-run"])
+        output = sys.stdout.getvalue()
+    finally:
+        sys.stdout = old_stdout
+
+    # Should succeed and produce valid JSON
+    assert result == 0
+    data = json.loads(output)
+    assert data["ok"] is True
+    assert data["command"] == "uninstall"
+    assert data["data"]["dry_run"] is True
+
 if __name__ == "__main__":
     test_uninstall_plan_creation()
     print("test_uninstall_plan_creation PASS")
@@ -209,3 +261,11 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_uninstall_cli_dry_run(Path(tmp))
     print("test_uninstall_cli_dry_run PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_uninstall_cli_force_mode(Path(tmp))
+    print("test_uninstall_cli_force_mode PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_uninstall_cli_json_output(Path(tmp))
+    print("test_uninstall_cli_json_output PASS")
