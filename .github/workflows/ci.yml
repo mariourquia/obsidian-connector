@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - name: Docs lint
+        run: python3 tools/docs_lint.py --strict
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e .
+      - name: Unit tests (no Obsidian required)
+        run: |
+          python3 scripts/cache_test.py
+          python3 scripts/audit_test.py
+          python3 scripts/escaping_test.py
+          python3 scripts/graph_test.py
+          python3 scripts/index_test.py
+          python3 scripts/graduate_test.py
+          python3 scripts/thinking_deep_test.py
+          python3 scripts/delegation_test.py
+
+  mcp-launch:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - name: MCP server starts without error
+        run: bash scripts/mcp_launch_smoke.sh
