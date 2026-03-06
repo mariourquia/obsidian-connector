@@ -146,6 +146,30 @@ def test_dry_run_uninstall(tmp_path):
     assert venv.exists()  # Nothing was actually removed
     assert result["plan"]["files_to_remove"] == [str(venv)]
 
+def test_uninstall_cli_dry_run(tmp_path):
+    """Test CLI uninstall subcommand with --dry-run flag."""
+    import tempfile
+    from pathlib import Path
+
+    # Setup fake installation
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+    skills_dir = tmp_path / ".claude" / "commands"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "morning.md").write_text("# Morning")
+
+    config_file = tmp_path / "claude_desktop_config.json"
+    config_file.write_text('{"mcpServers": {"obsidian-connector": {}}}')
+
+    # Test CLI with --dry-run
+    from obsidian_connector.cli import main
+    result = main(["--vault", str(tmp_path), "uninstall", "--dry-run"])
+
+    # Should succeed and not remove anything
+    assert result == 0
+    assert venv.exists()
+    assert config_file.exists()
+
 if __name__ == "__main__":
     test_uninstall_plan_creation()
     print("test_uninstall_plan_creation PASS")
@@ -181,3 +205,7 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_dry_run_uninstall(Path(tmp))
     print("test_dry_run_uninstall PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_uninstall_cli_dry_run(Path(tmp))
+    print("test_uninstall_cli_dry_run PASS")
