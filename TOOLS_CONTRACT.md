@@ -12,7 +12,10 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-these tools are available to Claude and other MCP clients:
+27 tools are available to Claude and other MCP clients.  All `vault`
+parameters are optional -- when omitted, the configured default vault is used.
+
+### Core vault operations
 
 | MCP Tool | Parameters | Returns |
 |---|---|---|
@@ -21,23 +24,90 @@ these tools are available to Claude and other MCP clients:
 | `obsidian_tasks` | `status?`, `path_prefix?`, `limit?`, `vault?` | JSON array of `{text, status, file, line}` |
 | `obsidian_log_daily` | `content`, `vault?` | Confirmation string |
 | `obsidian_log_decision` | `project`, `summary`, `details`, `vault?` | Confirmation string |
-| `obsidian_find_prior_work` | `topic`, `top_n?`, `vault?` | JSON array of `{file, heading, excerpt, match_count}` |
 | `obsidian_create_note` | `title`, `template`, `vault?` | Created file path |
+| `obsidian_doctor` | `vault?` | JSON array of health check results |
+
+### Research and discovery
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_find_prior_work` | `topic`, `top_n?`, `vault?` | JSON array of `{file, heading, excerpt, match_count}` |
 | `obsidian_challenge_belief` | `belief`, `vault?`, `max_evidence?` | JSON `{belief, counter_evidence[], supporting_evidence[], verdict}` |
 | `obsidian_emerge_ideas` | `topic`, `vault?`, `max_clusters?` | JSON `{topic, total_notes, clusters[]}` |
 | `obsidian_connect_domains` | `domain_a`, `domain_b`, `vault?`, `max_connections?` | JSON `{domain_a, domain_b, connections[], domain_a_only[], domain_b_only[]}` |
-| `obsidian_doctor` | `vault?` | JSON array of health check results |
 
-All `vault` parameters are optional.  When omitted, the configured default
-vault is used (env var `OBSIDIAN_VAULT` or `config.json`).
+### Graph intelligence
+
+These tools read vault `.md` files directly and work without Obsidian running.
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_neighborhood` | `note_path`, `depth?`, `vault?` | JSON `{note, backlinks[], forward_links[], tags[], neighbors[]}` |
+| `obsidian_vault_structure` | `vault?` | JSON `{total_notes, orphans[], dead_ends[], unresolved_links{}, tag_cloud{}, top_connected[]}` |
+| `obsidian_backlinks` | `note_path`, `vault?` | JSON array of `{file, context_line, tags[]}` |
+| `obsidian_rebuild_index` | `vault?` | Confirmation with note count and timing |
+
+### Thinking tools
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_ghost` | `sample_notes?`, `question?`, `vault?` | JSON voice profile `{patterns{}, summary}` |
+| `obsidian_drift` | `vault?`, `lookback_days?` | JSON `{intention, evidence[], drift_score, analysis}` |
+| `obsidian_trace` | `topic`, `max_notes?`, `vault?` | JSON `{idea, timeline[], evolution_summary}` |
+| `obsidian_ideas` | `vault?`, `max_ideas?` | JSON `{ideas[], graph_stats{}}` |
+
+### Workflow OS
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_my_world` | `vault?` | JSON full vault snapshot (recent notes, tasks, loops, context) |
+| `obsidian_today` | `vault?` | JSON today brief (daily note, tasks, loops) |
+| `obsidian_close_day` | `vault?` | JSON end-of-day reflection prompt |
+| `obsidian_open_loops` | `vault?`, `lookback_days?` | JSON array of open loop items |
+| `obsidian_graduate_candidates` | `vault?`, `lookback_days?` | JSON array of promotable idea candidates |
+| `obsidian_graduate_execute` | `title`, `content`, `source_file?`, `vault?`, `confirm?`, `dry_run?` | JSON created path + provenance |
+| `obsidian_delegations` | `vault?`, `lookback_days?` | JSON array of delegation instructions |
+| `obsidian_context_load` | `vault?` | JSON full context bundle for agent session start |
 
 **Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
 shell out to `obsidian` or `python main.py` from within an MCP-connected session.
 
 ## CLI wrapper
 
-The tool is installable as `obsx` via `pip install -e .`, or use `./bin/obsx`
-from the repo root (no venv activation required).
+The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
+`obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
+
+### Commands (26 total)
+
+| Command | Description | Mutating |
+|---|---|---|
+| `search` | Full-text search across the vault | no |
+| `read` | Read a note by name or path | no |
+| `tasks` | List tasks (filterable) | no |
+| `log-daily` | Append text to today's daily note | yes |
+| `log-decision` | Append a structured decision record | yes |
+| `create-research-note` | Create a note from a template | yes |
+| `find-prior-work` | Search + summarize top N matching notes | no |
+| `challenge` | Challenge a belief against vault evidence | no |
+| `emerge` | Cluster notes into idea groups | no |
+| `connect` | Find connections between two domains | no |
+| `neighborhood` | Graph neighborhood of a note | no |
+| `vault-structure` | Vault topology overview | no |
+| `backlinks` | All notes linking to a given note | no |
+| `ghost` | Analyze writing voice | no |
+| `drift` | Detect intention vs behavior drift | no |
+| `trace` | Trace idea evolution over time | no |
+| `ideas` | Surface latent ideas from graph | no |
+| `my-world` | Full vault snapshot | no |
+| `today` | Today brief | no |
+| `close` | End-of-day reflection | no |
+| `open-loops` | List open loops | no |
+| `graduate list` | Scan for graduate candidates | no |
+| `graduate execute` | Create an agent draft note | yes |
+| `delegations` | Scan for delegation instructions | no |
+| `context-load` | Load full context bundle | no |
+| `rebuild-index` | Force-rebuild the vault graph index | no |
+| `doctor` | Health check on CLI and vault | no |
 
 ## Canonical JSON envelope
 
@@ -83,123 +153,6 @@ The response is always wrapped in a canonical envelope:
 | `CommandTimeout` | Subprocess timed out |
 | `MalformedCLIOutput` | JSON parse failure on CLI stdout |
 
-## Commands
-
-### log-daily
-
-Append text to today's daily note.
-
-```bash
-python main.py log-daily "Reviewed PR #42 -- approved with minor nits"
-python main.py --vault "Work" log-daily "Standup: blocked on API key rotation"
-python main.py --json log-daily "test entry"
-python main.py log-daily "preview only" --dry-run
-```
-
-### search
-
-Full-text search across the vault.  Returns file paths and matching lines.
-
-```bash
-python main.py search "deal pipeline"
-python main.py --json search "CMBS spreads"
-python main.py search "vol surface" --max-results 5 --context-lines 2
-python main.py search "duplicates" --dedupe
-```
-
-### read
-
-Read a note by wikilink-style name or vault-relative path.
-
-```bash
-python main.py read "Project Alpha"
-python main.py --json read "Cards/Project Alpha.md"
-```
-
-### tasks
-
-List tasks, optionally filtered by status, path prefix, or limit.
-
-```bash
-python main.py tasks --status todo
-python main.py --json tasks --status done --limit 20
-python main.py tasks --path-prefix "Cards/AMOS" --status todo
-```
-
-### log-decision
-
-Append a structured decision record (heading, timestamp, summary, details)
-to today's daily note.
-
-```bash
-python main.py log-decision \
-  --project "AMOS" \
-  --summary "Moved ingestion to event-driven" \
-  --details "Reduces deal-update latency from 2s to 200ms."
-python main.py log-decision --project "test" --summary "s" --details "d" --dry-run
-```
-
-### create-research-note
-
-Create a new note from a named template and open it in Obsidian.
-
-```bash
-python main.py create-research-note \
-  --title "CMBS Spread Analysis Q3" \
-  --template "Template, Note"
-python main.py create-research-note --title "Test" --template "Template, Note" --dry-run
-```
-
-### find-prior-work
-
-Search for existing notes on a topic, read the top N hits, and return
-structured summaries (heading + first paragraph).
-
-```bash
-python main.py find-prior-work "machine learning" --top-n 5
-python main.py --json find-prior-work "underwriting" --top-n 3
-```
-
-### challenge
-
-Challenge a belief by searching the vault for counter-evidence and
-supporting evidence.  Read-only.
-
-```bash
-python main.py challenge "note-taking improves memory"
-python main.py --json challenge "all tech stocks outperform" --max-evidence 5
-```
-
-### emerge
-
-Cluster related notes into idea groups around a topic.  Groups by folder
-path and returns summaries.  Read-only.
-
-```bash
-python main.py emerge "project"
-python main.py --json emerge "finance" --max-clusters 3
-```
-
-### connect
-
-Find connections between two domains by searching for notes that mention
-both.  Read-only.
-
-```bash
-python main.py connect "health" "productivity"
-python main.py --json connect "real estate" "machine learning" --max-connections 5
-```
-
-### doctor
-
-Run health checks on Obsidian CLI connectivity, vault resolution, and
-reachability.  Use this first when debugging failures.
-
-```bash
-python main.py doctor
-python main.py --json doctor
-```
-
 ## Output modes
 
 | Flag | Behavior |
@@ -207,20 +160,16 @@ python main.py --json doctor
 | *(default)* | Human-readable, suitable for terminal display |
 | `--json` | Canonical JSON envelope to stdout (works on ALL commands) |
 
-The `--json` flag is global (placed before the subcommand).  Per-subcommand
-`--json` aliases also work for backward compatibility on `search`, `tasks`,
-and `find-prior-work`.
-
-When piping output to another tool or parsing programmatically, always use
-`--json`.  The envelope's `ok` field tells you success/failure without
-parsing the message.
+The `--json` flag is global (placed before the subcommand).  When piping
+output to another tool or parsing programmatically, always use `--json`.
+The envelope's `ok` field tells you success/failure without parsing the message.
 
 ## Safety features
 
 ### Dry-run mode
 
-Mutating commands (`log-daily`, `log-decision`, `create-research-note`)
-support `--dry-run`.  In dry-run mode:
+Mutating commands (`log-daily`, `log-decision`, `create-research-note`,
+`graduate execute`) support `--dry-run`.  In dry-run mode:
 
 - No vault mutation occurs.
 - The response `data` includes `"dry_run": true` and describes what would happen.
@@ -248,48 +197,52 @@ Each line contains:
 }
 ```
 
-This enables auditing what was written to the vault and when, even across
-sessions.
+### Agent draft provenance
+
+`graduate execute` writes notes to `Inbox/Agent Drafts/` with frontmatter:
+
+```yaml
+---
+source: agent
+status: draft
+created: "2026-03-06T14:00:00"
+source_file: "daily/2026-03-05.md"
+---
+```
+
+This enforces the "agents read, humans write" boundary. Drafts require
+human review before promotion to permanent notes.
 
 ## Vault targeting
 
 Resolution order (highest priority wins):
 
 1. `--vault <name>` flag on the command
-2. `OBSIDIAN_VAULT` environment variable
-3. `default_vault` in `config.json`
-4. Omitted (Obsidian uses whichever vault is active)
+2. `OBSIDIAN_VAULT_PATH` environment variable (directory path)
+3. `OBSIDIAN_VAULT` environment variable (vault name)
+4. `vault_path` in `config.json`
+5. `default_vault` in `config.json`
+6. Auto-detected from `~/Library/Application Support/obsidian/obsidian.json`
 
 ## Failure modes and recovery
 
 ### Step 1: run doctor
 
 ```bash
-python main.py --json doctor
+./bin/obsx --json doctor
 ```
 
 This checks binary presence, version, vault resolution, and reachability.
 If any check fails, the `detail` field explains why.
 
-### Command errors (non-zero exit or CLI soft error)
-
-With `--json`, errors are returned as structured envelopes with
-`error.type`, `error.message`, `error.stderr`, and `error.exit_code`.
-
-Without `--json`, errors print to stderr.
-
-### Wrong vault
-
-If commands return unexpected results or "file not found":
-
-1. Run `python main.py doctor` to check vault resolution.
-2. Set the vault explicitly: `python main.py --vault "Exact Vault Name" search "test"`
-3. Or export: `export OBSIDIAN_VAULT="Exact Vault Name"`
-
 ### Obsidian not running
 
 The CLI communicates with the running Obsidian desktop app via IPC.  If
-Obsidian is not open, all commands will fail with `ObsidianNotRunning`.
+Obsidian is not open, CLI-based commands fail with `ObsidianNotRunning`.
+
+Graph tools (`neighborhood`, `vault-structure`, `backlinks`, `rebuild-index`,
+`ghost`, `drift`, `trace`, `ideas`) read vault files directly and work
+without Obsidian running, as long as the vault path can be resolved.
 
 ### Timeout
 
@@ -299,72 +252,60 @@ Commands time out after 30 seconds by default.  Override with:
 export OBSIDIAN_TIMEOUT=60
 ```
 
-### Content escaping limitation
-
-The Obsidian CLI interprets `\n` as newline and `\t` as tab in content
-values.  There is no escape sequence for a literal backslash followed by
-`n` or `t`.  Content containing literal `\n` or `\t` sequences will have
-those interpreted as whitespace characters.
-
 ### In-memory cache
 
-Read-only commands (`search`, `read`, `tasks`) can be cached in-memory to
-avoid redundant subprocess calls.  The cache is **disabled by default**.
-
-Enable via environment variable:
+Read-only CLI commands (`search`, `read`, `tasks`) can be cached in-memory.
+The cache is disabled by default.
 
 ```bash
 export OBSIDIAN_CACHE_TTL=30   # seconds
 ```
 
-Or in `config.json`:
-
-```json
-{ "cache_ttl": 30 }
-```
-
-Mutations (`log-daily`, `create-research-note`) bypass the cache and
-invalidate all entries.  The cache is per-process and not persisted to disk.
-
-### Search returns 0 results unexpectedly
-
-The Obsidian CLI `search` indexes **note content only**, not file or folder
-names.  If a term only appears in a path (e.g. `Cards/CMBS/`), search will
-not find it.  Use `run_obsidian(["files", "folder=Cards/CMBS"])` for
-path-based lookups.
+Mutations bypass the cache and invalidate all entries.
 
 ## File layout
 
 ```
 obsidian-connector/
-  main.py                          Thin wrapper (backward compat for python main.py)
+  scripts/install.sh               One-command installer
+  main.py                          Thin wrapper (backward compat)
   config.json                      Project-level defaults
   pyproject.toml                   Package metadata (console scripts: obsx)
   TOOLS_CONTRACT.md                This file
   obsidian_connector/
-    __init__.py                    Public API re-exports
-    cli.py                         CLI entry point (obsx / obsidian-connector)
-    mcp_server.py                  MCP server (16 tools for Claude Desktop)
+    __init__.py                    Public API re-exports (45 symbols)
+    cli.py                         CLI entry point (26 subcommands)
+    mcp_server.py                  MCP server (27 tools for Claude Desktop)
+    workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
+    thinking.py                    Thinking tools: ghost, drift, trace, ideas
+    graph.py                       Graph indexing: links, tags, frontmatter, NoteIndex
+    index_store.py                 SQLite-backed persistent index (incremental updates)
     audit.py                       Append-only audit log
     cache.py                       In-memory TTL cache
-    client.py                      Core CLI wrapper + 4 functions
-    config.py                      Layered config loading
+    client.py                      Core CLI wrapper + batch reads
+    config.py                      Layered config + vault path resolution
     doctor.py                      Health-check diagnostics
     envelope.py                    Canonical JSON envelope builder
     errors.py                      Typed exception hierarchy
     search.py                      Search result enrichment
-    workflows.py                   Higher-level workflows + thinking tools
   scripts/
+    install.sh                     One-command installer
     smoke_test.py                  Core function smoke tests
     workflow_test.py               Workflow function smoke tests
     thinking_tools_test.py         Thinking tools smoke tests
+    thinking_deep_test.py          Deep thinking module tests (56 assertions)
+    graduate_test.py               Graduate pipeline tests
+    delegation_test.py             Delegation detection tests
+    perf_test.py                   Performance and batch read tests
     audit_test.py                  Audit log tests
-    cache_test.py                  Cache module and integration tests
+    cache_test.py                  Cache module tests
     escaping_test.py               Content escaping edge-case tests
+    graph_test.py                  Graph module tests
+    index_test.py                  Index store tests
     mcp_launch_smoke.sh            MCP server launch smoke test
   bin/
     obsx                           CLI wrapper (no venv activation needed)
-    obsx-mcp                       MCP server wrapper (used by Desktop config)
+    obsx-mcp                       MCP server wrapper
 ```
 
 ## Adding new commands
@@ -374,7 +315,7 @@ obsidian-connector/
 2. Export from `__init__.py`.
 3. Add an argparse subcommand in `cli.py` with both human and `--json`
    output paths (use the envelope functions).
-3b. Add a `@mcp.tool()` function in `mcp_server.py`.
+3b. Add a `@mcp.tool()` function in `mcp_server.py` with `ToolAnnotations`.
 4. If mutating, add `--dry-run` and call `log_action()` from `audit.py`.
 5. Add a smoke test in `scripts/`.
 6. Update this contract and `README.md`.
