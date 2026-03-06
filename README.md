@@ -1,7 +1,14 @@
-# obsidian-connector
+```
+ ___  _         _    _ _               ___                       _
+/ _ \| |__  ___(_) _| (_) __ _ _ __   / __\___  _ __  _ __   ___| |_ ___  _ __
+| | | | '_ \/ __| |/ _` | |/ _` | '_ \ / /  / _ \| '_ \| '_ \ / _ \ __/ _ \| '__|
+| |_| | |_) \__ \ | (_| | | (_| | | | / /__| (_) | | | | | | |  __/ || (_) | |
+ \___/|_.__/|___/_|\__,_|_|\__,_|_| |_\____/\___/|_| |_|_| |_|\___|\__\___/|_|
 
-Turn Claude into your second brain. Morning briefings, idea capture,
-evening reflections, weekly reviews -- all driven by your Obsidian vault.
+                          Turn Claude into your second brain.
+```
+
+Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault.
 
 28 MCP tools. 27 CLI commands. 4 skills. Scheduled automation. Full Python API.
 Runs 100% locally.
