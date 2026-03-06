@@ -4,6 +4,12 @@
   "default_folders": {
     "inbox": "Inbox",
     "projects": "Projects",
-    "archive": "Archive"
-  }
+    "archive": "Archive",
+    "agent_drafts": "Inbox/Agent Drafts"
+  },
+  "context_files": [
+    "Context/Life Context.md",
+    "Context/Work Context.md",
+    "Context/Voice Profile.md"
+  ]
 }

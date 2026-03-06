@@ -14,4 +14,4 @@ Use `templates/design-doc.md` when creating new documents.
 
 ## Documents
 
-*No documents yet. Use the template to create your first.*
+- [Team/Shared Vault Pattern](team-vault-pattern.md) -- Vault structure, access control, privacy boundaries, and conflict resolution for multi-user and agent-shared vaults. (draft)
