@@ -26,8 +26,8 @@ classifiers = [
 ]
 
 [project.scripts]
-obsidian-connector = "main:main"
-obsx = "main:main"
+obsidian-connector = "obsidian_connector.cli:main"
+obsx = "obsidian_connector.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/mariourquia/obsidian-connector"
