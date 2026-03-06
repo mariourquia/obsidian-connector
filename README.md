@@ -31,8 +31,8 @@ Add this to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "obsidian-connector": {
-      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/bin/obsx-mcp",
-      "args": []
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"]
     }
   }
 }
@@ -46,8 +46,8 @@ To target a specific vault, add an `env` key:
 {
   "mcpServers": {
     "obsidian-connector": {
-      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/bin/obsx-mcp",
-      "args": [],
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"],
       "env": {
         "OBSIDIAN_VAULT": "My Vault Name"
       }
@@ -94,13 +94,10 @@ Note: this requires keeping the server process running manually. The
 **Obsidian must be running.** The connector communicates with the Obsidian desktop
 app via IPC. If Obsidian is closed, all tools return an `ObsidianNotRunning` error.
 
-**PATH differences in Desktop apps.** GUI-launched apps (Claude Desktop, VS Code)
-may not inherit your shell PATH. The `bin/obsx-mcp` wrapper resolves this by using
-the repo's `.venv/bin/python3` directly via absolute path. If you see "command not
-found" errors, verify the path in your config is absolute and correct.
-
-**macOS permission prompts.** The first time Claude Desktop launches the MCP server,
-macOS may prompt for permission to run the script. Allow it.
+**"Operation not permitted" on macOS.** macOS sandboxing can block GUI apps from
+executing shell scripts. The recommended config above points directly to the venv's
+`python3` binary (not a shell wrapper), which avoids this. If you previously used
+`bin/obsx-mcp` as the command, switch to the `.venv/bin/python3` approach shown above.
 
 **Console script `obsx` doesn't work outside the venv.** Use `./bin/obsx` instead,
 which works without venv activation. Or use `python3 main.py` from the repo root.
