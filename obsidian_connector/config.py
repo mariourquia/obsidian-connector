@@ -69,8 +69,13 @@ def load_config() -> ConnectorConfig:
     index_db_str = os.getenv("OBSIDIAN_INDEX_DB") or file_cfg.get("index_db_path")
     index_db_path = Path(index_db_str) if index_db_str else _DEFAULT_INDEX_DB
 
+    obsidian_bin = os.getenv("OBSIDIAN_BIN") or file_cfg.get("obsidian_bin", "obsidian")
+    # Reject suspicious binary paths (defense in depth).
+    if any(c in obsidian_bin for c in ";|&`$(){}!"):
+        obsidian_bin = "obsidian"
+
     return ConnectorConfig(
-        obsidian_bin=os.getenv("OBSIDIAN_BIN") or file_cfg.get("obsidian_bin", "obsidian"),
+        obsidian_bin=obsidian_bin,
         default_vault=os.getenv("OBSIDIAN_VAULT") or file_cfg.get("default_vault"),
         timeout_seconds=int(os.getenv("OBSIDIAN_TIMEOUT") or file_cfg.get("timeout_seconds", 30)),
         daily_note_behavior=file_cfg.get("daily_note_behavior", "append"),
