@@ -71,6 +71,13 @@ Quit and reopen Claude Desktop. The Obsidian tools will appear automatically.
 | `obsidian_log_decision` | Log a structured decision record |
 | `obsidian_find_prior_work` | Search + summarize top N matching notes |
 | `obsidian_create_note` | Create a note from a template |
+| `obsidian_my_world` | Full vault snapshot (recent notes, tasks, open loops) |
+| `obsidian_today` | Today brief: daily note, tasks, open loops |
+| `obsidian_close_day` | End-of-day reflection prompt (read-only) |
+| `obsidian_open_loops` | List open loops (OL: markers and #openloop tags) |
+| `obsidian_challenge_belief` | Search for counter-evidence to a belief |
+| `obsidian_emerge_ideas` | Cluster related notes into idea groups |
+| `obsidian_connect_domains` | Find connections between two domains |
 | `obsidian_doctor` | Health check on CLI connectivity |
 
 ### Alternative: HTTP mode
@@ -198,6 +205,24 @@ logged to `~/.obsidian-connector/logs/YYYY-MM-DD.jsonl` for auditability.
 
 See [TOOLS_CONTRACT.md](TOOLS_CONTRACT.md) for the canonical JSON envelope
 schema, typed error hierarchy, and agent-friendly command reference.
+
+## Privacy
+
+obsidian-connector runs entirely on your local machine. No telemetry, analytics, or external network calls. Vault access is via local IPC only. Mutations are logged to `~/.obsidian-connector/logs/` for auditability. See [PRIVACY.md](PRIVACY.md) for full details.
+
+## Distribution
+
+### Manual install (current)
+
+Clone the repo, create a venv, `pip install -e .`, and configure `claude_desktop_config.json` as described in the setup section above.
+
+### MCPB (future)
+
+When the MCPB CLI becomes available, obsidian-connector will support one-click installation into Claude Desktop via a `.mcpb` package. The `mcpb.json` manifest is already prepared. See [docs/distribution/MCPB_RESEARCH.md](docs/distribution/MCPB_RESEARCH.md) for details.
+
+### Anthropic MCP Directory (future)
+
+obsidian-connector is being prepared for submission to the Anthropic MCP directory, which will make it discoverable and installable directly from Claude Desktop's UI. See [docs/distribution/DIRECTORY_CHECKLIST.md](docs/distribution/DIRECTORY_CHECKLIST.md) for submission status.
 
 ## License
 
