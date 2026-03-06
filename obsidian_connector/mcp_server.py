@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from obsidian_connector.client import (
     ObsidianCLIError,
@@ -61,7 +62,15 @@ mcp = FastMCP(
 )
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Search Obsidian Vault",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_search(query: str, vault: str | None = None) -> str:
     """Search across all notes in the Obsidian vault.
 
@@ -76,7 +85,15 @@ def obsidian_search(query: str, vault: str | None = None) -> str:
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Read Obsidian Note",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_read(name_or_path: str, vault: str | None = None) -> str:
     """Read the full content of a note from the Obsidian vault.
 
@@ -89,7 +106,15 @@ def obsidian_read(name_or_path: str, vault: str | None = None) -> str:
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List Obsidian Tasks",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_tasks(
     status: str | None = None,
     path_prefix: str | None = None,
@@ -120,7 +145,15 @@ def obsidian_tasks(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Log to Daily Note",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
 def obsidian_log_daily(content: str, vault: str | None = None) -> str:
     """Append text to today's daily note in Obsidian.
 
@@ -134,7 +167,15 @@ def obsidian_log_daily(content: str, vault: str | None = None) -> str:
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Log Decision Record",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
 def obsidian_log_decision(
     project: str,
     summary: str,
@@ -154,7 +195,15 @@ def obsidian_log_decision(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Find Prior Work",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_find_prior_work(
     topic: str,
     top_n: int = 5,
@@ -173,7 +222,15 @@ def obsidian_find_prior_work(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Create Note from Template",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
 def obsidian_create_note(
     title: str,
     template: str,
@@ -191,7 +248,15 @@ def obsidian_create_note(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="My World Snapshot",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_my_world(
     vault: str | None = None,
     lookback_days: int = 14,
@@ -213,7 +278,15 @@ def obsidian_my_world(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Today Brief",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_today(vault: str | None = None) -> str:
     """Get a brief for today: daily note content, open tasks, open loops.
 
@@ -229,7 +302,15 @@ def obsidian_today(vault: str | None = None) -> str:
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Close Day Reflection",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_close_day(vault: str | None = None) -> str:
     """Generate an end-of-day reflection prompt (read-only).
 
@@ -246,7 +327,15 @@ def obsidian_close_day(vault: str | None = None) -> str:
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Open Loops",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_open_loops(
     vault: str | None = None,
     lookback_days: int = 30,
@@ -267,7 +356,15 @@ def obsidian_open_loops(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Challenge Belief",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_challenge_belief(
     belief: str,
     vault: str | None = None,
@@ -291,7 +388,15 @@ def obsidian_challenge_belief(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Emerge Ideas",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_emerge_ideas(
     topic: str,
     vault: str | None = None,
@@ -315,7 +420,15 @@ def obsidian_emerge_ideas(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Connect Domains",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_connect_domains(
     domain_a: str,
     domain_b: str,
@@ -343,7 +456,15 @@ def obsidian_connect_domains(
         return _error_envelope(exc)
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Doctor Health Check",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 def obsidian_doctor(vault: str | None = None) -> str:
     """Run health checks on the Obsidian CLI connection.
 
