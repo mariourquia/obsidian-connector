@@ -25,6 +25,7 @@ here or in a sub-index linked from here.
 ## Execution plans
 
 - [Active Plans](./exec-plans/active/) -- in-progress agent/human work
+  - [Graph-Aware Roadmap](./exec-plans/active/graph-aware-roadmap.md) -- ranked implementation roadmap (9 epics, 3 milestones)
 - [Completed Plans](./exec-plans/completed/) -- archived plans
 - [Cache Layer Plan](./plans/2026-03-05-cache-layer.md) -- in-memory TTL cache (completed)
 
