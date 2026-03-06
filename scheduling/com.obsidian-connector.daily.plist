@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.obsidian-connector.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Updated by install.sh to use the correct python path -->
+        <string>/usr/bin/env</string>
+        <string>python3</string>
+        <string>__REPO_ROOT__/scheduling/run_scheduled.py</string>
+        <string>morning</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- Morning briefing at 08:00 -->
+        <dict>
+            <key>Hour</key>
+            <integer>8</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/obsidian-connector-morning.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/obsidian-connector-morning.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

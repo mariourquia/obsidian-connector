@@ -12,7 +12,7 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-27 tools are available to Claude and other MCP clients.  All `vault`
+28 tools are available to Claude and other MCP clients.  All `vault`
 parameters are optional -- when omitted, the configured default vault is used.
 
 ### Core vault operations
@@ -68,6 +68,7 @@ These tools read vault `.md` files directly and work without Obsidian running.
 | `obsidian_graduate_execute` | `title`, `content`, `source_file?`, `vault?`, `confirm?`, `dry_run?` | JSON created path + provenance |
 | `obsidian_delegations` | `vault?`, `lookback_days?` | JSON array of delegation instructions |
 | `obsidian_context_load` | `vault?` | JSON full context bundle for agent session start |
+| `obsidian_check_in` | `vault?`, `timezone?` | JSON `{time_of_day, daily_note_exists, completed_rituals[], pending_rituals[], pending_delegations, unreviewed_drafts, open_loop_count, suggestion}` |
 
 **Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
 shell out to `obsidian` or `python main.py` from within an MCP-connected session.
@@ -77,7 +78,7 @@ shell out to `obsidian` or `python main.py` from within an MCP-connected session
 The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 `obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
 
-### Commands (26 total)
+### Commands (27 total)
 
 | Command | Description | Mutating |
 |---|---|---|
@@ -106,6 +107,7 @@ The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 | `graduate execute` | Create an agent draft note | yes |
 | `delegations` | Scan for delegation instructions | no |
 | `context-load` | Load full context bundle | no |
+| `check-in` | Time-aware check-in with suggestions | no |
 | `rebuild-index` | Force-rebuild the vault graph index | no |
 | `doctor` | Health check on CLI and vault | no |
 
@@ -274,8 +276,8 @@ obsidian-connector/
   TOOLS_CONTRACT.md                This file
   obsidian_connector/
     __init__.py                    Public API re-exports (45 symbols)
-    cli.py                         CLI entry point (26 subcommands)
-    mcp_server.py                  MCP server (27 tools for Claude Desktop)
+    cli.py                         CLI entry point (27 subcommands)
+    mcp_server.py                  MCP server (28 tools for Claude Desktop)
     workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
     thinking.py                    Thinking tools: ghost, drift, trace, ideas
     graph.py                       Graph indexing: links, tags, frontmatter, NoteIndex
@@ -299,6 +301,7 @@ obsidian-connector/
     perf_test.py                   Performance and batch read tests
     audit_test.py                  Audit log tests
     cache_test.py                  Cache module tests
+    checkin_test.py                Check-in workflow tests
     escaping_test.py               Content escaping edge-case tests
     graph_test.py                  Graph module tests
     index_test.py                  Index store tests
