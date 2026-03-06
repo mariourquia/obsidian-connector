@@ -925,13 +925,11 @@ def graduate_candidates(
 
     # Try to check NoteIndex for existing standalone notes.
     try:
-        from obsidian_connector.graph import build_note_index
-
-        index = build_note_index()
+        index = _load_or_build_index(vault)
         title_set = {
             entry.title.lower(): entry.path
             for entry in index.notes.values()
-        }
+        } if index is not None else {}
     except Exception:
         title_set = {}
 
@@ -1143,6 +1141,9 @@ def graduate_execute(
         "created": ts,
     }
 
+    # Sanitize title: keep only word chars, spaces, and hyphens (no path separators).
+    safe_title = re.sub(r'[^\w\s\-]', '', re.sub(r'[\\/]', ' ', title)).strip() or "untitled"
+
     full_content = (
         "---\n"
         f"source: agent\n"
@@ -1154,7 +1155,8 @@ def graduate_execute(
         f"{content}"
     )
 
-    note_path = f"{target_folder}/{title}.md"
+    from pathlib import PurePosixPath
+    note_path = str(PurePosixPath(target_folder) / f"{safe_title}.md")
 
     if dry_run:
         return {
@@ -1171,7 +1173,11 @@ def graduate_execute(
     vault_dir = resolve_vault_path(vault)
     target_dir = vault_dir / target_folder
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_file = target_dir / f"{title}.md"
+    target_file = target_dir / f"{safe_title}.md"
+    # Ensure the resolved path stays within target_dir (defence in depth).
+    target_file = target_file.resolve()
+    if not target_file.is_relative_to(target_dir.resolve()):
+        raise ValueError(f"Unsafe note path resolved outside target folder: {target_file}")
     target_file.write_text(full_content, encoding="utf-8")
 
     # Log the mutation to the audit trail.

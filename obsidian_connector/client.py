@@ -309,20 +309,31 @@ def batch_read_notes(
             is_ipc = "ipc" in err_msg or "not running" in err_msg or "connect" in err_msg
             return (path, "", is_ipc)
 
-    # Try concurrent reads first.
-    try:
-        with ThreadPoolExecutor(max_workers=min(max_concurrent, len(paths))) as pool:
-            futures = [pool.submit(_read_one, p) for p in paths]
-            for future in futures:
-                path, content, is_ipc = future.result()
-                results[path] = content
-                if content == "" and is_ipc:
-                    ipc_error_detected = True
-                if content == "":
-                    failed.add(path)
-    except (OSError, RuntimeError):
-        # Pool-level infrastructure failure -- fall back to sequential.
-        ipc_error_detected = True
+    # Try concurrent reads first when max_concurrent is positive; otherwise,
+    # perform the initial pass sequentially to avoid invalid ThreadPoolExecutor
+    # configurations (max_workers must be >= 1).
+    if max_concurrent <= 0:
+        for path in paths:
+            p, content, is_ipc = _read_one(path)
+            results[p] = content
+            if content == "" and is_ipc:
+                ipc_error_detected = True
+            if content == "":
+                failed.add(p)
+    else:
+        try:
+            with ThreadPoolExecutor(max_workers=min(max_concurrent, len(paths))) as pool:
+                futures = [pool.submit(_read_one, p) for p in paths]
+                for future in futures:
+                    path, content, is_ipc = future.result()
+                    results[path] = content
+                    if content == "" and is_ipc:
+                        ipc_error_detected = True
+                    if content == "":
+                        failed.add(path)
+        except (OSError, RuntimeError):
+            # Pool-level infrastructure failure -- fall back to sequential.
+            ipc_error_detected = True
 
     # If IPC error was detected, retry only failed paths sequentially.
     if ipc_error_detected:

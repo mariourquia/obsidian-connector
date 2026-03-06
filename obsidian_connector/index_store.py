@@ -130,8 +130,8 @@ class IndexStore:
                 entry = NoteEntry(
                     path=rel,
                     title=title,
-                    links=links,
-                    tags=tags,
+                    links=tuple(links),
+                    tags=tuple(tags),
                     frontmatter=fm,
                     mtime=stat.st_mtime,
                     size=stat.st_size,
@@ -176,9 +176,14 @@ class IndexStore:
                 if not fname.endswith(".md"):
                     continue
                 full = Path(dirpath) / fname
-                rel = str(full.relative_to(root))
+                try:
+                    rel_path = full.relative_to(root)
+                    stat = full.stat()
+                except OSError:
+                    # File disappeared or became inaccessible; skip it.
+                    continue
+                rel = str(rel_path)
                 on_disk.add(rel)
-                stat = full.stat()
                 prev = stored.get(rel)
                 if prev is None or prev[0] != stat.st_mtime or prev[1] != stat.st_size:
                     changed.append((rel, full))
@@ -329,7 +334,10 @@ def load_or_build_index(vault: str | None = None) -> NoteIndex | None:
     not found, SQLite error). Specific errors are logged but not raised,
     since graph features degrade gracefully.
     """
-    store = IndexStore()
+    from obsidian_connector.config import load_config
+
+    db_path = load_config().index_db_path
+    store = IndexStore(db_path=db_path)
     try:
         idx = store.get_index()
         if idx is not None:

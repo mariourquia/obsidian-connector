@@ -34,10 +34,10 @@ def _read_note_content(path: str, vault: str | None = None) -> str:
         from obsidian_connector.config import resolve_vault_path
         from obsidian_connector.errors import VaultNotFound
 
-        root = resolve_vault_path(vault)
+        root = resolve_vault_path(vault).resolve()
         full = (root / path).resolve()
         # Guard against path traversal.
-        if not str(full).startswith(str(root.resolve())):
+        if not full.is_relative_to(root):
             return ""
         if full.is_file():
             return full.read_text(encoding="utf-8", errors="replace")
