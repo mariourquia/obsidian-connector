@@ -26,13 +26,23 @@ from obsidian_connector.envelope import (
 )
 from obsidian_connector.audit import log_action
 from obsidian_connector.search import enrich_search_results
+from obsidian_connector.thinking import (
+    deep_ideas,
+    drift_analysis,
+    ghost_voice_profile,
+    trace_idea,
+)
 from obsidian_connector.workflows import (
     challenge_belief,
     close_day_reflection,
     connect_domains,
+    context_load_full,
     create_research_note,
+    detect_delegations,
     emerge_ideas,
     find_prior_work,
+    graduate_candidates,
+    graduate_execute,
     list_open_loops,
     log_decision,
     my_world_snapshot,
@@ -116,6 +126,16 @@ def _fmt_my_world(data: dict) -> str:
     if hint:
         lines.append(f"\n{hint}")
 
+    vault_summary = data.get("vault_summary")
+    if vault_summary:
+        lines.append(f"\nVault graph summary:")
+        lines.append(f"  Notes: {vault_summary.get('total_notes', '?')}")
+        lines.append(f"  Orphans: {vault_summary.get('orphan_count', '?')}")
+        lines.append(f"  Dead ends: {vault_summary.get('dead_end_count', '?')}")
+        top_tags = vault_summary.get("top_tags", [])
+        if top_tags:
+            lines.append(f"  Top tags: {', '.join(top_tags)}")
+
     return "\n".join(lines)
 
 
@@ -142,6 +162,17 @@ def _fmt_today(data: dict) -> str:
     if loops:
         lines.append(f"\nOpen loops ({len(loops)}):")
         lines.append(_fmt_open_loops(loops))
+
+    linked = data.get("linked_context", [])
+    if linked:
+        lines.append(f"\nLinked notes ({len(linked)}):")
+        for ctx in linked:
+            lines.append(f"  {ctx.get('file', '?')}")
+            if ctx.get("heading"):
+                lines.append(f"    heading: {ctx['heading']}")
+            if ctx.get("excerpt"):
+                excerpt = ctx["excerpt"][:120]
+                lines.append(f"    excerpt: {excerpt}{'...' if len(ctx.get('excerpt', '')) > 120 else ''}")
 
     return "\n".join(lines)
 
@@ -298,6 +329,348 @@ def _fmt_connect(data: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_neighborhood(data: dict) -> str:
+    """Human-readable neighborhood output."""
+    lines: list[str] = []
+    lines.append(f"Note: {data.get('note', '?')}")
+
+    backlinks = data.get("backlinks", [])
+    if backlinks:
+        lines.append(f"\nBacklinks ({len(backlinks)}):")
+        for bl in backlinks:
+            lines.append(f"  <- {bl}")
+    else:
+        lines.append("\nNo backlinks.")
+
+    forward = data.get("forward_links", [])
+    if forward:
+        lines.append(f"\nForward links ({len(forward)}):")
+        for fl in forward:
+            lines.append(f"  -> {fl}")
+    else:
+        lines.append("\nNo forward links.")
+
+    tags = data.get("tags", [])
+    if tags:
+        lines.append(f"\nTags: {', '.join(tags)}")
+
+    neighbors = data.get("neighbors", [])
+    if neighbors:
+        lines.append(f"\nNeighbors ({len(neighbors)}):")
+        for nb in neighbors:
+            lines.append(f"  {nb}")
+
+    return "\n".join(lines)
+
+
+def _fmt_vault_structure(data: dict) -> str:
+    """Human-readable vault structure output."""
+    lines: list[str] = []
+    lines.append(f"Total notes: {data.get('total_notes', 0)}")
+
+    orphans = data.get("orphans", [])
+    if orphans:
+        lines.append(f"\nOrphans ({len(orphans)}):")
+        for o in orphans:
+            lines.append(f"  {o}")
+
+    dead_ends = data.get("dead_ends", [])
+    if dead_ends:
+        lines.append(f"\nDead ends ({len(dead_ends)}):")
+        for d in dead_ends:
+            lines.append(f"  {d}")
+
+    unresolved = data.get("unresolved_links", {})
+    if unresolved:
+        lines.append(f"\nUnresolved links ({len(unresolved)}):")
+        for link, sources in unresolved.items():
+            lines.append(f"  [[{link}]] referenced by: {', '.join(sources)}")
+
+    tag_cloud = data.get("tag_cloud", {})
+    if tag_cloud:
+        lines.append(f"\nTag cloud ({len(tag_cloud)}):")
+        for tag, count in tag_cloud.items():
+            lines.append(f"  {tag} ({count})")
+
+    top_connected = data.get("top_connected", [])
+    if top_connected:
+        lines.append(f"\nMost connected ({len(top_connected)}):")
+        for item in top_connected:
+            lines.append(f"  {item['note']} ({item['backlink_count']} backlinks)")
+
+    return "\n".join(lines)
+
+
+def _fmt_backlinks(data: list[dict]) -> str:
+    """Human-readable backlinks output."""
+    if not data:
+        return "No backlinks found."
+    lines: list[str] = []
+    for item in data:
+        ctx = item.get("context_line", "")
+        tags = item.get("tags", [])
+        line = f"  <- {item['file']}"
+        if ctx:
+            line += f"\n     {ctx}"
+        if tags:
+            line += f"\n     tags: {', '.join(tags)}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _fmt_graduate_list(data: list[dict]) -> str:
+    """Human-readable graduate candidates list."""
+    if not data:
+        return "No graduate candidates found."
+    lines: list[str] = []
+    for i, cand in enumerate(data, 1):
+        lines.append(f"  {i}. {cand.get('title', '?')}")
+        lines.append(f"     source: {cand.get('source_file', '?')}")
+        if cand.get("existing_note"):
+            lines.append(f"     existing: {cand['existing_note']}")
+        tags = cand.get("tags", [])
+        if tags:
+            lines.append(f"     tags: {', '.join(tags)}")
+        excerpt = cand.get("excerpt", "")
+        if excerpt:
+            preview = excerpt[:120].replace("\n", " ")
+            lines.append(f"     excerpt: {preview}{'...' if len(excerpt) > 120 else ''}")
+    return "\n".join(lines)
+
+
+def _fmt_graduate_exec(data: dict) -> str:
+    """Human-readable graduate execute output."""
+    if data.get("dry_run"):
+        lines = [
+            "[dry-run] Would create agent draft:",
+            f"  path: {data.get('would_create', '?')}",
+        ]
+        preview = data.get("content_preview", "")
+        if preview:
+            lines.append(f"  preview: {preview[:120]}{'...' if len(preview) > 120 else ''}")
+        return "\n".join(lines)
+    return f"Created agent draft: {data.get('created', '?')}"
+
+
+def _fmt_ghost(data: dict) -> str:
+    """Human-readable ghost voice profile output."""
+    lines: list[str] = []
+    confidence = data.get("confidence", "?")
+    sample = data.get("sample_size", 0)
+    lines.append(f"Voice profile (confidence: {confidence}, sample: {sample} notes)")
+
+    msg = data.get("message")
+    if msg:
+        lines.append(f"\n  {msg}")
+        return "\n".join(lines)
+
+    profile = data.get("profile", {})
+    if not profile:
+        lines.append("\n  No profile data.")
+        return "\n".join(lines)
+
+    lines.append(f"\n  Avg sentence length: {profile.get('avg_sentence_length', '?')} words")
+    lines.append(f"  Avg paragraph length: {profile.get('avg_paragraph_length', '?')} sentences")
+    lines.append(f"  Vocabulary richness: {profile.get('vocabulary_richness', '?')}")
+
+    phrases = profile.get("common_phrases", [])
+    if phrases:
+        lines.append(f"\n  Common phrases: {', '.join(phrases[:5])}")
+
+    tone = profile.get("tone_markers", [])
+    if tone:
+        lines.append(f"  Tone: {', '.join(tone)}")
+
+    prefs = profile.get("structural_preferences", {})
+    if prefs:
+        lines.append(f"\n  Headings/note: {prefs.get('headings_per_note', '?')}")
+        lines.append(f"  Bullets-to-prose ratio: {prefs.get('bullets_vs_prose_ratio', '?')}")
+        lines.append(f"  Code block frequency: {prefs.get('code_block_frequency', '?')}")
+
+    question = data.get("question")
+    if question:
+        lines.append(f"\n  Question: {question}")
+
+    return "\n".join(lines)
+
+
+def _fmt_drift(data: dict) -> str:
+    """Human-readable drift analysis output."""
+    lines: list[str] = []
+    lines.append(f"Drift analysis ({data.get('daily_notes_found', 0)} daily notes, {data.get('lookback_days', '?')} days)")
+
+    msg = data.get("message")
+    if msg:
+        lines.append(f"\n  {msg}")
+        return "\n".join(lines)
+
+    intentions = data.get("stated_intentions", [])
+    if intentions:
+        lines.append(f"\nStated intentions ({len(intentions)}):")
+        for item in intentions[:10]:
+            lines.append(f"  - {item['text']}  ({item['source_file']}, {item['date']})")
+    else:
+        lines.append("\nNo stated intentions found.")
+
+    gaps = data.get("gaps", [])
+    if gaps:
+        lines.append(f"\nUnaddressed intentions ({len(gaps)}):")
+        for item in gaps[:10]:
+            lines.append(f"  - {item['intention']}")
+
+    surprises = data.get("surprises", [])
+    if surprises:
+        lines.append(f"\nSurprises -- attention without intent ({len(surprises)}):")
+        for item in surprises[:5]:
+            lines.append(f"  - {item['topic']}: {item['description']}")
+
+    coverage = data.get("coverage_pct", 0)
+    lines.append(f"\nCoverage: {coverage}% of intentions addressed")
+
+    return "\n".join(lines)
+
+
+def _fmt_trace(data: dict) -> str:
+    """Human-readable trace idea output."""
+    lines: list[str] = []
+    lines.append(f"Trace: \"{data.get('topic', '?')}\" ({data.get('total_mentions', 0)} mentions)")
+
+    timeline = data.get("timeline", [])
+    if not timeline:
+        lines.append("\nNo mentions found.")
+        return "\n".join(lines)
+
+    first = data.get("first_mention")
+    if first:
+        lines.append(f"\nFirst mention: {first.get('date', '?')} in {first.get('file', '?')}")
+    latest = data.get("latest_mention")
+    if latest:
+        lines.append(f"Latest mention: {latest.get('date', '?')} in {latest.get('file', '?')}")
+
+    phases = data.get("phases", [])
+    if phases:
+        lines.append(f"\nPhases ({len(phases)}):")
+        for phase in phases:
+            lines.append(
+                f"  {phase.get('name', '?')}: {phase.get('start_date', '?')} -- "
+                f"{phase.get('end_date', '?')} ({phase.get('note_count', 0)} notes)"
+            )
+
+    if timeline:
+        lines.append(f"\nTimeline ({len(timeline)} entries):")
+        for entry in timeline[:10]:
+            excerpt = entry.get("excerpt", "")[:80]
+            lines.append(f"  {entry.get('date', '?')} | {entry.get('file', '?')}")
+            if excerpt:
+                lines.append(f"    {excerpt}{'...' if len(entry.get('excerpt', '')) > 80 else ''}")
+        if len(timeline) > 10:
+            lines.append(f"  ... and {len(timeline) - 10} more")
+
+    return "\n".join(lines)
+
+
+def _fmt_ideas(data: dict) -> str:
+    """Human-readable deep ideas output."""
+    lines: list[str] = []
+
+    health = data.get("vault_health", {})
+    lines.append(
+        f"Vault health: {health.get('orphan_pct', 0)}% orphans, "
+        f"{health.get('dead_end_pct', 0)}% dead ends, "
+        f"{health.get('unresolved_count', 0)} unresolved links"
+    )
+
+    msg = data.get("message")
+    if msg:
+        lines.append(f"\n  {msg}")
+        return "\n".join(lines)
+
+    ideas = data.get("ideas", [])
+    if ideas:
+        lines.append(f"\nIdeas ({len(ideas)}):")
+        for idea in ideas:
+            priority = idea.get("priority", "?")
+            lines.append(f"\n  [{priority.upper()}] {idea.get('title', '?')}")
+            lines.append(f"    type: {idea.get('type', '?')}")
+            lines.append(f"    rationale: {idea.get('rationale', '')[:120]}")
+            sources = idea.get("source_notes", [])
+            if sources:
+                lines.append(f"    sources: {', '.join(sources[:3])}")
+    else:
+        lines.append("\nNo ideas surfaced.")
+
+    return "\n".join(lines)
+
+
+def _fmt_rebuild_index(data: dict) -> str:
+    """Human-readable rebuild-index output."""
+    return (
+        f"Index rebuilt: {data.get('notes_indexed', 0)} notes, "
+        f"{data.get('orphans', 0)} orphans, "
+        f"{data.get('tags', 0)} tags "
+        f"({data.get('duration_ms', 0)}ms)"
+    )
+
+
+def _fmt_delegations(data: list[dict]) -> str:
+    """Human-readable delegations output."""
+    if not data:
+        return "No delegations found."
+    lines: list[str] = []
+    for d in data:
+        status_marker = "DONE" if d.get("status") == "done" else "PENDING"
+        lines.append(
+            f"  [{status_marker}] {d.get('instruction', '')}  "
+            f"({d.get('file', '')}:{d.get('line_number', 0)})"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_context_load(data: dict) -> str:
+    """Human-readable context-load output."""
+    lines: list[str] = []
+    lines.append(f"Read count: {data.get('read_count', 0)} / 20")
+
+    cf = data.get("context_files", [])
+    if cf:
+        lines.append(f"\nContext files ({len(cf)}):")
+        for f in cf:
+            has_content = "loaded" if f.get("content") else "empty"
+            lines.append(f"  {f.get('path', '?')} ({has_content})")
+
+    daily = data.get("daily_note", {})
+    if daily.get("content"):
+        preview = daily["content"][:200].replace("\n", "\n  ")
+        lines.append(f"\nToday's daily note ({daily.get('path', '?')}):")
+        lines.append(f"  {preview}")
+        linked = daily.get("linked_notes", [])
+        if linked:
+            lines.append(f"  Linked notes ({len(linked)}):")
+            for ln in linked:
+                lines.append(f"    {ln.get('path', '?')}: {ln.get('heading', '')}")
+    else:
+        lines.append("\nNo daily note found for today.")
+
+    recent = data.get("recent_dailies", [])
+    if recent:
+        lines.append(f"\nRecent dailies ({len(recent)}):")
+        for r in recent:
+            summary_preview = (r.get("summary", "") or "")[:80]
+            lines.append(f"  {r.get('date', '?')}: {summary_preview}")
+
+    tasks = data.get("tasks", [])
+    if tasks:
+        lines.append(f"\nOpen tasks ({len(tasks)}):")
+        lines.append(_fmt_tasks(tasks))
+
+    loops = data.get("open_loops", [])
+    if loops:
+        lines.append(f"\nOpen loops ({len(loops)}):")
+        lines.append(_fmt_open_loops(loops))
+
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -405,6 +778,72 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("domain_a", help="First domain.")
     p.add_argument("domain_b", help="Second domain.")
     p.add_argument("--max-connections", type=int, default=10, help="Max connections (default 10).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- neighborhood ------------------------------------------------------
+    p = sub.add_parser("neighborhood", help="Graph neighborhood of a note: backlinks, forward links, tags, neighbors.")
+    p.add_argument("note", help="Note name or vault-relative path.")
+    p.add_argument("--depth", type=int, default=1, help="Traversal depth for neighbors (default 1).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- vault-structure ---------------------------------------------------
+    p = sub.add_parser("vault-structure", help="Vault topology: orphans, dead ends, unresolved links, tag cloud.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- backlinks ---------------------------------------------------------
+    p = sub.add_parser("backlinks", help="All notes that link to a given note, with context.")
+    p.add_argument("note", help="Note name or vault-relative path.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- ghost -------------------------------------------------------------
+    p = sub.add_parser("ghost", help="Analyze writing voice from recent notes.")
+    p.add_argument("question", nargs="?", default=None, help="Optional question to answer in the user's voice.")
+    p.add_argument("--sample", type=int, default=20, help="Number of recent notes to sample (default 20).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- drift -------------------------------------------------------------
+    p = sub.add_parser("drift", help="Analyze drift between intentions and behavior.")
+    p.add_argument("--days", type=int, default=60, help="Lookback days (default 60).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- trace -------------------------------------------------------------
+    p = sub.add_parser("trace", help="Trace an idea's evolution across vault notes.")
+    p.add_argument("topic", help="Topic to trace.")
+    p.add_argument("--max-notes", type=int, default=20, help="Max notes in timeline (default 20).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- ideas -------------------------------------------------------------
+    p = sub.add_parser("ideas", help="Surface latent ideas from vault graph structure.")
+    p.add_argument("--max", type=int, default=10, help="Max ideas to return (default 10).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- graduate ----------------------------------------------------------
+    grad = sub.add_parser("graduate", help="Graduate ideas from daily notes to standalone drafts.")
+    grad_sub = grad.add_subparsers(dest="graduate_action")
+
+    p = grad_sub.add_parser("list", help="Scan recent daily notes for graduate candidates.")
+    p.add_argument("--lookback", type=int, default=7, help="Days to look back (default 7).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = grad_sub.add_parser("execute", help="Create an agent draft note.")
+    p.add_argument("--title", required=True, help="Note title.")
+    p.add_argument("--content", default="", help="Note body (markdown).")
+    p.add_argument("--source", default=None, help="Source daily note path.")
+    p.add_argument("--confirm", action="store_true", help="Actually create the note.")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true", help="Preview without writing.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- rebuild-index -----------------------------------------------------
+    p = sub.add_parser("rebuild-index", help="Rebuild the vault graph index.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- delegations -------------------------------------------------------
+    p = sub.add_parser("delegations", help="Scan for @agent:/@claude: delegation instructions.")
+    p.add_argument("--days", type=int, default=1, help="Lookback days (default 1).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- context-load ------------------------------------------------------
+    p = sub.add_parser("context-load", help="Load full context bundle for agent session.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     # -- doctor ------------------------------------------------------------
@@ -605,6 +1044,249 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_connect(result)
+
+        elif args.command == "neighborhood":
+            from obsidian_connector.mcp_server import _load_or_build_index
+            idx = _load_or_build_index(args.vault)
+            if idx is None:
+                raise ObsidianCLIError(
+                    command=["neighborhood"],
+                    returncode=1,
+                    stdout="",
+                    stderr="Could not build note index",
+                )
+            # Resolve note path.
+            note = args.note
+            resolved = None
+            if note in idx.notes:
+                resolved = note
+            else:
+                for path, entry in idx.notes.items():
+                    if entry.title.lower() == note.lower():
+                        resolved = path
+                        break
+                if resolved is None and not note.endswith(".md"):
+                    candidate = note + ".md"
+                    if candidate in idx.notes:
+                        resolved = candidate
+            if resolved is None:
+                raise ObsidianCLIError(
+                    command=["neighborhood"],
+                    returncode=1,
+                    stdout="",
+                    stderr=f"Note not found in index: {note}",
+                )
+            entry = idx.notes[resolved]
+            result = {
+                "note": resolved,
+                "backlinks": sorted(idx.backlinks.get(resolved, set())),
+                "forward_links": sorted(idx.forward_links.get(resolved, set())),
+                "tags": entry.tags,
+                "neighbors": sorted(idx.neighborhood(resolved, depth=args.depth)),
+            }
+            data = result
+            human = _fmt_neighborhood(result)
+
+        elif args.command == "vault-structure":
+            from obsidian_connector.mcp_server import _load_or_build_index
+            idx = _load_or_build_index(args.vault)
+            if idx is None:
+                raise ObsidianCLIError(
+                    command=["vault-structure"],
+                    returncode=1,
+                    stdout="",
+                    stderr="Could not build note index",
+                )
+            orphans = sorted(idx.orphans)[:20]
+            dead_ends = sorted(idx.dead_ends)[:20]
+            unresolved_sorted = sorted(
+                idx.unresolved.items(),
+                key=lambda x: len(x[1]),
+                reverse=True,
+            )[:20]
+            unresolved_links = {
+                link: sorted(sources) for link, sources in unresolved_sorted
+            }
+            tag_counts = sorted(
+                ((tag, len(paths)) for tag, paths in idx.tags.items()),
+                key=lambda x: x[1],
+                reverse=True,
+            )[:30]
+            tag_cloud = {tag: count for tag, count in tag_counts}
+            backlink_counts = sorted(
+                (
+                    (path, len(bl))
+                    for path, bl in idx.backlinks.items()
+                    if bl
+                ),
+                key=lambda x: x[1],
+                reverse=True,
+            )[:10]
+            top_connected = [
+                {"note": path, "backlink_count": count}
+                for path, count in backlink_counts
+            ]
+            result = {
+                "total_notes": len(idx.notes),
+                "orphans": orphans,
+                "dead_ends": dead_ends,
+                "unresolved_links": unresolved_links,
+                "tag_cloud": tag_cloud,
+                "top_connected": top_connected,
+            }
+            data = result
+            human = _fmt_vault_structure(result)
+
+        elif args.command == "backlinks":
+            from obsidian_connector.mcp_server import _load_or_build_index
+            idx = _load_or_build_index(args.vault)
+            if idx is None:
+                raise ObsidianCLIError(
+                    command=["backlinks"],
+                    returncode=1,
+                    stdout="",
+                    stderr="Could not build note index",
+                )
+            # Resolve note path.
+            note = args.note
+            resolved = None
+            if note in idx.notes:
+                resolved = note
+            else:
+                for path, entry in idx.notes.items():
+                    if entry.title.lower() == note.lower():
+                        resolved = path
+                        break
+                if resolved is None and not note.endswith(".md"):
+                    candidate = note + ".md"
+                    if candidate in idx.notes:
+                        resolved = candidate
+            if resolved is None:
+                raise ObsidianCLIError(
+                    command=["backlinks"],
+                    returncode=1,
+                    stdout="",
+                    stderr=f"Note not found in index: {note}",
+                )
+            note_title = idx.notes[resolved].title
+            backlink_paths = sorted(idx.backlinks.get(resolved, set()))
+            results_list: list[dict] = []
+            for bl_path in backlink_paths:
+                bl_entry = idx.notes.get(bl_path)
+                context_line = ""
+                try:
+                    content = read_note(bl_path, vault=args.vault)
+                    for line in content.split("\n"):
+                        if f"[[{note_title}]]" in line or f"[[{note_title}|" in line:
+                            context_line = line.strip()
+                            break
+                        if f"[[{resolved}" in line:
+                            context_line = line.strip()
+                            break
+                except (ObsidianCLIError, Exception):
+                    pass
+                results_list.append({
+                    "file": bl_path,
+                    "context_line": context_line,
+                    "tags": bl_entry.tags if bl_entry else [],
+                })
+            data = results_list
+            human = _fmt_backlinks(results_list)
+
+        elif args.command == "ghost":
+            result = ghost_voice_profile(
+                vault=args.vault,
+                sample_notes=args.sample,
+            )
+            if args.question:
+                result["question"] = args.question
+            data = result
+            human = _fmt_ghost(result)
+
+        elif args.command == "drift":
+            result = drift_analysis(
+                vault=args.vault,
+                lookback_days=args.days,
+            )
+            data = result
+            human = _fmt_drift(result)
+
+        elif args.command == "trace":
+            result = trace_idea(
+                topic=args.topic,
+                vault=args.vault,
+                max_notes=args.max_notes,
+            )
+            data = result
+            human = _fmt_trace(result)
+
+        elif args.command == "ideas":
+            result = deep_ideas(
+                vault=args.vault,
+                max_ideas=args.max,
+            )
+            data = result
+            human = _fmt_ideas(result)
+
+        elif args.command == "graduate":
+            action = getattr(args, "graduate_action", None)
+            if action == "list":
+                result = graduate_candidates(
+                    vault=args.vault, lookback_days=args.lookback,
+                )
+                data = result
+                human = _fmt_graduate_list(result)
+            elif action == "execute":
+                if not args.confirm and not args.dry_run:
+                    print("Error: graduate execute requires --confirm or --dry-run", file=sys.stderr)
+                    return 1
+                result = graduate_execute(
+                    title=args.title,
+                    content=args.content,
+                    vault=args.vault,
+                    source_file=args.source,
+                    confirm=args.confirm,
+                    dry_run=args.dry_run,
+                )
+                data = result
+                human = _fmt_graduate_exec(result)
+            else:
+                parser.parse_args(["graduate", "--help"])
+                return 0
+
+        elif args.command == "rebuild-index":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.index_store import IndexStore
+
+            vault_path = resolve_vault_path(args.vault)
+            store = IndexStore()
+            try:
+                t0_rebuild = time.monotonic()
+                index = store.build_full(vault_path=vault_path)
+                rebuild_ms = int((time.monotonic() - t0_rebuild) * 1000)
+            finally:
+                store.close()
+
+            data = {
+                "notes_indexed": len(index.notes),
+                "orphans": len(index.orphans),
+                "tags": len(index.tags),
+                "duration_ms": rebuild_ms,
+            }
+            human = _fmt_rebuild_index(data)
+
+        elif args.command == "delegations":
+            result = detect_delegations(
+                vault=args.vault,
+                lookback_days=args.days,
+            )
+            data = result
+            human = _fmt_delegations(result)
+
+        elif args.command == "context-load":
+            result = context_load_full(vault=args.vault)
+            data = result
+            human = _fmt_context_load(result)
 
         elif args.command == "doctor":
             from obsidian_connector.doctor import run_doctor
