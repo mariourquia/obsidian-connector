@@ -148,3 +148,9 @@ make docs-lint
 ## Progress log
 
 - 2026-03-06: Plan created. Phase 0 reality check complete. Fix-first (MCP config) already committed.
+- 2026-03-06: Epic 1 (Reliability) completed -- commit d92146e
+- 2026-03-06: Epic 2 (Workflow OS) completed -- commit ebfb97e
+- 2026-03-06: Epic 3 (Thinking Tools) completed -- commit ed0792f
+- 2026-03-06: Epic 4 (MCPB Packaging) completed -- commit 111d9e9
+- 2026-03-06: Epic 5 (Marketplace Strategy) completed -- commit d7bf1e8
+- 2026-03-06: All 5 epics complete. Final verification: 15/15 tests pass, 16 MCP tools, 4/4 doctor checks pass, docs-lint clean.
