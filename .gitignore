@@ -7,3 +7,10 @@ dist/
 build/
 .DS_Store
 .env
+
+# --- Harness Engineering ---
+artifacts/
+lint-*.json
+staleness-report.json
+.harness/
+*.env.harness
