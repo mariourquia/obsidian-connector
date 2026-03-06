@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from obsidian_connector.uninstall import UninstallPlan, detect_installed_artifacts
+from obsidian_connector.uninstall import UninstallPlan, detect_installed_artifacts, backup_config_file, validate_json
 
 def test_uninstall_plan_creation():
     plan = UninstallPlan(
@@ -43,6 +43,22 @@ def test_detect_installed_artifacts(tmp_path):
     assert venv in plan.files_to_remove or plan.remove_venv is False
     assert any("morning.md" in str(f) for f in plan.files_to_remove) or not plan.remove_skills
 
+def test_backup_config_file(tmp_path):
+    config = tmp_path / "config.json"
+    config.write_text('{"key": "value"}')
+
+    backup_path = backup_config_file(config)
+
+    assert backup_path.exists()
+    assert backup_path.parent == config.parent
+    assert "backup" in backup_path.name
+    assert backup_path.read_text() == '{"key": "value"}'
+
+def test_validate_json():
+    assert validate_json('{"key": "value"}') is True
+    assert validate_json('invalid json') is False
+    assert validate_json('') is False
+
 if __name__ == "__main__":
     test_uninstall_plan_creation()
     print("test_uninstall_plan_creation PASS")
@@ -51,3 +67,10 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_detect_installed_artifacts(Path(tmp))
     print("test_detect_installed_artifacts PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_backup_config_file(Path(tmp))
+    print("test_backup_config_file PASS")
+
+    test_validate_json()
+    print("test_validate_json PASS")
