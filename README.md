@@ -331,6 +331,12 @@ See the [Second Brain Overview](docs/second-brain-overview.md) for the architect
 [Setup Guide](docs/setup-guide.md) for installation, and the
 [Operating Manual](docs/daily-optimization.md) for all 18 recipes.
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the prioritized backlog -- 23 items across
+4 milestones covering cross-platform support, resilience, intelligence, and
+integrations. Community PRs welcome.
+
 ## License
 
 MIT
