@@ -12,7 +12,8 @@ requires-python = ">=3.11"
 authors = [
     { name = "Mario Urquia", email = "60152193+mariourquia@users.noreply.github.com" },
 ]
-keywords = ["obsidian", "cli", "notes", "productivity", "automation"]
+dependencies = ["mcp>=1.0.0"]
+keywords = ["obsidian", "cli", "notes", "productivity", "automation", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
