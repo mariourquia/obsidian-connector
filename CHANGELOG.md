@@ -12,7 +12,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **CONTRIBUTING.md**: Development workflow, testing guide, tool addition checklist
 - **SECURITY.md**: Vulnerability reporting policy and security model documentation
 - **`pyyaml` optional dependency**: `pip install obsidian-connector[scheduling]` for custom schedule config
-- **`__version__`**: Runtime-queryable version in `obsidian_connector.__version__`
+- **SBOM.md**: Software bill of materials with dependency inventory and license audit
+- **ROADMAP.md**: Prioritized backlog with 23 items for community contribution
 
 ## [0.1.0] - 2026-03-06
 
