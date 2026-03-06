@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper for obsidian-connector CLI.
+# Works from any shell (Desktop, Terminal, CI) without venv activation.
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "${SCRIPT_DIR}/.venv/bin/python3" -m obsidian_connector.cli "$@"
