@@ -297,35 +297,37 @@ def batch_read_notes(
         return {}
 
     results: dict[str, str] = {}
+    failed: set[str] = set()
     ipc_error_detected = False
 
-    def _read_one(path: str) -> tuple[str, str]:
-        nonlocal ipc_error_detected
+    def _read_one(path: str) -> tuple[str, str, bool]:
         try:
             content = read_note(path, vault=vault)
-            return (path, content)
+            return (path, content, False)
         except ObsidianCLIError as exc:
             err_msg = str(exc).lower()
-            if "ipc" in err_msg or "not running" in err_msg or "connect" in err_msg:
-                ipc_error_detected = True
-            return (path, "")
+            is_ipc = "ipc" in err_msg or "not running" in err_msg or "connect" in err_msg
+            return (path, "", is_ipc)
 
     # Try concurrent reads first.
     try:
         with ThreadPoolExecutor(max_workers=min(max_concurrent, len(paths))) as pool:
             futures = [pool.submit(_read_one, p) for p in paths]
             for future in futures:
-                path, content = future.result()
+                path, content, is_ipc = future.result()
                 results[path] = content
-    except Exception:
-        # On any pool-level failure, fall back to sequential.
+                if content == "" and is_ipc:
+                    ipc_error_detected = True
+                if content == "":
+                    failed.add(path)
+    except (OSError, RuntimeError):
+        # Pool-level infrastructure failure -- fall back to sequential.
         ipc_error_detected = True
 
-    # If IPC error was detected, fall back to sequential for any remaining
-    # paths that weren't read successfully.
+    # If IPC error was detected, retry only failed paths sequentially.
     if ipc_error_detected:
         for path in paths:
-            if path not in results or results[path] == "":
+            if path in failed or path not in results:
                 try:
                     results[path] = read_note(path, vault=vault)
                 except ObsidianCLIError:

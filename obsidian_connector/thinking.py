@@ -22,37 +22,32 @@ from obsidian_connector.graph import NoteIndex
 # ---------------------------------------------------------------------------
 
 def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
-    """Try to load NoteIndex from SQLite, fall back to in-memory build."""
-    try:
-        from obsidian_connector.config import resolve_vault_path
-        from obsidian_connector.index_store import IndexStore
+    """Delegate to the canonical shared implementation."""
+    from obsidian_connector.index_store import load_or_build_index
 
-        store = IndexStore()
-        idx = store.get_index()
-        if idx is not None:
-            return idx
-        vault_path = resolve_vault_path(vault)
-        return store.build_full(vault_path)
-    except Exception:
-        return None
+    return load_or_build_index(vault)
 
 
 def _read_note_content(path: str, vault: str | None = None) -> str:
-    """Read a note's content, returning empty string on any error."""
+    """Read a note's content, returning empty string on expected errors."""
     try:
         from obsidian_connector.config import resolve_vault_path
+        from obsidian_connector.errors import VaultNotFound
 
         root = resolve_vault_path(vault)
-        full = root / path
+        full = (root / path).resolve()
+        # Guard against path traversal.
+        if not str(full).startswith(str(root.resolve())):
+            return ""
         if full.is_file():
             return full.read_text(encoding="utf-8", errors="replace")
-    except Exception:
+    except (OSError, VaultNotFound):
         pass
 
     # Fall back to CLI read.
     try:
         return read_note(path, vault=vault)
-    except (ObsidianCLIError, Exception):
+    except ObsidianCLIError:
         return ""
 
 

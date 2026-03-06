@@ -72,19 +72,10 @@ def _error_envelope(exc: ObsidianCLIError) -> str:
 
 
 def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
-    """Try to load index from SQLite, fall back to in-memory build."""
-    try:
-        from obsidian_connector.index_store import IndexStore
-        from obsidian_connector.config import resolve_vault_path
+    """Delegate to the canonical shared implementation."""
+    from obsidian_connector.index_store import load_or_build_index
 
-        store = IndexStore()
-        idx = store.get_index()
-        if idx is not None:
-            return idx
-        vault_path = resolve_vault_path(vault)
-        return store.build_full(vault_path)
-    except Exception:
-        return None
+    return load_or_build_index(vault)
 
 
 mcp = FastMCP(
@@ -549,6 +540,10 @@ def obsidian_neighborhood(
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -621,6 +616,10 @@ def obsidian_vault_structure(vault: str | None = None) -> str:
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -696,6 +695,10 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
         return json.dumps(results, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(

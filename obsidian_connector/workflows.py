@@ -25,22 +25,10 @@ from obsidian_connector.graph import extract_links
 # ---------------------------------------------------------------------------
 
 def _load_or_build_index(vault: str | None = None):
-    """Try to load NoteIndex from SQLite, fall back to in-memory build.
+    """Delegate to the canonical shared implementation."""
+    from obsidian_connector.index_store import load_or_build_index
 
-    Returns NoteIndex or None on any error.
-    """
-    try:
-        from obsidian_connector.index_store import IndexStore
-        from obsidian_connector.config import resolve_vault_path
-
-        store = IndexStore()
-        idx = store.get_index()
-        if idx is not None:
-            return idx
-        vault_path = resolve_vault_path(vault)
-        return store.build_full(vault_path)
-    except Exception:
-        return None
+    return load_or_build_index(vault)
 
 
 # ---------------------------------------------------------------------------
@@ -255,17 +243,14 @@ def find_prior_work(
         )
 
     # Graph enrichment: add backlink_count and shared_tags if index available.
-    try:
-        idx = _load_or_build_index(vault)
-        if idx is not None:
-            for r in results:
-                file_path = r["file"]
-                bl = idx.backlinks.get(file_path, set())
-                r["backlink_count"] = len(bl)
-                entry = idx.notes.get(file_path)
-                r["shared_tags"] = entry.tags if entry else []
-    except Exception:
-        pass
+    idx = _load_or_build_index(vault)
+    if idx is not None:
+        for r in results:
+            file_path = r["file"]
+            bl = idx.backlinks.get(file_path, set())
+            r["backlink_count"] = len(bl)
+            entry = idx.notes.get(file_path)
+            r["shared_tags"] = list(entry.tags) if entry else []
 
     return results
 
@@ -409,22 +394,19 @@ def my_world_snapshot(
     }
 
     # Graph enrichment: add vault_summary from index if available.
-    try:
-        idx = _load_or_build_index(vault)
-        if idx is not None:
-            top_tags = sorted(
-                ((tag, len(paths)) for tag, paths in idx.tags.items()),
-                key=lambda x: x[1],
-                reverse=True,
-            )[:5]
-            result["vault_summary"] = {
-                "total_notes": len(idx.notes),
-                "orphan_count": len(idx.orphans),
-                "dead_end_count": len(idx.dead_ends),
-                "top_tags": [tag for tag, _count in top_tags],
-            }
-    except Exception:
-        pass
+    idx = _load_or_build_index(vault)
+    if idx is not None:
+        top_tags = sorted(
+            ((tag, len(paths)) for tag, paths in idx.tags.items()),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:5]
+        result["vault_summary"] = {
+            "total_notes": len(idx.notes),
+            "orphan_count": len(idx.orphans),
+            "dead_end_count": len(idx.dead_ends),
+            "top_tags": [tag for tag, _count in top_tags],
+        }
 
     return result
 
@@ -1181,11 +1163,16 @@ def graduate_execute(
             "content_preview": full_content[:200],
         }
 
-    # Create the note via the Obsidian CLI.
-    run_obsidian(
-        ["create", f"name={title}", f"path={target_folder}", "silent"],
-        vault=vault,
-    )
+    # Write the note directly to the vault filesystem.
+    # The Obsidian CLI `create` command creates empty notes; we need to
+    # write frontmatter + content, so we use direct file write.
+    from obsidian_connector.config import resolve_vault_path
+
+    vault_dir = resolve_vault_path(vault)
+    target_dir = vault_dir / target_folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_file = target_dir / f"{title}.md"
+    target_file.write_text(full_content, encoding="utf-8")
 
     # Log the mutation to the audit trail.
     effective_vault = vault or load_config().default_vault

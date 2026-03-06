@@ -150,7 +150,11 @@ def _mask_code_blocks(content: str) -> str:
 
     for line in lines:
         if in_fence:
-            if line.strip().startswith(fence_marker):
+            stripped_line = line.strip()
+            if stripped_line == fence_marker or (
+                stripped_line.startswith(fence_marker)
+                and not stripped_line[len(fence_marker):].strip()
+            ):
                 in_fence = False
             result.append(" " * len(line))
             continue
@@ -267,14 +271,14 @@ def _strip_frontmatter(content: str) -> str:
 # NoteEntry and NoteIndex
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(frozen=True)
 class NoteEntry:
     """Metadata for a single vault note."""
 
     path: str  # vault-relative path
     title: str  # filename without .md
-    links: list[str]  # outgoing [[wikilinks]]
-    tags: list[str]  # #tags
+    links: tuple[str, ...]  # outgoing [[wikilinks]]
+    tags: tuple[str, ...]  # #tags
     frontmatter: dict[str, Any]  # YAML frontmatter
     mtime: float  # file modification time
     size: int  # file size in bytes
@@ -494,8 +498,8 @@ def build_note_index(vault_path: str | None = None) -> NoteIndex:
             rel = str(full.relative_to(root))
             title = fname[:-3]  # strip .md
 
-            stat = full.stat()
             try:
+                stat = full.stat()
                 content = full.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
@@ -507,8 +511,8 @@ def build_note_index(vault_path: str | None = None) -> NoteIndex:
             entry = NoteEntry(
                 path=rel,
                 title=title,
-                links=links,
-                tags=tags,
+                links=tuple(links),
+                tags=tuple(tags),
                 frontmatter=fm,
                 mtime=stat.st_mtime,
                 size=stat.st_size,

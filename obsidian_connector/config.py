@@ -120,9 +120,9 @@ def resolve_vault_path(vault: str | None = None) -> Path:
             return p
         raise VaultNotFound(f"OBSIDIAN_VAULT_PATH does not exist: {env_path}")
 
-    # 2. Config vault_path field
+    # 2. Config vault_path field (only when no explicit vault name given)
     cfg = load_config()
-    if cfg.vault_path and cfg.vault_path.is_dir():
+    if vault is None and cfg.vault_path and cfg.vault_path.is_dir():
         return cfg.vault_path
 
     # 3. Parse Obsidian's obsidian.json
