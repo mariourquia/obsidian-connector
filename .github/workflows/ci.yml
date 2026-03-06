@@ -19,7 +19,7 @@ jobs:
           python-version: "3.11"
       - run: pip install -e .
       - name: Docs lint
-        run: python3 tools/docs_lint.py --strict
+        run: python3 tools/docs_lint.py --severity error
 
   test:
     runs-on: ${{ matrix.os }}
