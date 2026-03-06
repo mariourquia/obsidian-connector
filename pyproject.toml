@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "obsidian-connector"
+version = "0.1.0"
+description = "Python wrapper for the Obsidian CLI -- read, search, and manage your vault from scripts and automation."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Mario Urquia", email = "60152193+mariourquia@users.noreply.github.com" },
+]
+keywords = ["obsidian", "cli", "notes", "productivity", "automation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Utilities",
+]
+
+[project.scripts]
+obsidian-connector = "main:main"
+obsx = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/mariourquia/obsidian-connector"
+Repository = "https://github.com/mariourquia/obsidian-connector"
+Issues = "https://github.com/mariourquia/obsidian-connector/issues"
