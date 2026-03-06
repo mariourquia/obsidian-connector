@@ -626,29 +626,29 @@ Update this section as tasks complete. Any agent can update it.
 
 | Task | Status | Agent | Commit | Notes |
 |------|--------|-------|--------|-------|
-| T1 | pending | Builder | | check_in function |
-| T2 | pending | Builder | | __init__ export |
-| T3 | pending | Builder | | MCP tool |
-| T4 | pending | Builder | | CLI command |
-| T5 | pending | Scribe | | TOOLS_CONTRACT |
-| T6 | pending | Sage | | /morning skill |
-| T7 | pending | Sage | | /evening skill |
-| T8 | pending | Sage | | /idea skill |
-| T9 | pending | Sage | | /weekly skill |
-| T10 | pending | Builder | | SessionStart hook |
-| T11 | pending | Builder | | Scheduling |
-| T12 | pending | Sage | | Desktop prompt |
-| T13 | pending | Scribe | | AGENTS.md |
-| T14 | pending | Scribe+Sage | | daily-optimization rewrite |
-| T15 | pending | Scribe | | second-brain-overview |
-| T16 | pending | Scribe | | setup-guide |
-| T17 | pending | Scribe+Sage | | README rewrite |
-| T18 | pending | Builder | | install.sh update |
-| T19 | pending | Red | | Final verification |
+| T1 | done | Builder | | check_in function in workflows.py |
+| T2 | done | Builder | | __init__ export |
+| T3 | done | Builder | | obsidian_check_in MCP tool |
+| T4 | done | Builder | | check-in CLI command + formatter |
+| T5 | done | Builder | | TOOLS_CONTRACT updated (28 tools, 27 CLI) |
+| T6 | done | Sage | | /morning skill |
+| T7 | done | Sage | | /evening skill |
+| T8 | done | Sage | | /idea skill (fast-path) |
+| T9 | done | Sage | | /weekly skill |
+| T10 | done | Builder | | SessionStart hook (heredoc JSON pipe) |
+| T11 | done | Builder | | Scheduling: runner + config + plist + README |
+| T12 | done | Sage | | Desktop prompt (413 words, all workflows) |
+| T13 | done | Scribe | | AGENTS.md updated with new directories |
+| T14 | done | Scribe+Sage | | Rewritten as "Second Brain Operating Manual" |
+| T15 | done | Scribe | | second-brain-overview.md created |
+| T16 | done | Scribe | | setup-guide.md created (3 paths) |
+| T17 | done | Scribe+Sage | | README leads with "second brain" pitch |
+| T18 | done | Builder | | install.sh: opt-in skills/hook/scheduling |
+| T19 | done | Red | | All 8 success criteria pass |
 
 | Gate | Status | Verdict | Notes |
 |------|--------|---------|-------|
-| Gate 1 | pending | | After Phase 1 |
-| Gate 2 | pending | | After Phase 2 |
-| Gate 3 | pending | | After Phase 3 |
-| Gate 4 | pending | | Final |
+| Gate 1 | done | PROCEED | 19/19 checkin, 8/8 smoke, MCP 29 tools |
+| Gate 2 | done | PROCEED | 4 skills, hook exit 0, scheduler OK |
+| Gate 3 | done | PROCEED | docs-lint 0 errors, all frontmatter valid |
+| Gate 4 | done | PROCEED | All 8 success criteria verified |

@@ -16,7 +16,7 @@ from obsidian_connector.client import (
     run_obsidian,
     search_notes,
 )
-from obsidian_connector.config import load_config
+from obsidian_connector.config import load_config, resolve_vault_path
 from obsidian_connector.graph import extract_links
 
 
@@ -1427,4 +1427,145 @@ def context_load_full(vault: str | None = None) -> dict:
         "tasks": tasks,
         "open_loops": open_loops,
         "read_count": read_count,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Check-in (proactive assistant brain)
+# ---------------------------------------------------------------------------
+
+_RITUAL_SENTINELS = {
+    "morning_briefing": "## Morning Briefing",
+    "evening_close": "## Day Close",
+}
+
+
+def check_in(
+    vault: str | None = None,
+    timezone_name: str | None = None,
+) -> dict:
+    """Time-aware check-in: what should the user do now?
+
+    Reads the daily note, checks which rituals have run, counts open
+    loops and pending delegations, and returns a structured suggestion.
+
+    Parameters
+    ----------
+    vault:
+        Target vault name.
+    timezone_name:
+        IANA timezone (e.g. "America/New_York"). Falls back to local time.
+
+    Returns
+    -------
+    dict
+        Keys: time_of_day, daily_note_exists, completed_rituals,
+        pending_rituals, pending_delegations, unreviewed_drafts,
+        open_loop_count, suggestion.
+    """
+    from zoneinfo import ZoneInfo
+
+    # -- Determine time of day ------------------------------------------------
+    if timezone_name:
+        try:
+            tz = ZoneInfo(timezone_name)
+        except (KeyError, Exception):
+            tz = None
+    else:
+        tz = None
+
+    now = datetime.now(tz or timezone.utc)
+    if tz is None:
+        now = datetime.now()  # naive local time
+    hour = now.hour
+
+    if hour < 11:
+        time_of_day = "morning"
+    elif hour < 16:
+        time_of_day = "midday"
+    elif hour < 20:
+        time_of_day = "evening"
+    else:
+        time_of_day = "night"
+
+    # -- Read today's daily note ----------------------------------------------
+    daily_content = ""
+    daily_note_exists = False
+    try:
+        brief = today_brief(vault=vault)
+        daily_content = brief.get("daily_note", "") or ""
+        daily_note_exists = bool(daily_content)
+    except ObsidianCLIError:
+        pass
+
+    # -- Check completed rituals via sentinel headings ------------------------
+    completed_rituals: list[str] = []
+    pending_rituals: list[str] = []
+    for ritual, sentinel in _RITUAL_SENTINELS.items():
+        if sentinel in daily_content:
+            completed_rituals.append(ritual)
+        else:
+            pending_rituals.append(ritual)
+
+    # -- Count open loops -----------------------------------------------------
+    open_loop_count = 0
+    try:
+        loops = list_open_loops(vault=vault)
+        open_loop_count = len(loops)
+    except ObsidianCLIError:
+        pass
+
+    # -- Count pending delegations --------------------------------------------
+    pending_delegations = 0
+    try:
+        delegations = detect_delegations(vault=vault)
+        pending_delegations = len([d for d in delegations if d.get("status") != "done"])
+    except ObsidianCLIError:
+        pass
+
+    # -- Count unreviewed agent drafts ----------------------------------------
+    unreviewed_drafts = 0
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault)
+        if vault_path:
+            drafts_dir = os.path.join(vault_path, "Inbox", "Agent Drafts")
+            if os.path.isdir(drafts_dir):
+                unreviewed_drafts = len([
+                    f for f in os.listdir(drafts_dir)
+                    if f.endswith(".md")
+                ])
+    except Exception:
+        pass
+
+    # -- Build suggestion -----------------------------------------------------
+    parts: list[str] = []
+
+    if time_of_day == "morning" and "morning_briefing" in pending_rituals:
+        parts.append("Morning briefing hasn't run yet.")
+    if time_of_day == "evening" and "evening_close" in pending_rituals:
+        parts.append("Evening close hasn't run yet.")
+    if pending_delegations > 0:
+        parts.append(f"{pending_delegations} pending delegation{'s' if pending_delegations != 1 else ''}.")
+    if unreviewed_drafts > 0:
+        parts.append(f"{unreviewed_drafts} unreviewed agent draft{'s' if unreviewed_drafts != 1 else ''}.")
+    if open_loop_count > 5:
+        parts.append(f"{open_loop_count} open loops -- consider triaging.")
+    elif open_loop_count > 0:
+        parts.append(f"{open_loop_count} open loop{'s' if open_loop_count != 1 else ''}.")
+
+    if not parts:
+        parts.append("All caught up.")
+
+    suggestion = " ".join(parts)
+
+    return {
+        "time_of_day": time_of_day,
+        "daily_note_exists": daily_note_exists,
+        "completed_rituals": completed_rituals,
+        "pending_rituals": pending_rituals,
+        "pending_delegations": pending_delegations,
+        "unreviewed_drafts": unreviewed_drafts,
+        "open_loop_count": open_loop_count,
+        "suggestion": suggestion,
     }

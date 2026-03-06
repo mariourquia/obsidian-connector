@@ -39,6 +39,7 @@ from obsidian_connector.thinking import (
 )
 from obsidian_connector.workflows import (
     challenge_belief,
+    check_in,
     close_day_reflection,
     connect_domains,
     context_load_full,
@@ -68,6 +69,7 @@ __all__ = [
     "batch_read_notes",
     "build_note_index",
     "challenge_belief",
+    "check_in",
     "deep_ideas",
     "drift_analysis",
     "close_day_reflection",

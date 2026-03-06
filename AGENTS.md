@@ -17,20 +17,25 @@
 
 Python wrapper for the Obsidian desktop app. Exposes vault operations
 (search, read, write, graph analysis, thinking tools, workflow management)
-as a Python API, CLI (`obsx` -- 26 commands), and MCP server (27 tools)
-for Claude Desktop.
+as a Python API, CLI (`obsx` -- 27 commands), and MCP server (28 tools)
+for Claude Desktop. Includes skills, hooks, and scheduled automation that
+turn Claude into a proactive second brain assistant.
 
 ## Module map
 
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper, batch reads |
-| `cli.py` | 26 CLI subcommands |
-| `mcp_server.py` | 27 MCP tools (FastMCP) |
+| `cli.py` | 27 CLI subcommands |
+| `mcp_server.py` | 28 MCP tools (FastMCP) |
 | `workflows.py` | Daily ops, loops, graduate, delegations, context |
 | `thinking.py` | Ghost, drift, trace, ideas |
 | `graph.py` | Vault graph indexing (links, tags, backlinks) |
 | `index_store.py` | SQLite persistent index |
+| `skills/` | 4 Claude Code skills (morning, evening, idea, weekly) |
+| `hooks/` | SessionStart hook for proactive suggestions |
+| `scheduling/` | launchd automation + headless runner |
+| `templates/` | Claude Desktop system prompt, exec-plan templates |
 
 ## Operating rules
 
@@ -70,6 +75,9 @@ python3 scripts/graduate_test.py    # Graduate pipeline tests
 python3 scripts/thinking_deep_test.py  # Thinking tools tests (56 assertions)
 bash scripts/mcp_launch_smoke.sh    # MCP server launch test
 ./bin/obsx doctor             # Health check (Obsidian connectivity)
+python3 scripts/checkin_test.py       # Check-in workflow tests
+bash hooks/session_start.sh           # SessionStart hook test
+python3 scheduling/run_scheduled.py morning  # Scheduled runner test
 ```
 
 ## Tools & skills reference
@@ -79,3 +87,6 @@ bash scripts/mcp_launch_smoke.sh    # MCP server launch test
 - CLI wrapper: `bin/obsx` (no venv needed)
 - MCP server: `python3 -m obsidian_connector.mcp_server`
 - Templates: `templates/` (exec-plan, design-doc, frontmatter)
+- Skills: `skills/` (morning, evening, idea, weekly)
+- Hook: `hooks/session_start.sh`
+- Scheduling: `scheduling/run_scheduled.py`
