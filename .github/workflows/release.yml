@@ -86,8 +86,8 @@ jobs:
 
       - name: Create full checksums
         run: |
-          cd final-assets
           TAG_NAME="${GITHUB_REF_NAME}"
+          cd final-assets
           # Recalculate checksums including the .dmg
           sha256sum obsidian-connector-${TAG_NAME}.tar.gz \
                     obsidian-connector-${TAG_NAME}.zip \
@@ -99,12 +99,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          cd final-assets
           gh release create "$TAG_NAME" \
-            "obsidian-connector-${TAG_NAME}.tar.gz" \
-            "obsidian-connector-${TAG_NAME}.zip" \
-            "obsidian-connector-${TAG_NAME}.dmg" \
-            "obsidian-connector-${TAG_NAME}.sha256" \
+            "final-assets/obsidian-connector-${TAG_NAME}.tar.gz" \
+            "final-assets/obsidian-connector-${TAG_NAME}.zip" \
+            "final-assets/obsidian-connector-${TAG_NAME}.dmg" \
+            "final-assets/obsidian-connector-${TAG_NAME}.sha256" \
             --title "$TAG_NAME" \
             --generate-notes \
             --draft
