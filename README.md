@@ -31,8 +31,8 @@ Add this to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "obsidian-connector": {
-      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
-      "args": ["-m", "obsidian_connector.mcp_server"]
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/bin/obsx-mcp",
+      "args": []
     }
   }
 }
@@ -46,8 +46,8 @@ To target a specific vault, add an `env` key:
 {
   "mcpServers": {
     "obsidian-connector": {
-      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
-      "args": ["-m", "obsidian_connector.mcp_server"],
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/bin/obsx-mcp",
+      "args": [],
       "env": {
         "OBSIDIAN_VAULT": "My Vault Name"
       }
@@ -73,49 +73,84 @@ Quit and reopen Claude Desktop. The Obsidian tools will appear automatically.
 | `obsidian_create_note` | Create a note from a template |
 | `obsidian_doctor` | Health check on CLI connectivity |
 
-### Important
+### Alternative: HTTP mode
 
-Obsidian must be running for the tools to work. The connector communicates
-with the Obsidian desktop app via IPC -- if Obsidian is closed, all tools
-will return an error.
+If you prefer the "Add custom connector" UI in Claude Desktop (remote MCP), you
+can run the server as an HTTP endpoint:
+
+```bash
+cd obsidian-connector
+source .venv/bin/activate
+python3 -m obsidian_connector.mcp_server --http
+# Server starts on http://127.0.0.1:8000/mcp
+```
+
+Then enter `http://127.0.0.1:8000/mcp` in the custom connector URL field.
+Note: this requires keeping the server process running manually. The
+`claude_desktop_config.json` approach above is recommended instead.
+
+### Troubleshooting
+
+**Obsidian must be running.** The connector communicates with the Obsidian desktop
+app via IPC. If Obsidian is closed, all tools return an `ObsidianNotRunning` error.
+
+**PATH differences in Desktop apps.** GUI-launched apps (Claude Desktop, VS Code)
+may not inherit your shell PATH. The `bin/obsx-mcp` wrapper resolves this by using
+the repo's `.venv/bin/python3` directly via absolute path. If you see "command not
+found" errors, verify the path in your config is absolute and correct.
+
+**macOS permission prompts.** The first time Claude Desktop launches the MCP server,
+macOS may prompt for permission to run the script. Allow it.
+
+**Console script `obsx` doesn't work outside the venv.** Use `./bin/obsx` instead,
+which works without venv activation. Or use `python3 main.py` from the repo root.
+
+**Verify connectivity.** Run the health check:
+
+```bash
+./bin/obsx doctor
+# or
+python3 main.py doctor
+```
 
 ---
 
 ## CLI usage
 
-After installation, the CLI is available as `obsx` (or `obsidian-connector`):
+After installation, the CLI is available as `obsx` (or `obsidian-connector`).
+From the repo directory, `./bin/obsx` works without venv activation:
 
 ```bash
 # Search across the vault
-obsx search "quarterly review"
+./bin/obsx search "quarterly review"
 
 # Read a specific note
-obsx read "Project Alpha"
+./bin/obsx read "Project Alpha"
 
 # Append to today's daily note
-obsx log-daily "Meeting notes: discussed Q3 roadmap"
+./bin/obsx log-daily "Meeting notes: discussed Q3 roadmap"
 
 # List incomplete tasks
-obsx tasks --status todo
+./bin/obsx tasks --status todo
 
 # Log a structured decision
-obsx log-decision \
+./bin/obsx log-decision \
   --project "AMOS" \
   --summary "Switched from REST to event-driven ingestion" \
   --details "Reduces latency on deal updates from 2s to 200ms."
 
 # Find prior work on a topic
-obsx find-prior-work "machine learning" --top-n 3
+./bin/obsx find-prior-work "machine learning" --top-n 3
 
 # Health check
-obsx doctor
+./bin/obsx doctor
 
 # JSON output (global flag, before subcommand)
-obsx --json search "OKRs"
-obsx --json doctor
+./bin/obsx --json search "OKRs"
+./bin/obsx --json doctor
 
 # Dry-run (preview without writing)
-obsx log-daily "test" --dry-run
+./bin/obsx log-daily "test" --dry-run
 ```
 
 All commands accept `--vault <name>` and `--json` as global flags.
