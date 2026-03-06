@@ -2,7 +2,7 @@
 
 Prioritized backlog for obsidian-connector. Items are tagged by type and
 ordered by priority within each milestone. Community PRs welcome -- see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 > **How to pick up an item**: Comment on the linked issue (or open one if
 > none exists), describe your approach, and wait for approval before starting.
