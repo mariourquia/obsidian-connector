@@ -1,18 +1,18 @@
 ---
-title: "Daily Optimization Guide"
+title: "Second Brain Operating Manual"
 status: verified
 owner: core
 last_reviewed: "2026-03-06"
 ---
 
-# Daily Optimization Guide
+# Second Brain Operating Manual
 
-27 tools. Four phases. One operating system for your day.
+28 tools. Four phases. One assistant running your day.
 
-The obsidian-connector gives Claude full access to your Obsidian vault. This
-guide shows you how to combine those tools into a daily cycle that helps you
-think clearer, decide better, and ship more. Each recipe is standalone -- adopt
-one or run the full cycle.
+Your second brain assistant lives inside Claude. It reads your Obsidian vault,
+tracks your open loops, surfaces forgotten ideas, and drives daily rituals --
+all through conversation. You talk to Claude. Claude drives Obsidian. The
+connector is invisible.
 
 The four phases form a loop:
 
@@ -23,7 +23,53 @@ Awareness --> Decision-Making --> Execution --> Reflection
 ```
 
 Awareness sharpens decisions. Decisions drive execution. Execution generates
-material for reflection. Reflection deepens awareness.
+material for reflection. Reflection deepens awareness. Your assistant manages
+the machinery. You focus on thinking.
+
+---
+
+## How It Works
+
+Your assistant operates across three layers, from fully automatic to fully
+interactive.
+
+**Layer 1 -- Scheduled.** A macOS LaunchAgent runs your morning briefing and
+evening close automatically, writing structured sections to your daily note
+whether or not you open Claude. When you do open Claude, the briefing is
+already waiting.
+
+**Layer 2 -- Check-in.** The `obsidian_check_in` tool detects the time of day,
+reads your daily note, checks which rituals have already run, counts open
+loops and pending delegations, and suggests what to do next. Your assistant
+calls this at the start of every session.
+
+**Layer 3 -- Interactive.** Skills (`/morning`, `/evening`, `/idea`, `/weekly`)
+and natural conversation let you drive workflows on demand. Say "close my day"
+or type `/evening` and your assistant orchestrates the right tools, writes back
+to your vault, and offers follow-up actions.
+
+The layers reinforce each other. Scheduled automation ensures nothing is missed.
+Check-in keeps your assistant context-aware. Interactive skills let you go
+deeper whenever you want.
+
+---
+
+## Getting Started
+
+You do not need to adopt everything at once.
+
+**Day 1.** Tell your assistant "give me my morning briefing" and "close my day"
+at end of day. Two conversations. Your assistant handles the rest.
+
+**Week 1.** Add idea capture throughout the day -- say "log this idea" or use
+`/idea` in Claude Code. Let your assistant run a weekly review on Sunday
+(`/weekly`). Start noticing how your daily note becomes a running record.
+
+**Month 1.** Enable scheduled automation so briefings write themselves. Let
+your assistant challenge beliefs before big decisions, graduate ideas from
+daily notes to standalone research, and run drift checks against your stated
+intentions. By now the system is self-reinforcing -- your vault feeds your
+assistant, your assistant feeds your vault.
 
 ---
 
@@ -35,11 +81,13 @@ Know your current state before acting.
 
 **When**: First thing in the morning, before opening email or Slack.
 
-**Tools**: `obsidian_today`, `obsidian_open_loops`
+Your assistant calls `obsidian_check_in`, `obsidian_today`, and
+`obsidian_open_loops` to build your briefing. The `/morning` skill or
+scheduled automation handles this automatically -- just open Claude and your
+assistant knows what to tell you.
 
-**Ask Claude**:
-> "Give me my morning briefing. What's on today's daily note, what tasks are
-> open, and what loops am I carrying?"
+**Say**:
+> "What's on my plate today?"
 
 **CLI**:
 ```bash
@@ -47,20 +95,21 @@ Know your current state before acting.
 ./bin/obsx open-loops
 ```
 
-**What happens**: Claude reads your daily note, pulls outstanding tasks, and
-surfaces any `OL:` markers or `#openloop` tags from recent notes. You start
-the day knowing exactly what's live instead of guessing.
+**What happens**: Your assistant reads your daily note, pulls outstanding
+tasks, and surfaces any `OL:` markers or `#openloop` tags from recent notes.
+You start the day knowing exactly what's live instead of guessing.
 
 ---
 
 ### Full context load
 
-**When**: Starting a deep work session where Claude needs to understand your
-full situation -- a planning session, a weekly review, or a complex question.
+**When**: Starting a deep work session where your assistant needs to understand
+your full situation -- a planning session, a weekly review, or a complex
+question.
 
-**Tools**: `obsidian_my_world`, `obsidian_context_load`
+Your assistant calls `obsidian_my_world` and `obsidian_context_load`.
 
-**Ask Claude**:
+**Say**:
 > "Load my full vault context. I want to do a weekly planning session."
 
 **CLI**:
@@ -69,9 +118,9 @@ full situation -- a planning session, a weekly review, or a complex question.
 ./bin/obsx context-load
 ```
 
-**What happens**: Claude ingests your recent notes, tasks, open loops, and
-vault context in one pass. This gives it the full picture so it can make
-connections you might miss. Use this before asking Claude to help you
+**What happens**: Your assistant ingests your recent notes, tasks, open loops,
+and vault context in one pass. This gives it the full picture so it can make
+connections you might miss. Use this before asking your assistant to help you
 prioritize, plan, or synthesize.
 
 ---
@@ -80,9 +129,9 @@ prioritize, plan, or synthesize.
 
 **When**: Weekly, or when your vault feels disorganized.
 
-**Tools**: `obsidian_vault_structure`, `obsidian_doctor`
+Your assistant calls `obsidian_vault_structure` and `obsidian_doctor`.
 
-**Ask Claude**:
+**Say**:
 > "Run a vault health check. Show me orphan notes, dead ends, and anything
 > that needs linking."
 
@@ -104,9 +153,9 @@ surface structural debt before it compounds.
 
 **When**: Weekly, or when you feel your writing has gone stale.
 
-**Tools**: `obsidian_ghost`
+Your assistant calls `obsidian_ghost`.
 
-**Ask Claude**:
+**Say**:
 > "Analyze my writing voice from the past two weeks. What patterns do you
 > see?"
 
@@ -115,10 +164,11 @@ surface structural debt before it compounds.
 ./bin/obsx ghost --lookback-days 14
 ```
 
-**What happens**: Claude reads your recent notes and builds a voice profile --
-sentence patterns, recurring phrases, tone shifts, vocabulary tendencies. This
-is a mirror. Use it to notice when you're writing on autopilot, when your
-energy is low (shorter, flatter entries), or when you're in a creative surge.
+**What happens**: Your assistant reads your recent notes and builds a voice
+profile -- sentence patterns, recurring phrases, tone shifts, vocabulary
+tendencies. This is a mirror. Use it to notice when you're writing on
+autopilot, when your energy is low (shorter, flatter entries), or when you're
+in a creative surge.
 
 ---
 
@@ -131,9 +181,9 @@ Choose well under uncertainty.
 **When**: Any time you make a meaningful decision -- technical, financial,
 career, personal.
 
-**Tools**: `obsidian_log_decision`
+Your assistant calls `obsidian_log_decision`.
 
-**Ask Claude**:
+**Say**:
 > "Log a decision: project AMOS, summary 'Switched from REST to event-driven
 > architecture', details 'Reduces P95 latency from 800ms to 200ms. Trade-off:
 > more complex debugging. Revisit in 90 days.'"
@@ -159,9 +209,9 @@ history of your own judgment.
 **When**: Before making a high-stakes commitment -- an investment thesis, a
 technical bet, a strategic pivot.
 
-**Tools**: `obsidian_challenge_belief`
+Your assistant calls `obsidian_challenge_belief`.
 
-**Ask Claude**:
+**Say**:
 > "I believe that multifamily cap rates will compress in 2027. Challenge
 > that belief against everything in my vault."
 
@@ -170,7 +220,7 @@ technical bet, a strategic pivot.
 ./bin/obsx challenge "multifamily cap rates will compress in 2027"
 ```
 
-**What happens**: Claude searches your vault for counter-evidence and
+**What happens**: Your assistant searches your vault for counter-evidence and
 supporting evidence, then delivers a verdict. This forces you to confront
 what your own notes say rather than relying on recency bias or gut feel.
 Particularly valuable for investment decisions, career moves, and technical
@@ -183,9 +233,9 @@ bets where confirmation bias is expensive.
 **When**: Before starting a new project, writing a new note, or building
 something from scratch.
 
-**Tools**: `obsidian_find_prior_work`
+Your assistant calls `obsidian_find_prior_work`.
 
-**Ask Claude**:
+**Say**:
 > "Before I start researching CMBS structures, check what I've already
 > written about it."
 
@@ -194,10 +244,10 @@ something from scratch.
 ./bin/obsx find-prior-work "CMBS structures" --top-n 5
 ```
 
-**What happens**: Claude searches your vault, ranks the top matches, and
-summarizes what you've already captured. This prevents you from reinventing
-your own work and helps you build on existing thinking. Knowledge compounds
-when you connect new work to old.
+**What happens**: Your assistant searches your vault, ranks the top matches,
+and summarizes what you've already captured. This prevents you from
+reinventing your own work and helps you build on existing thinking. Knowledge
+compounds when you connect new work to old.
 
 ---
 
@@ -206,9 +256,9 @@ when you connect new work to old.
 **When**: When you suspect two areas of your work or life might connect but
 you're not sure how.
 
-**Tools**: `obsidian_connect_domains`
+Your assistant calls `obsidian_connect_domains`.
 
-**Ask Claude**:
+**Say**:
 > "Find connections between my real estate notes and my machine learning
 > notes."
 
@@ -217,8 +267,8 @@ you're not sure how.
 ./bin/obsx connect "real estate" "machine learning"
 ```
 
-**What happens**: Claude searches both domains independently, then finds
-notes that bridge them -- shared concepts, overlapping ideas, notes that
+**What happens**: Your assistant searches both domains independently, then
+finds notes that bridge them -- shared concepts, overlapping ideas, notes that
 reference both. The best insights often live at the intersection of domains
 you don't usually think about together.
 
@@ -233,9 +283,9 @@ Close loops and ship.
 **When**: When you feel scattered, overwhelmed, or unsure what to work on
 next.
 
-**Tools**: `obsidian_open_loops`, `obsidian_tasks`
+Your assistant calls `obsidian_open_loops` and `obsidian_tasks`.
 
-**Ask Claude**:
+**Say**:
 > "Show me all my open loops and outstanding tasks. Help me triage -- what
 > should I close, defer, or delegate?"
 
@@ -257,10 +307,10 @@ of your head and into a triage list is the first step to clearing them.
 
 **When**: Throughout the day, whenever something is worth recording.
 
-**Tools**: `obsidian_log_daily`
+Your assistant calls `obsidian_log_daily`.
 
-**Ask Claude**:
-> "Log to daily: Finished the CMBS analysis draft. Key finding: subordination
+**Say**:
+> "Log this: Finished the CMBS analysis draft. Key finding: subordination
 > levels are tighter than 2019 vintage."
 
 **CLI**:
@@ -270,9 +320,8 @@ of your head and into a triage list is the first step to clearing them.
 
 **What happens**: Your text is appended to today's daily note with a
 timestamp. No context switching, no opening Obsidian, no finding the right
-file. The daily note becomes a running log that feeds every other tool in
-this guide -- morning briefings, open loop detection, idea graduation, drift
-analysis.
+file. The daily note becomes a running log that feeds every other workflow --
+morning briefings, open loop detection, idea graduation, drift analysis.
 
 ---
 
@@ -281,9 +330,10 @@ analysis.
 **When**: During a weekly review, or when you sense a daily-note entry
 deserves its own standalone note.
 
-**Tools**: `obsidian_graduate_candidates`, `obsidian_graduate_execute`
+Your assistant calls `obsidian_graduate_candidates` and
+`obsidian_graduate_execute`.
 
-**Ask Claude**:
+**Say**:
 > "Scan my daily notes from the past week for ideas worth promoting to
 > standalone notes."
 
@@ -303,11 +353,12 @@ review and promote. This is how fleeting notes become permanent knowledge.
 
 ### Delegation scan
 
-**When**: When you want Claude to pick up tasks you've left in your notes.
+**When**: When you want your assistant to pick up tasks you've left in your
+notes.
 
-**Tools**: `obsidian_delegations`
+Your assistant calls `obsidian_delegations`.
 
-**Ask Claude**:
+**Say**:
 > "Check my recent notes for any delegation instructions I've left."
 
 **CLI**:
@@ -315,10 +366,11 @@ review and promote. This is how fleeting notes become permanent knowledge.
 ./bin/obsx delegations --lookback-days 7
 ```
 
-**What happens**: Claude scans for `@agent:` and `@claude:` markers in your
-notes -- inline instructions you've left for future AI sessions. This turns
-your vault into an async task queue. Write `@claude: summarize this week's
-CRE research` in a note today, and your next Claude session can pick it up.
+**What happens**: Your assistant scans for `@agent:` and `@claude:` markers
+in your notes -- inline instructions you've left for future sessions. This
+turns your vault into an async task queue. Write `@claude: summarize this
+week's CRE research` in a note today, and your next session picks it up
+automatically.
 
 ---
 
@@ -326,9 +378,9 @@ CRE research` in a note today, and your next Claude session can pick it up.
 
 **When**: An idea or topic deserves its own structured note right now.
 
-**Tools**: `obsidian_create_note`
+Your assistant calls `obsidian_create_note`.
 
-**Ask Claude**:
+**Say**:
 > "Create a new research note titled 'CMBS Subordination Analysis' using
 > my Note template."
 
@@ -351,9 +403,11 @@ Learn from experience.
 
 **When**: Last thing in your workday.
 
-**Tools**: `obsidian_close_day`
+Your assistant calls `obsidian_check_in` and `obsidian_close_day`. The
+`/evening` skill or scheduled automation handles this automatically --
+say "close my day" and your assistant takes it from there.
 
-**Ask Claude**:
+**Say**:
 > "Close my day. What did I accomplish, what's still open, and what should
 > I carry into tomorrow?"
 
@@ -362,7 +416,7 @@ Learn from experience.
 ./bin/obsx close
 ```
 
-**What happens**: Claude generates a structured reflection prompt based on
+**What happens**: Your assistant generates a structured reflection based on
 your day's activity -- notes written, tasks completed, loops opened and
 closed. This is the bookend to the morning briefing. Closing the day with
 intention prevents yesterday's unfinished work from ambushing tomorrow.
@@ -374,9 +428,10 @@ intention prevents yesterday's unfinished work from ambushing tomorrow.
 **When**: Weekly or monthly, when you want an honest check on whether your
 actions match your stated priorities.
 
-**Tools**: `obsidian_drift`
+Your assistant calls `obsidian_drift`. The `/weekly` skill includes this
+as part of the weekly review.
 
-**Ask Claude**:
+**Say**:
 > "I said I'd write daily notes and do weekly CRE research. Check my vault
 > for the last 30 days -- did I actually do it?"
 
@@ -385,10 +440,10 @@ actions match your stated priorities.
 ./bin/obsx drift --intention "write daily notes and do weekly CRE research" --lookback-days 30
 ```
 
-**What happens**: Claude compares your stated intention against the evidence
-in your vault -- note frequency, topics covered, gaps in the record. It
-returns a drift score and analysis. This is the most uncomfortable tool in
-the kit and the most valuable. You cannot improve what you do not measure.
+**What happens**: Your assistant compares your stated intention against the
+evidence in your vault -- note frequency, topics covered, gaps in the record.
+It returns a drift score and analysis. This is the most uncomfortable tool
+in the kit and the most valuable. You cannot improve what you do not measure.
 
 ---
 
@@ -397,9 +452,9 @@ the kit and the most valuable. You cannot improve what you do not measure.
 **When**: When you want to understand how a concept or project evolved in
 your thinking over time.
 
-**Tools**: `obsidian_trace`
+Your assistant calls `obsidian_trace`.
 
-**Ask Claude**:
+**Say**:
 > "Trace how my thinking about factor models has evolved across my vault."
 
 **CLI**:
@@ -407,10 +462,10 @@ your thinking over time.
 ./bin/obsx trace "factor model"
 ```
 
-**What happens**: Claude finds every mention of the idea across your vault,
-orders them chronologically, and summarizes the evolution -- when it first
-appeared, how it changed, what influenced the shifts. This reveals patterns
-in your thinking that you can't see in the moment.
+**What happens**: Your assistant finds every mention of the idea across your
+vault, orders them chronologically, and summarizes the evolution -- when it
+first appeared, how it changed, what influenced the shifts. This reveals
+patterns in your thinking that you can't see in the moment.
 
 ---
 
@@ -419,9 +474,9 @@ in your thinking that you can't see in the moment.
 **When**: When you want new ideas without new input -- mining what you
 already have.
 
-**Tools**: `obsidian_ideas`
+Your assistant calls `obsidian_ideas`.
 
-**Ask Claude**:
+**Say**:
 > "What ideas are hiding in my vault's graph structure that I haven't
 > explicitly written about?"
 
@@ -430,10 +485,10 @@ already have.
 ./bin/obsx ideas
 ```
 
-**What happens**: Claude analyzes your vault's link graph -- orphan clusters,
-densely connected neighborhoods, notes that bridge otherwise separate areas --
-and surfaces ideas implied by the structure but never stated explicitly. Your
-vault knows things you don't.
+**What happens**: Your assistant analyzes your vault's link graph -- orphan
+clusters, densely connected neighborhoods, notes that bridge otherwise
+separate areas -- and surfaces ideas implied by the structure but never stated
+explicitly. Your vault knows things you don't.
 
 ---
 
@@ -442,9 +497,9 @@ vault knows things you don't.
 **When**: When a topic feels scattered across too many notes and you want
 to see the shape of it.
 
-**Tools**: `obsidian_emerge`
+Your assistant calls `obsidian_emerge`.
 
-**Ask Claude**:
+**Say**:
 > "Cluster all my notes related to 'project management' into thematic
 > groups."
 
@@ -453,42 +508,43 @@ to see the shape of it.
 ./bin/obsx emerge "project management"
 ```
 
-**What happens**: Claude searches for all notes matching the topic, then
-groups them into clusters based on content similarity. This shows you the
-sub-themes within a broad topic and reveals which areas are well-developed
+**What happens**: Your assistant searches for all notes matching the topic,
+then groups them into clusters based on content similarity. This shows you
+the sub-themes within a broad topic and reveals which areas are well-developed
 and which are thin.
 
 ---
 
 ## Utility tools
 
-These tools are building blocks used within the recipes above. They don't
-have their own rituals but you'll use them constantly:
+These are building blocks your assistant uses behind the scenes. You rarely
+invoke them directly, but they power every recipe above:
 
-| Tool | What it does |
+| Tool | What your assistant uses it for |
 |---|---|
 | `obsidian_search` | Full-text search across all notes |
-| `obsidian_read` | Read a specific note by name or path |
-| `obsidian_neighborhood` | Explore a note's graph neighborhood -- backlinks, forward links, shared tags |
-| `obsidian_backlinks` | List every note that links to a given note with context |
-| `obsidian_rebuild_index` | Force-rebuild the vault graph index (run if graph results seem stale) |
+| `obsidian_read` | Reading a specific note by name or path |
+| `obsidian_neighborhood` | Exploring a note's graph neighborhood -- backlinks, forward links, shared tags |
+| `obsidian_backlinks` | Listing every note that links to a given note with context |
+| `obsidian_rebuild_index` | Force-rebuilding the vault graph index (runs automatically if graph results seem stale) |
+| `obsidian_check_in` | Detecting time of day, completed rituals, and pending actions to stay proactive |
 
 ---
 
 ## The full cycle
 
-You don't need to run every recipe every day. Here's a minimal daily rhythm
-using four tools:
+You don't need to run every recipe yourself. Your assistant manages the cycle.
+Here is the minimal daily rhythm:
 
-1. **Morning**: `today` -- know what's live
-2. **Throughout the day**: `log_daily` -- capture as you go
-3. **Before decisions**: `challenge_belief` or `find_prior_work` -- check yourself
-4. **End of day**: `close_day` -- reflect and set up tomorrow
+1. **Morning**: Your assistant runs a briefing (scheduled or via `/morning`) -- you know what's live
+2. **Throughout the day**: Say "log this" -- your assistant captures as you go
+3. **Before decisions**: Say "challenge this" or "what have I written about X" -- your assistant checks you
+4. **End of day**: Your assistant runs a close (scheduled or via `/evening`) -- reflect and set up tomorrow
 
-Layer in weekly recipes as habits form:
-- **Weekly**: `drift` (are you doing what you said?), `graduate list` (promote ideas), `vault-structure` (clean up)
-- **Monthly**: `ghost` (voice check), `ideas` (mine the graph), `connect` (cross-pollinate domains)
+Layer in weekly workflows as habits form:
+- **Weekly**: `/weekly` review -- drift check (are you doing what you said?), idea graduation (promote notes), vault health (clean up)
+- **Monthly**: Voice analysis (writing mirror), latent ideas (mine the graph), cross-domain connections (cross-pollinate)
 
-The tools work best when your daily note is your default capture surface.
-Write there freely. The tools handle the rest -- surfacing, connecting,
+The system works best when your daily note is your default capture surface.
+Write there freely. Your assistant handles the rest -- surfacing, connecting,
 graduating, and reflecting on what you've captured.
