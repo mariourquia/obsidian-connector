@@ -14,8 +14,22 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-VERSION="${1:---version}"
-if [ "$VERSION" = "--version" ]; then
+VERSION=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version)
+            VERSION="$2"
+            shift 2
+            ;;
+        *)
+            # Treat a bare positional argument as the version value.
+            VERSION="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$VERSION" ]; then
     # Read from pyproject.toml
     VERSION=$(python3 -c "
 import re
