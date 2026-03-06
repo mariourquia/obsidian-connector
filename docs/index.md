@@ -14,6 +14,7 @@ here or in a sub-index linked from here.
 ## Sub-indexes
 
 - [Design Docs](./design-docs/index.md)
+- [Distribution](./distribution/index.md)
 - [Quality Scores](./quality/QUALITY_SCORE.md)
 - [Reliability](./reliability/CLAUDE_DESKTOP_DEBUGGING.md)
 
