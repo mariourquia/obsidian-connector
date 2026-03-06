@@ -101,9 +101,9 @@ class IndexStore:
                 full = Path(dirpath) / fname
                 rel = str(full.relative_to(root))
                 title = fname[:-3]
-                stat = full.stat()
 
                 try:
+                    stat = full.stat()
                     content = full.read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     continue
@@ -191,8 +191,8 @@ class IndexStore:
         # Re-process changed/new files.
         for rel, full in changed:
             title = full.stem
-            stat = full.stat()
             try:
+                stat = full.stat()
                 content = full.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
@@ -243,15 +243,18 @@ class IndexStore:
 
         for path, mtime, size, links_json, tags_json, fm_json in rows:
             title = Path(path).stem
-            links = json.loads(links_json) if links_json else []
-            tags = json.loads(tags_json) if tags_json else []
-            fm = json.loads(fm_json) if fm_json else {}
+            try:
+                links = json.loads(links_json) if links_json else []
+                tags = json.loads(tags_json) if tags_json else []
+                fm = json.loads(fm_json) if fm_json else {}
+            except json.JSONDecodeError:
+                continue
 
             entry = NoteEntry(
                 path=path,
                 title=title,
-                links=links,
-                tags=tags,
+                links=tuple(links),
+                tags=tuple(tags),
                 frontmatter=fm,
                 mtime=mtime,
                 size=size,
@@ -261,7 +264,8 @@ class IndexStore:
 
         return _build_index_from_entries(entries, title_to_path)
 
-    def fingerprint(self, path: Path) -> tuple[float, int]:
+    @staticmethod
+    def fingerprint(path: Path) -> tuple[float, int]:
         """Return ``(mtime, size)`` for change detection.
 
         Parameters
@@ -316,3 +320,32 @@ def _build_index_from_entries(
             index.tags.setdefault(tag, set()).add(path)
 
     return index
+
+
+def load_or_build_index(vault: str | None = None) -> NoteIndex | None:
+    """Try to load NoteIndex from SQLite, fall back to in-memory build.
+
+    Returns ``None`` if the index cannot be loaded or built (e.g., vault
+    not found, SQLite error). Specific errors are logged but not raised,
+    since graph features degrade gracefully.
+    """
+    store = IndexStore()
+    try:
+        idx = store.get_index()
+        if idx is not None:
+            return idx
+        from obsidian_connector.config import resolve_vault_path
+
+        vault_path = resolve_vault_path(vault)
+        return store.build_full(vault_path)
+    except (sqlite3.Error, OSError) as exc:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Index load/build failed (graph features degraded): %s: %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+    finally:
+        store.close()

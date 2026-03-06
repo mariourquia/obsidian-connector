@@ -145,26 +145,31 @@ def test_execute_no_confirm() -> None:
 
 def test_execute_confirm() -> None:
     print("\n--- graduate_execute with confirm (mocked) ---")
-    with patch("obsidian_connector.workflows.run_obsidian") as mock_run, \
-         patch("obsidian_connector.workflows.log_action") as mock_log:
-        mock_run.return_value = "Created: Inbox/Agent Drafts/My Note.md"
-        result = graduate_execute(
-            title="My Note",
-            content="Agent-generated analysis of vol surface.",
-            source_file="daily/2026-03-05.md",
-            confirm=True,
-        )
-        check("created path in result", "My Note.md" in result.get("created", ""))
-        check("source in result", result.get("source") == "daily/2026-03-05.md")
-        check("provenance has agent source", result.get("provenance", {}).get("source") == "agent")
-        check("provenance has draft status", result.get("provenance", {}).get("status") == "draft")
-        check("run_obsidian was called", mock_run.called)
-        check("log_action was called", mock_log.called)
+    import tempfile
+    from pathlib import Path
 
-        # Verify run_obsidian args include create and path
-        call_args = mock_run.call_args
-        cli_args = call_args[0][0] if call_args[0] else call_args[1].get("args", [])
-        check("CLI args include 'create'", "create" in cli_args)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_path = Path(tmpdir)
+        with patch("obsidian_connector.config.resolve_vault_path", return_value=vault_path), \
+             patch("obsidian_connector.workflows.log_action") as mock_log:
+            result = graduate_execute(
+                title="My Note",
+                content="Agent-generated analysis of vol surface.",
+                source_file="daily/2026-03-05.md",
+                confirm=True,
+            )
+            check("created path in result", "My Note.md" in result.get("created", ""))
+            check("source in result", result.get("source") == "daily/2026-03-05.md")
+            check("provenance has agent source", result.get("provenance", {}).get("source") == "agent")
+            check("provenance has draft status", result.get("provenance", {}).get("status") == "draft")
+
+            # Verify the file was actually written with content.
+            written_file = vault_path / "Inbox" / "Agent Drafts" / "My Note.md"
+            check("file was written to disk", written_file.is_file())
+            written_content = written_file.read_text()
+            check("file has frontmatter", "source: agent" in written_content)
+            check("file has body content", "vol surface" in written_content)
+            check("log_action was called", mock_log.called)
 
 
 # ---------------------------------------------------------------------------
