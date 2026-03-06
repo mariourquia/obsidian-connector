@@ -160,7 +160,8 @@ scripts.
 correct JSON syntax and verify the absolute path to `session_start.sh`.
 
 **Scheduled jobs not running.** Check `launchctl list | grep obsidian` and
-review `~/Library/Logs/obsidian-connector/` for output.
+review `/tmp/obsidian-connector-morning.log` and `/tmp/obsidian-connector-morning.err`
+for output.
 
 For deeper diagnostics:
 
