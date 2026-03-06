@@ -1177,7 +1177,10 @@ def main(argv: list[str] | None = None) -> int:
             human = _fmt_vault_structure(result)
 
         elif args.command == "backlinks":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.errors import VaultNotFound
             from obsidian_connector.index_store import load_or_build_index as _load_or_build_index
+            from pathlib import Path as _Path
             idx = _load_or_build_index(args.vault)
             if idx is None:
                 raise ObsidianCLIError(
@@ -1209,21 +1212,33 @@ def main(argv: list[str] | None = None) -> int:
                 )
             note_title = idx.notes[resolved].title
             backlink_paths = sorted(idx.backlinks.get(resolved, set()))
+            # Resolve vault root once before iterating backlinks.
+            try:
+                _vault_root = resolve_vault_path(args.vault).resolve()
+            except VaultNotFound:
+                _vault_root = None
             results_list: list[dict] = []
             for bl_path in backlink_paths:
                 bl_entry = idx.notes.get(bl_path)
                 context_line = ""
-                try:
-                    content = read_note(bl_path, vault=args.vault)
-                    for line in content.split("\n"):
-                        if f"[[{note_title}]]" in line or f"[[{note_title}|" in line:
-                            context_line = line.strip()
-                            break
-                        if f"[[{resolved}" in line:
-                            context_line = line.strip()
-                            break
-                except (ObsidianCLIError, Exception):
-                    pass
+                # Read the backlinking note directly from vault files (no Obsidian CLI needed).
+                if _vault_root is not None:
+                    try:
+                        _note_p = _Path(bl_path)
+                        if not _note_p.is_absolute():
+                            _full = (_vault_root / _note_p).resolve()
+                            _full.relative_to(_vault_root)  # raises ValueError if outside vault
+                            if _full.is_file():
+                                content = _full.read_text(encoding="utf-8", errors="replace")
+                                for line in content.split("\n"):
+                                    if f"[[{note_title}]]" in line or f"[[{note_title}|" in line:
+                                        context_line = line.strip()
+                                        break
+                                    if f"[[{resolved}" in line:
+                                        context_line = line.strip()
+                                        break
+                    except (ValueError, OSError):
+                        pass
                 results_list.append({
                     "file": bl_path,
                     "context_line": context_line,
