@@ -23,6 +23,9 @@ these tools are available to Claude and other MCP clients:
 | `obsidian_log_decision` | `project`, `summary`, `details`, `vault?` | Confirmation string |
 | `obsidian_find_prior_work` | `topic`, `top_n?`, `vault?` | JSON array of `{file, heading, excerpt, match_count}` |
 | `obsidian_create_note` | `title`, `template`, `vault?` | Created file path |
+| `obsidian_challenge_belief` | `belief`, `vault?`, `max_evidence?` | JSON `{belief, counter_evidence[], supporting_evidence[], verdict}` |
+| `obsidian_emerge_ideas` | `topic`, `vault?`, `max_clusters?` | JSON `{topic, total_notes, clusters[]}` |
+| `obsidian_connect_domains` | `domain_a`, `domain_b`, `vault?`, `max_connections?` | JSON `{domain_a, domain_b, connections[], domain_a_only[], domain_b_only[]}` |
 | `obsidian_doctor` | `vault?` | JSON array of health check results |
 
 All `vault` parameters are optional.  When omitted, the configured default
@@ -155,6 +158,36 @@ structured summaries (heading + first paragraph).
 ```bash
 python main.py find-prior-work "machine learning" --top-n 5
 python main.py --json find-prior-work "underwriting" --top-n 3
+```
+
+### challenge
+
+Challenge a belief by searching the vault for counter-evidence and
+supporting evidence.  Read-only.
+
+```bash
+python main.py challenge "note-taking improves memory"
+python main.py --json challenge "all tech stocks outperform" --max-evidence 5
+```
+
+### emerge
+
+Cluster related notes into idea groups around a topic.  Groups by folder
+path and returns summaries.  Read-only.
+
+```bash
+python main.py emerge "project"
+python main.py --json emerge "finance" --max-clusters 3
+```
+
+### connect
+
+Find connections between two domains by searching for notes that mention
+both.  Read-only.
+
+```bash
+python main.py connect "health" "productivity"
+python main.py --json connect "real estate" "machine learning" --max-connections 5
 ```
 
 ### doctor
@@ -311,7 +344,7 @@ obsidian-connector/
   obsidian_connector/
     __init__.py                    Public API re-exports
     cli.py                         CLI entry point (obsx / obsidian-connector)
-    mcp_server.py                  MCP server (8 tools for Claude Desktop)
+    mcp_server.py                  MCP server (16 tools for Claude Desktop)
     audit.py                       Append-only audit log
     cache.py                       In-memory TTL cache
     client.py                      Core CLI wrapper + 4 functions
@@ -320,10 +353,11 @@ obsidian-connector/
     envelope.py                    Canonical JSON envelope builder
     errors.py                      Typed exception hierarchy
     search.py                      Search result enrichment
-    workflows.py                   Higher-level workflows (3 functions)
+    workflows.py                   Higher-level workflows + thinking tools
   scripts/
     smoke_test.py                  Core function smoke tests
     workflow_test.py               Workflow function smoke tests
+    thinking_tools_test.py         Thinking tools smoke tests
     audit_test.py                  Audit log tests
     cache_test.py                  Cache module and integration tests
     escaping_test.py               Content escaping edge-case tests

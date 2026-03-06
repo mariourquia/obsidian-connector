@@ -29,7 +29,7 @@ def run_doctor(vault: str | None = None) -> list[dict]:
         path = shutil.which(cfg.obsidian_bin)
         if path:
             results.append(
-                {"check": "obsidian_binary", "ok": True, "detail": path}
+                {"check": "obsidian_binary", "ok": True, "detail": path, "action": None}
             )
         else:
             results.append(
@@ -37,11 +37,17 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                     "check": "obsidian_binary",
                     "ok": False,
                     "detail": f"'{cfg.obsidian_bin}' not found on PATH",
+                    "action": "Install Obsidian or add to PATH. See https://obsidian.md",
                 }
             )
     except Exception as exc:
         results.append(
-            {"check": "obsidian_binary", "ok": False, "detail": str(exc)}
+            {
+                "check": "obsidian_binary",
+                "ok": False,
+                "detail": str(exc),
+                "action": "Install Obsidian or add to PATH. See https://obsidian.md",
+            }
         )
 
     # --- 2. obsidian_version ---
@@ -59,12 +65,18 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                     "check": "obsidian_version",
                     "ok": True,
                     "detail": proc.stdout.strip(),
+                    "action": None,
                 }
             )
         else:
             detail = proc.stderr.strip() or proc.stdout.strip() or "unknown error"
             results.append(
-                {"check": "obsidian_version", "ok": False, "detail": detail}
+                {
+                    "check": "obsidian_version",
+                    "ok": False,
+                    "detail": detail,
+                    "action": "Ensure Obsidian is running and CLI is enabled (v1.12+)",
+                }
             )
     except FileNotFoundError:
         results.append(
@@ -72,6 +84,7 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                 "check": "obsidian_version",
                 "ok": False,
                 "detail": f"binary '{cfg.obsidian_bin}' not found",
+                "action": "Ensure Obsidian is running and CLI is enabled (v1.12+)",
             }
         )
     except subprocess.TimeoutExpired:
@@ -80,11 +93,17 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                 "check": "obsidian_version",
                 "ok": False,
                 "detail": "timed out after 10s",
+                "action": "Ensure Obsidian is running and CLI is enabled (v1.12+)",
             }
         )
     except Exception as exc:
         results.append(
-            {"check": "obsidian_version", "ok": False, "detail": str(exc)}
+            {
+                "check": "obsidian_version",
+                "ok": False,
+                "detail": str(exc),
+                "action": "Ensure Obsidian is running and CLI is enabled (v1.12+)",
+            }
         )
 
     # --- 3. vault_resolution ---
@@ -96,6 +115,7 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                     "check": "vault_resolution",
                     "ok": True,
                     "detail": f"vault={effective_vault}",
+                    "action": None,
                 }
             )
         else:
@@ -104,11 +124,17 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                     "check": "vault_resolution",
                     "ok": False,
                     "detail": "no vault specified and no default configured",
+                    "action": "Set OBSIDIAN_VAULT env var or add default_vault to config.json",
                 }
             )
     except Exception as exc:
         results.append(
-            {"check": "vault_resolution", "ok": False, "detail": str(exc)}
+            {
+                "check": "vault_resolution",
+                "ok": False,
+                "detail": str(exc),
+                "action": "Set OBSIDIAN_VAULT env var or add default_vault to config.json",
+            }
         )
 
     # --- 4. vault_reachable ---
@@ -132,12 +158,18 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                     "check": "vault_reachable",
                     "ok": True,
                     "detail": proc.stdout.strip() or "ok",
+                    "action": None,
                 }
             )
         else:
             detail = proc.stderr.strip() or proc.stdout.strip() or "unknown error"
             results.append(
-                {"check": "vault_reachable", "ok": False, "detail": detail}
+                {
+                    "check": "vault_reachable",
+                    "ok": False,
+                    "detail": detail,
+                    "action": "Open Obsidian desktop app. The CLI communicates via IPC.",
+                }
             )
     except FileNotFoundError:
         results.append(
@@ -145,6 +177,7 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                 "check": "vault_reachable",
                 "ok": False,
                 "detail": f"binary '{cfg.obsidian_bin}' not found",
+                "action": "Open Obsidian desktop app. The CLI communicates via IPC.",
             }
         )
     except subprocess.TimeoutExpired:
@@ -153,11 +186,17 @@ def run_doctor(vault: str | None = None) -> list[dict]:
                 "check": "vault_reachable",
                 "ok": False,
                 "detail": "timed out after 15s",
+                "action": "Open Obsidian desktop app. The CLI communicates via IPC.",
             }
         )
     except Exception as exc:
         results.append(
-            {"check": "vault_reachable", "ok": False, "detail": str(exc)}
+            {
+                "check": "vault_reachable",
+                "ok": False,
+                "detail": str(exc),
+                "action": "Open Obsidian desktop app. The CLI communicates via IPC.",
+            }
         )
 
     return results
