@@ -79,6 +79,39 @@ def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
     return load_or_build_index(vault)
 
 
+def _read_vault_file(rel_path: str, vault: str | None = None) -> str:
+    """Read a vault file by its vault-relative path without the Obsidian CLI.
+
+    Parameters
+    ----------
+    rel_path:
+        Vault-relative path to the note (e.g. ``"Cards/Home.md"``).
+    vault:
+        Vault name (uses default if omitted).
+
+    Returns
+    -------
+    str
+        File contents, or empty string if the file cannot be read or the
+        path would escape the vault root.
+    """
+    from obsidian_connector.errors import VaultNotFound
+    from pathlib import Path as _Path
+
+    note_path = _Path(rel_path)
+    if note_path.is_absolute():
+        return ""
+    try:
+        root = resolve_vault_path(vault).resolve()
+        full = (root / note_path).resolve()
+        full.relative_to(root)  # raises ValueError if outside vault
+        if full.is_file():
+            return full.read_text(encoding="utf-8", errors="replace")
+    except (ValueError, OSError, VaultNotFound):
+        pass
+    return ""
+
+
 mcp = FastMCP(
     "Obsidian Connector",
     json_response=True,
@@ -673,9 +706,9 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
             bl_entry = idx.notes.get(bl_path)
             context_line = ""
 
-            # Try to read the backlinking note and find the line with the link.
-            try:
-                content = read_note(bl_path, vault=vault)
+            # Read the backlinking note directly from vault files (no Obsidian CLI needed).
+            content = _read_vault_file(bl_path, vault=vault)
+            if content:
                 for line in content.split("\n"):
                     if f"[[{note_title}]]" in line or f"[[{note_title}|" in line:
                         context_line = line.strip()
@@ -684,8 +717,6 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
                     if f"[[{resolved}" in line:
                         context_line = line.strip()
                         break
-            except (ObsidianCLIError, Exception):
-                pass
 
             results.append({
                 "file": bl_path,

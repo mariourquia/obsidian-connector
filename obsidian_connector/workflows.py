@@ -927,13 +927,14 @@ def graduate_candidates(
 
     # Try to check NoteIndex for existing standalone notes.
     try:
-        from obsidian_connector.graph import build_note_index
-
-        index = build_note_index()
-        title_set = {
-            entry.title.lower(): entry.path
-            for entry in index.notes.values()
-        }
+        index = _load_or_build_index(vault)
+        if index is not None:
+            title_set = {
+                entry.title.lower(): entry.path
+                for entry in index.notes.values()
+            }
+        else:
+            title_set = {}
     except Exception:
         title_set = {}
 
@@ -1155,14 +1156,23 @@ def graduate_execute(
         "\n"
         f"{content}"
     )
+    # Sanitize title: remove path separators and reject path traversal.
+    safe_title = title.replace("/", "-").replace("\\", "-").strip()
+    if not safe_title or ".." in safe_title.split("-"):
+        raise ValueError(f"graduate_execute: invalid title: {title!r}")
 
-    # Sanitize title and target_folder to prevent path traversal.
-    if "/" in title or "\\" in title:
-        raise ValueError(f"title must not contain path separators: {title!r}")
-    if ".." in Path(target_folder).parts:
-        raise ValueError(f"target_folder must not contain '..': {target_folder!r}")
+    # Sanitize target_folder: normalize separators, reject path traversal.
+    if target_folder:
+        safe_folder = target_folder.replace("\\", "/").strip("/")
+        segments = safe_folder.split("/")
+        if any(seg in ("..", "") for seg in segments):
+            raise ValueError(
+                f"graduate_execute: target_folder contains invalid path components: {target_folder!r}"
+            )
+    else:
+        safe_folder = None
 
-    note_path = f"{target_folder}/{title}.md"
+    note_path = f"{safe_folder}/{safe_title}.md" if safe_folder else f"{safe_title}.md"
 
     if dry_run:
         return {
@@ -1177,17 +1187,20 @@ def graduate_execute(
     from obsidian_connector.config import resolve_vault_path
 
     vault_dir = resolve_vault_path(vault)
-    target_dir = (vault_dir / target_folder).resolve()
-    target_file = (target_dir / f"{title}.md").resolve()
-
-    # Verify both paths are within the vault (defense in depth).
-    vault_resolved = vault_dir.resolve()
-    if not str(target_dir).startswith(str(vault_resolved)):
-        raise ValueError(f"target_folder escapes vault: {target_folder!r}")
-    if not str(target_file).startswith(str(vault_resolved)):
-        raise ValueError(f"title escapes vault: {title!r}")
-
+    target_dir = vault_dir / (safe_folder or "")
+    # Ensure target_dir is still under vault_dir.
+    try:
+        target_dir.resolve().relative_to(vault_dir.resolve())
+    except ValueError:
+        raise ValueError(
+            f"graduate_execute: target_folder {target_folder!r} resolves outside vault"
+        )
     target_dir.mkdir(parents=True, exist_ok=True)
+    target_file = target_dir / f"{safe_title}.md"
+    if target_file.exists():
+        raise FileExistsError(
+            f"graduate_execute: destination already exists: {target_file}"
+        )
     target_file.write_text(full_content, encoding="utf-8")
 
     # Log the mutation to the audit trail.
