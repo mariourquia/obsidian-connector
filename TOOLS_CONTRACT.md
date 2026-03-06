@@ -51,9 +51,9 @@ These tools read vault `.md` files directly and work without Obsidian running.
 
 | MCP Tool | Parameters | Returns |
 |---|---|---|
-| `obsidian_ghost` | `vault?`, `lookback_days?` | JSON voice profile `{patterns{}, summary}` |
-| `obsidian_drift` | `intention`, `vault?`, `lookback_days?` | JSON `{intention, evidence[], drift_score, analysis}` |
-| `obsidian_trace` | `idea`, `vault?`, `lookback_days?` | JSON `{idea, timeline[], evolution_summary}` |
+| `obsidian_ghost` | `sample_notes?`, `question?`, `vault?` | JSON voice profile `{patterns{}, summary}` |
+| `obsidian_drift` | `vault?`, `lookback_days?` | JSON `{intention, evidence[], drift_score, analysis}` |
+| `obsidian_trace` | `topic`, `max_notes?`, `vault?` | JSON `{idea, timeline[], evolution_summary}` |
 | `obsidian_ideas` | `vault?`, `max_ideas?` | JSON `{ideas[], graph_stats{}}` |
 
 ### Workflow OS

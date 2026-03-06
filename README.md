@@ -192,8 +192,8 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx rebuild-index
 
 # ── Thinking ──
-./bin/obsx ghost --lookback-days 14
-./bin/obsx drift --intention "write daily" --lookback-days 30
+./bin/obsx ghost --sample 20
+./bin/obsx drift --days 30
 ./bin/obsx trace "factor model"
 ./bin/obsx ideas
 
@@ -202,9 +202,9 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx today
 ./bin/obsx close
 ./bin/obsx open-loops
-./bin/obsx graduate list --lookback-days 7
+./bin/obsx graduate list --lookback 7
 ./bin/obsx graduate execute --title "Factor Model" --content "Analysis of..." --confirm
-./bin/obsx delegations --lookback-days 7
+./bin/obsx delegations --days 7
 ./bin/obsx context-load
 
 # ── Global flags (before subcommand) ──
@@ -245,11 +245,11 @@ log_decision("AMOS", "Switched to event-driven", "Reduces latency to 200ms.")
 index = load_or_build_index()
 if index:
     neighbors = index.neighborhood("Home.md", depth=2)
-    orphans = index.orphans()
+    orphans = index.orphans
 
 # Thinking
-profile = ghost_voice_profile(lookback_days=14)
-drift = drift_analysis(intention="write daily notes", lookback_days=30)
+profile = ghost_voice_profile()
+drift = drift_analysis()
 
 # Workflows
 brief = today_brief()

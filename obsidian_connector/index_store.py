@@ -44,7 +44,10 @@ class IndexStore:
     """SQLite-backed persistent note index with change detection."""
 
     def __init__(self, db_path: Path | None = None) -> None:
-        self._db_path = db_path or _DEFAULT_DB
+        if db_path is None:
+            from obsidian_connector.config import load_config
+            db_path = load_config().index_db_path
+        self._db_path = db_path
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: sqlite3.Connection | None = None
 
@@ -130,8 +133,8 @@ class IndexStore:
                 entry = NoteEntry(
                     path=rel,
                     title=title,
-                    links=links,
-                    tags=tags,
+                    links=tuple(links),
+                    tags=tuple(tags),
                     frontmatter=fm,
                     mtime=stat.st_mtime,
                     size=stat.st_size,
