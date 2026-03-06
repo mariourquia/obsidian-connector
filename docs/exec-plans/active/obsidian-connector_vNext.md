@@ -1,8 +1,8 @@
 ---
 title: "Exec Plan: obsidian-connector vNext"
-status: active
+status: draft
 owner: "mariourquia"
-created: "2026-03-06"
+last_reviewed: "2026-03-06"
 sources_of_truth:
   - "obsidian_connector/"
   - "scripts/"
