@@ -139,6 +139,20 @@ def unload_launchd_plist(plist_path: Path) -> bool:
         return False
 
 
+def dry_run_uninstall(plan: UninstallPlan) -> Dict[str, Any]:
+    """Preview-only uninstall (no actual removal). Returns JSON."""
+    return {
+        "status": "ok",
+        "dry_run": True,
+        "plan": {
+            "files_to_remove": [str(f) for f in plan.files_to_remove],
+            "config_changes": plan.config_changes,
+            "plist_action": "unload" if plan.remove_plist and plan.plist_path else None,
+            "summary": f"Would remove {len(plan.files_to_remove)} files"
+        }
+    }
+
+
 def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
     """Execute uninstall plan. Creates backups, removes artifacts."""
     removed = []
