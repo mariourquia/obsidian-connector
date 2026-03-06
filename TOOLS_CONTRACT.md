@@ -5,12 +5,36 @@ with Obsidian through this project.  Read this file before touching the vault.
 
 ## Golden rule
 
-**Always use `python main.py <command>` instead of calling `obsidian` directly.**
+**Never call the `obsidian` CLI directly.**  Use the MCP tools, Python API,
+or CLI wrapper instead.  They handle vault resolution, argument escaping,
+error detection, audit logging, and output parsing.
 
-The wrapper handles vault resolution, argument escaping, error detection,
-audit logging, and output parsing.  Calling the raw CLI bypasses all of that.
+## MCP tools (Claude Desktop / AI agents)
 
-The tool is also installable as `obsx` via `pip install -e .`.
+When running as an MCP server (via `claude_desktop_config.json` or `--http`),
+these tools are available to Claude and other MCP clients:
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_search` | `query`, `vault?` | JSON array of `{file, matches[{line, text}]}` |
+| `obsidian_read` | `name_or_path`, `vault?` | Raw markdown content of the note |
+| `obsidian_tasks` | `status?`, `path_prefix?`, `limit?`, `vault?` | JSON array of `{text, status, file, line}` |
+| `obsidian_log_daily` | `content`, `vault?` | Confirmation string |
+| `obsidian_log_decision` | `project`, `summary`, `details`, `vault?` | Confirmation string |
+| `obsidian_find_prior_work` | `topic`, `top_n?`, `vault?` | JSON array of `{file, heading, excerpt, match_count}` |
+| `obsidian_create_note` | `title`, `template`, `vault?` | Created file path |
+| `obsidian_doctor` | `vault?` | JSON array of health check results |
+
+All `vault` parameters are optional.  When omitted, the configured default
+vault is used (env var `OBSIDIAN_VAULT` or `config.json`).
+
+**Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
+shell out to `obsidian` or `python main.py` from within an MCP-connected session.
+
+## CLI wrapper
+
+The tool is installable as `obsx` via `pip install -e .`, or use `./bin/obsx`
+from the repo root (no venv activation required).
 
 ## Canonical JSON envelope
 
@@ -287,6 +311,7 @@ obsidian-connector/
   obsidian_connector/
     __init__.py                    Public API re-exports
     cli.py                         CLI entry point (obsx / obsidian-connector)
+    mcp_server.py                  MCP server (8 tools for Claude Desktop)
     audit.py                       Append-only audit log
     cache.py                       In-memory TTL cache
     client.py                      Core CLI wrapper + 4 functions
@@ -302,6 +327,10 @@ obsidian-connector/
     audit_test.py                  Audit log tests
     cache_test.py                  Cache module and integration tests
     escaping_test.py               Content escaping edge-case tests
+    mcp_launch_smoke.sh            MCP server launch smoke test
+  bin/
+    obsx                           CLI wrapper (no venv activation needed)
+    obsx-mcp                       MCP server wrapper (used by Desktop config)
 ```
 
 ## Adding new commands
@@ -309,8 +338,9 @@ obsidian-connector/
 1. Add the Obsidian CLI call in `client.py` (low-level) or `workflows.py`
    (composed from existing functions).
 2. Export from `__init__.py`.
-3. Add an argparse subcommand in `main.py` with both human and `--json`
+3. Add an argparse subcommand in `cli.py` with both human and `--json`
    output paths (use the envelope functions).
+3b. Add a `@mcp.tool()` function in `mcp_server.py`.
 4. If mutating, add `--dry-run` and call `log_action()` from `audit.py`.
 5. Add a smoke test in `scripts/`.
 6. Update this contract and `README.md`.

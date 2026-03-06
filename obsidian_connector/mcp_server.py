@@ -149,13 +149,13 @@ def main() -> None:
     """Run the MCP server.
 
     Default transport is stdio (for claude_desktop_config.json).
-    Pass ``--http`` to start a Streamable HTTP server on port 8080
+    Pass ``--http`` to start a Streamable HTTP server on port 8000
     (for the Claude Desktop "Add custom connector" UI).
     """
     import sys
 
     if "--http" in sys.argv:
-        mcp.run(transport="streamable-http", host="127.0.0.1", port=8080)
+        mcp.run(transport="streamable-http")
     else:
         mcp.run()
 
