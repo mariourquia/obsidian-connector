@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from obsidian_connector.audit import log_action
 from obsidian_connector.client import (
