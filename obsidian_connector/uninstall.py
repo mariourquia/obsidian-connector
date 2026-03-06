@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -81,4 +83,57 @@ def validate_json(content: str) -> bool:
         json.loads(content)
         return True
     except json.JSONDecodeError:
+        return False
+
+
+def remove_from_json_config(config_path: Path, key_path: List[str]) -> bool:
+    """Remove a key from JSON config file. Validates JSON after change."""
+    try:
+        with open(config_path) as f:
+            cfg = json.load(f)
+
+        # Navigate to parent of target key
+        obj = cfg
+        for key in key_path[:-1]:
+            obj = obj[key]
+
+        # Remove target key
+        del obj[key_path[-1]]
+
+        # Validate and write back
+        content = json.dumps(cfg, indent=2) + "\n"
+        if not validate_json(content):
+            return False
+
+        config_path.write_text(content)
+        return True
+    except (KeyError, TypeError, json.JSONDecodeError, IOError):
+        return False
+
+
+def remove_file_safely(file_path: Path) -> bool:
+    """Remove file if it exists. Idempotent."""
+    try:
+        if file_path.exists():
+            if file_path.is_dir():
+                shutil.rmtree(file_path)
+            else:
+                file_path.unlink()
+        return True
+    except (IOError, OSError):
+        return False
+
+
+def unload_launchd_plist(plist_path: Path) -> bool:
+    """Unload and remove launchd plist."""
+    try:
+        if plist_path.exists():
+            subprocess.run(
+                ["launchctl", "unload", str(plist_path)],
+                capture_output=True,
+                check=False
+            )
+            plist_path.unlink()
+        return True
+    except (IOError, OSError):
         return False
