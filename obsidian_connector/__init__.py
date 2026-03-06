@@ -21,8 +21,11 @@ from obsidian_connector.errors import (
 )
 from obsidian_connector.search import enrich_search_results
 from obsidian_connector.workflows import (
+    challenge_belief,
     close_day_reflection,
+    connect_domains,
     create_research_note,
+    emerge_ideas,
     find_prior_work,
     list_open_loops,
     log_decision,
@@ -38,8 +41,11 @@ __all__ = [
     "ObsidianNotFound",
     "ObsidianNotRunning",
     "VaultNotFound",
+    "challenge_belief",
     "close_day_reflection",
+    "connect_domains",
     "create_research_note",
+    "emerge_ideas",
     "enrich_search_results",
     "error_envelope",
     "find_prior_work",

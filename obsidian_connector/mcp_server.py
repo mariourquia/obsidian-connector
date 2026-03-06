@@ -22,8 +22,11 @@ from obsidian_connector.errors import (
     VaultNotFound,
 )
 from obsidian_connector.workflows import (
+    challenge_belief,
     close_day_reflection,
+    connect_domains,
     create_research_note,
+    emerge_ideas,
     find_prior_work,
     list_open_loops,
     log_decision,
@@ -259,6 +262,82 @@ def obsidian_open_loops(
     """
     try:
         result = list_open_loops(vault=vault, lookback_days=lookback_days)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_challenge_belief(
+    belief: str,
+    vault: str | None = None,
+    max_evidence: int = 10,
+) -> str:
+    """Challenge a belief by searching the vault for counter-evidence.
+
+    Searches for contradicting and supporting evidence in your notes.
+    Use this to stress-test assumptions, validate hypotheses, or play
+    devil's advocate against a stated belief.
+
+    Args:
+        belief: The belief or assumption to challenge.
+        vault: Target vault name (uses default if omitted).
+        max_evidence: Maximum evidence items to return (default 10).
+    """
+    try:
+        result = challenge_belief(belief, vault=vault, max_evidence=max_evidence)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_emerge_ideas(
+    topic: str,
+    vault: str | None = None,
+    max_clusters: int = 5,
+) -> str:
+    """Cluster related notes into idea groups around a topic.
+
+    Searches the vault for the topic, groups results by folder, and
+    returns summaries for each cluster. Use this to discover how a topic
+    is spread across your vault and find emergent patterns.
+
+    Args:
+        topic: Topic to explore.
+        vault: Target vault name (uses default if omitted).
+        max_clusters: Maximum number of clusters to return (default 5).
+    """
+    try:
+        result = emerge_ideas(topic, vault=vault, max_clusters=max_clusters)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_connect_domains(
+    domain_a: str,
+    domain_b: str,
+    vault: str | None = None,
+    max_connections: int = 10,
+) -> str:
+    """Find connections between two domains in the vault.
+
+    Searches for each domain separately, then finds notes that appear
+    in both result sets. Use this to discover interdisciplinary links,
+    bridge concepts, or find notes that span multiple topics.
+
+    Args:
+        domain_a: First domain to search.
+        domain_b: Second domain to search.
+        vault: Target vault name (uses default if omitted).
+        max_connections: Maximum connecting notes to return (default 10).
+    """
+    try:
+        result = connect_domains(
+            domain_a, domain_b, vault=vault, max_connections=max_connections
+        )
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
