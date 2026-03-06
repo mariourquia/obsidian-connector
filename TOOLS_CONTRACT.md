@@ -280,12 +280,13 @@ path-based lookups.
 
 ```
 obsidian-connector/
-  main.py                          CLI entry point (obsx / obsidian-connector)
+  main.py                          Thin wrapper (backward compat for python main.py)
   config.json                      Project-level defaults
   pyproject.toml                   Package metadata (console scripts: obsx)
   TOOLS_CONTRACT.md                This file
   obsidian_connector/
     __init__.py                    Public API re-exports
+    cli.py                         CLI entry point (obsx / obsidian-connector)
     audit.py                       Append-only audit log
     cache.py                       In-memory TTL cache
     client.py                      Core CLI wrapper + 4 functions
