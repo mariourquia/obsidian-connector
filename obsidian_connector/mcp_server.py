@@ -22,9 +22,13 @@ from obsidian_connector.errors import (
     VaultNotFound,
 )
 from obsidian_connector.workflows import (
+    close_day_reflection,
     create_research_note,
     find_prior_work,
+    list_open_loops,
     log_decision,
+    my_world_snapshot,
+    today_brief,
 )
 
 
@@ -180,6 +184,82 @@ def obsidian_create_note(
     try:
         path = create_research_note(title, template, vault=vault)
         return f"Created: {path}"
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_my_world(
+    vault: str | None = None,
+    lookback_days: int = 14,
+) -> str:
+    """Get a snapshot of the entire vault state.
+
+    Returns recent daily notes, open tasks, open loops, vault file count,
+    and a hint about what to focus on next. Use this as a starting point
+    when beginning a work session.
+
+    Args:
+        vault: Target vault name (uses default if omitted).
+        lookback_days: Days to look back for daily notes (default 14).
+    """
+    try:
+        result = my_world_snapshot(vault=vault, lookback_days=lookback_days)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_today(vault: str | None = None) -> str:
+    """Get a brief for today: daily note content, open tasks, open loops.
+
+    Use this to see what is on the plate for the current day.
+
+    Args:
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = today_brief(vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_close_day(vault: str | None = None) -> str:
+    """Generate an end-of-day reflection prompt (read-only).
+
+    Returns completed tasks, remaining tasks, reflection questions, and
+    suggested actions for tomorrow. Does NOT write to the vault.
+
+    Args:
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = close_day_reflection(vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool()
+def obsidian_open_loops(
+    vault: str | None = None,
+    lookback_days: int = 30,
+) -> str:
+    """List open loops in the vault.
+
+    Finds lines starting with "OL:" and notes tagged with #openloop.
+    Use this to review unresolved items that need attention.
+
+    Args:
+        vault: Target vault name (uses default if omitted).
+        lookback_days: Lookback window in days (default 30).
+    """
+    try:
+        result = list_open_loops(vault=vault, lookback_days=lookback_days)
+        return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
 

@@ -27,9 +27,13 @@ from obsidian_connector.envelope import (
 from obsidian_connector.audit import log_action
 from obsidian_connector.search import enrich_search_results
 from obsidian_connector.workflows import (
+    close_day_reflection,
     create_research_note,
     find_prior_work,
+    list_open_loops,
     log_decision,
+    my_world_snapshot,
+    today_brief,
 )
 
 
@@ -80,6 +84,113 @@ def _fmt_doctor(checks: list[dict]) -> str:
     for c in checks:
         icon = "PASS" if c.get("ok") else "FAIL"
         lines.append(f"  [{icon}] {c['check']}: {c.get('detail', '')}")
+    return "\n".join(lines)
+
+
+def _fmt_my_world(data: dict) -> str:
+    """Human-readable my-world snapshot."""
+    lines: list[str] = []
+    stats = data.get("vault_stats", {})
+    lines.append(f"Vault: {stats.get('total_files', '?')} files")
+
+    daily = data.get("recent_daily_notes", [])
+    if daily:
+        lines.append(f"\nRecent daily notes ({len(daily)}):")
+        for d in daily[:10]:
+            lines.append(f"  {d}")
+
+    tasks = data.get("open_tasks", [])
+    if tasks:
+        lines.append(f"\nOpen tasks ({len(tasks)}):")
+        lines.append(_fmt_tasks(tasks))
+
+    loops = data.get("open_loops", [])
+    if loops:
+        lines.append(f"\nOpen loops ({len(loops)}):")
+        lines.append(_fmt_open_loops(loops))
+
+    hint = data.get("recent_searches_hint", "")
+    if hint:
+        lines.append(f"\n{hint}")
+
+    return "\n".join(lines)
+
+
+def _fmt_today(data: dict) -> str:
+    """Human-readable today brief."""
+    lines: list[str] = []
+    lines.append(f"Date: {data.get('date', '?')}")
+
+    note = data.get("daily_note")
+    if note:
+        preview = note[:300].replace("\n", "\n  ")
+        lines.append(f"\nDaily note (preview):\n  {preview}")
+        if len(note) > 300:
+            lines.append("  ...")
+    else:
+        lines.append("\nNo daily note found for today.")
+
+    tasks = data.get("open_tasks", [])
+    if tasks:
+        lines.append(f"\nOpen tasks ({len(tasks)}):")
+        lines.append(_fmt_tasks(tasks))
+
+    loops = data.get("open_loops", [])
+    if loops:
+        lines.append(f"\nOpen loops ({len(loops)}):")
+        lines.append(_fmt_open_loops(loops))
+
+    return "\n".join(lines)
+
+
+def _fmt_close(data: dict) -> str:
+    """Human-readable close-day reflection."""
+    lines: list[str] = []
+    lines.append(f"Date: {data.get('date', '?')}")
+
+    summary = data.get("daily_note_summary")
+    if summary:
+        preview = summary[:200].replace("\n", "\n  ")
+        lines.append(f"\nDaily note summary:\n  {preview}")
+    else:
+        lines.append("\nNo daily note found for today.")
+
+    done = data.get("completed_tasks", [])
+    if done:
+        lines.append(f"\nCompleted tasks ({len(done)}):")
+        lines.append(_fmt_tasks(done))
+
+    remaining = data.get("remaining_tasks", [])
+    if remaining:
+        lines.append(f"\nRemaining tasks ({len(remaining)}):")
+        lines.append(_fmt_tasks(remaining))
+
+    prompts = data.get("reflection_prompts", [])
+    if prompts:
+        lines.append("\nReflection prompts:")
+        for i, p in enumerate(prompts, 1):
+            lines.append(f"  {i}. {p}")
+
+    actions = data.get("suggested_actions", [])
+    if actions:
+        lines.append("\nSuggested actions for tomorrow:")
+        for a in actions:
+            lines.append(f"  - {a}")
+
+    return "\n".join(lines)
+
+
+def _fmt_open_loops(data: list[dict]) -> str:
+    """Human-readable open loops list."""
+    if not data:
+        return "No open loops."
+    lines: list[str] = []
+    for item in data:
+        src = item.get("source", "?")
+        text = item.get("text", "").strip()
+        f = item.get("file", "")
+        ln = item.get("line", 0)
+        lines.append(f"  [{src}] {text}  ({f}:{ln})")
     return "\n".join(lines)
 
 
@@ -152,6 +263,25 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("find-prior-work", help="Search for prior work on a topic and summarise hits.")
     p.add_argument("topic", help="Search topic.")
     p.add_argument("--top-n", type=int, default=5, help="Max notes to return (default 5).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- my-world ----------------------------------------------------------
+    p = sub.add_parser("my-world", help="Snapshot of vault state: tasks, open loops, daily notes.")
+    p.add_argument("--lookback-days", type=int, default=14, help="Days to look back for daily notes (default 14).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- today -------------------------------------------------------------
+    p = sub.add_parser("today", help="Brief for today: daily note, tasks, open loops.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- close -------------------------------------------------------------
+    p = sub.add_parser("close", help="End-of-day reflection prompts (read-only).")
+    p.add_argument("--confirm", action="store_true", help="Reserved for future write support (currently ignored).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- open-loops --------------------------------------------------------
+    p = sub.add_parser("open-loops", help="List open loops (OL: lines and #openloop tags).")
+    p.add_argument("--lookback-days", type=int, default=30, help="Lookback window in days (default 30).")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     # -- doctor ------------------------------------------------------------
@@ -298,6 +428,32 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = results
             human = _fmt_prior_work(results)
+
+        elif args.command == "my-world":
+            result = my_world_snapshot(
+                vault=args.vault,
+                lookback_days=args.lookback_days,
+            )
+            data = result
+            human = _fmt_my_world(result)
+
+        elif args.command == "today":
+            result = today_brief(vault=args.vault)
+            data = result
+            human = _fmt_today(result)
+
+        elif args.command == "close":
+            result = close_day_reflection(vault=args.vault)
+            data = result
+            human = _fmt_close(result)
+
+        elif args.command == "open-loops":
+            result = list_open_loops(
+                vault=args.vault,
+                lookback_days=args.lookback_days,
+            )
+            data = result
+            human = _fmt_open_loops(result)
 
         elif args.command == "doctor":
             from obsidian_connector.doctor import run_doctor
