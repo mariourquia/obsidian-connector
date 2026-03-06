@@ -4,6 +4,7 @@ from obsidian_connector.cache import CLICache
 from obsidian_connector.audit import log_action
 from obsidian_connector.client import (
     ObsidianCLIError,
+    batch_read_notes,
     list_tasks,
     log_to_daily,
     read_note,
@@ -30,13 +31,23 @@ from obsidian_connector.graph import (
 )
 from obsidian_connector.index_store import IndexStore
 from obsidian_connector.search import enrich_search_results
+from obsidian_connector.thinking import (
+    deep_ideas,
+    drift_analysis,
+    ghost_voice_profile,
+    trace_idea,
+)
 from obsidian_connector.workflows import (
     challenge_belief,
     close_day_reflection,
     connect_domains,
+    context_load_full,
     create_research_note,
+    detect_delegations,
     emerge_ideas,
     find_prior_work,
+    graduate_candidates,
+    graduate_execute,
     list_open_loops,
     log_decision,
     my_world_snapshot,
@@ -54,11 +65,16 @@ __all__ = [
     "ObsidianNotFound",
     "ObsidianNotRunning",
     "VaultNotFound",
+    "batch_read_notes",
     "build_note_index",
     "challenge_belief",
+    "deep_ideas",
+    "drift_analysis",
     "close_day_reflection",
     "connect_domains",
+    "context_load_full",
     "create_research_note",
+    "detect_delegations",
     "emerge_ideas",
     "enrich_search_results",
     "error_envelope",
@@ -66,6 +82,9 @@ __all__ = [
     "extract_links",
     "extract_tags",
     "find_prior_work",
+    "ghost_voice_profile",
+    "graduate_candidates",
+    "graduate_execute",
     "list_open_loops",
     "list_tasks",
     "log_action",
@@ -79,4 +98,5 @@ __all__ = [
     "search_notes",
     "success_envelope",
     "today_brief",
+    "trace_idea",
 ]
