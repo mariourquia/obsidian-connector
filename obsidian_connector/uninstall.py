@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -62,3 +63,22 @@ def detect_installed_artifacts(
         config_changes=config_changes,
         plist_path=plist_path if plist_path.exists() else None
     )
+
+
+def backup_config_file(config_path: Path) -> Path:
+    """Create timestamped backup of config file."""
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    backup_path = config_path.parent / f"{config_path.name}.backup-{timestamp}"
+    backup_path.write_text(config_path.read_text())
+    return backup_path
+
+
+def validate_json(content: str) -> bool:
+    """Check if string is valid JSON."""
+    if not content or not content.strip():
+        return False
+    try:
+        json.loads(content)
+        return True
+    except json.JSONDecodeError:
+        return False
