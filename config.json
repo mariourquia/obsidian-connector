@@ -1,0 +1,9 @@
+{
+  "default_vault": "Obsidian Vault",
+  "daily_note_behavior": "append",
+  "default_folders": {
+    "inbox": "Inbox",
+    "projects": "Projects",
+    "archive": "Archive"
+  }
+}
