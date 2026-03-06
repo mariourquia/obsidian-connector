@@ -1,0 +1,42 @@
+# Changelog
+
+All notable changes to obsidian-connector are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] - 2026-03-06
+
+First public release.
+
+### Added
+
+- **Core vault operations**: search, read, tasks, log-daily, log-decision, create-note, doctor (7 MCP tools, 7 CLI commands)
+- **Research and discovery**: find-prior-work, challenge-belief, emerge-ideas, connect-domains (4 MCP tools)
+- **Graph intelligence**: neighborhood, vault-structure, backlinks, rebuild-index (4 MCP tools). Work without Obsidian running.
+- **Thinking tools**: ghost (voice analysis), drift (intention vs behavior), trace (idea evolution), ideas (latent idea surfacing) (4 MCP tools)
+- **Workflow OS**: my-world, today, close-day, open-loops, graduate-candidates, graduate-execute, delegations, context-load, check-in (9 MCP tools)
+- **check_in MCP tool**: Time-aware situational awareness with ritual tracking, loop counting, and actionable suggestions
+- **4 Claude Code skills**: /morning, /evening, /idea, /weekly
+- **SessionStart hook**: Automatic context display at Claude Code session start
+- **Scheduled automation**: macOS launchd runner for morning briefings (configurable for evening/weekly)
+- **Claude Desktop system prompt**: Natural language workflow orchestration template
+- **One-click installer**: `scripts/install.sh` with opt-in skills, hooks, and scheduling
+- **Audit log**: Append-only JSONL logging for all mutations
+- **Dry-run mode**: Preview mutations without writing
+- **Agent draft provenance**: Frontmatter tagging for agent-generated notes
+- **SQLite-backed index**: Incremental vault graph index with change detection
+- **Path traversal protection**: Validated confinement for graduate_execute writes
+- **osascript escaping**: Safe notification string interpolation
+
+### Security
+
+- Subprocess calls use list-based args (no shell=True)
+- SQLite queries use parameterized placeholders exclusively
+- graduate_execute validates title and target_folder against path traversal
+- obsidian_bin config rejects shell metacharacters
+- context_files entries skip paths with ".." components
+- Notification strings escaped before osascript interpolation
+- No secrets stored, transmitted, or hardcoded
+- No network calls (100% local)
+
+[0.1.0]: https://github.com/mariourquia/obsidian-connector/releases/tag/v0.1.0

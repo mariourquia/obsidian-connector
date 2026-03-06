@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "obsidian-connector"
 version = "0.1.0"
-description = "Python wrapper for the Obsidian CLI -- read, search, and manage your vault from scripts and automation."
+description = "Turn Claude into your second brain. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Mario Urquia", email = "60152193+mariourquia@users.noreply.github.com" },
 ]
-dependencies = ["mcp>=1.0.0"]
+dependencies = ["mcp>=1.0.0,<2.0.0"]
 keywords = ["obsidian", "cli", "notes", "productivity", "automation", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",

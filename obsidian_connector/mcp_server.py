@@ -34,6 +34,7 @@ from obsidian_connector.config import resolve_vault_path
 from obsidian_connector.index_store import IndexStore
 from obsidian_connector.workflows import (
     challenge_belief,
+    check_in,
     close_day_reflection,
     connect_domains,
     context_load_full,
@@ -1065,6 +1066,35 @@ def obsidian_context_load(vault: str | None = None) -> str:
     """
     try:
         result = context_load_full(vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Check In",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_check_in(
+    vault: str | None = None,
+    timezone: str | None = None,
+) -> str:
+    """Time-aware check-in: what should you do now?
+
+    Call this at the start of a conversation. Returns what time of day
+    it is, which daily rituals have already run, how many open loops and
+    delegations are pending, and a suggested next action.
+
+    Use the suggestion to proactively offer the user their morning
+    briefing, evening close, or other relevant workflow.
+    """
+    try:
+        result = check_in(vault=vault, timezone_name=timezone)
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
