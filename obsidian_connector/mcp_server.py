@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
@@ -22,13 +23,26 @@ from obsidian_connector.errors import (
     ObsidianNotRunning,
     VaultNotFound,
 )
+from obsidian_connector.graph import NoteIndex
+from obsidian_connector.thinking import (
+    deep_ideas,
+    drift_analysis,
+    ghost_voice_profile,
+    trace_idea,
+)
+from obsidian_connector.config import resolve_vault_path
+from obsidian_connector.index_store import IndexStore
 from obsidian_connector.workflows import (
     challenge_belief,
     close_day_reflection,
     connect_domains,
+    context_load_full,
     create_research_note,
+    detect_delegations,
     emerge_ideas,
     find_prior_work,
+    graduate_candidates,
+    graduate_execute,
     list_open_loops,
     log_decision,
     my_world_snapshot,
@@ -55,6 +69,47 @@ def _error_envelope(exc: ObsidianCLIError) -> str:
     return json.dumps(
         {"ok": False, "error": {"type": error_type, "message": str(exc)}}
     )
+
+
+def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
+    """Delegate to the canonical shared implementation."""
+    from obsidian_connector.index_store import load_or_build_index
+
+    return load_or_build_index(vault)
+
+
+def _read_vault_file(rel_path: str, vault: str | None = None) -> str:
+    """Read a vault file by its vault-relative path without the Obsidian CLI.
+
+    Parameters
+    ----------
+    rel_path:
+        Vault-relative path to the note (e.g. ``"Cards/Home.md"``).
+    vault:
+        Vault name (uses default if omitted).
+
+    Returns
+    -------
+    str
+        File contents, or empty string if the file cannot be read or the
+        path would escape the vault root.
+    """
+    from obsidian_connector.errors import VaultNotFound
+    from pathlib import Path as _Path
+
+    note_path = _Path(rel_path)
+    if note_path.is_absolute():
+        return ""
+    try:
+        root = resolve_vault_path(vault).resolve()
+        full = (root / note_path).resolve()
+        full.relative_to(root)  # raises ValueError if outside vault
+        if full.is_file():
+            return full.read_text(encoding="utf-8", errors="replace")
+    except (ValueError, OSError, VaultNotFound):
+        pass
+    return ""
+
 
 mcp = FastMCP(
     "Obsidian Connector",
@@ -457,6 +512,227 @@ def obsidian_connect_domains(
 
 
 @mcp.tool(
+    title="Note Neighborhood",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_neighborhood(
+    note_path: str,
+    depth: int = 1,
+    vault: str | None = None,
+) -> str:
+    """Get the graph neighborhood of a note: backlinks, forward links, shared tags, and N-hop neighbors.
+
+    Args:
+        note_path: Vault-relative path or note name (e.g. "Home" or "Cards/Home.md").
+        depth: Traversal depth for neighbors (default 1).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        idx = _load_or_build_index(vault)
+        if idx is None:
+            return json.dumps(
+                {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
+            )
+
+        # Resolve the note path: try exact match, then by title, then with .md suffix.
+        resolved = None
+        if note_path in idx.notes:
+            resolved = note_path
+        else:
+            for path, entry in idx.notes.items():
+                if entry.title.lower() == note_path.lower():
+                    resolved = path
+                    break
+            if resolved is None and not note_path.endswith(".md"):
+                candidate = note_path + ".md"
+                if candidate in idx.notes:
+                    resolved = candidate
+
+        if resolved is None:
+            return json.dumps(
+                {"ok": False, "error": {"type": "NoteNotFound", "message": f"Note not found in index: {note_path}"}}
+            )
+
+        entry = idx.notes[resolved]
+        backlinks = sorted(idx.backlinks.get(resolved, set()))
+        forward_links = sorted(idx.forward_links.get(resolved, set()))
+        tags = entry.tags
+        neighbors = sorted(idx.neighborhood(resolved, depth=depth))
+
+        return json.dumps({
+            "note": resolved,
+            "backlinks": backlinks,
+            "forward_links": forward_links,
+            "tags": tags,
+            "neighbors": neighbors,
+        }, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Vault Structure",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_vault_structure(vault: str | None = None) -> str:
+    """Get vault topology: orphans, dead ends, unresolved links, tag cloud, and most-connected notes.
+
+    Args:
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        idx = _load_or_build_index(vault)
+        if idx is None:
+            return json.dumps(
+                {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
+            )
+
+        total_notes = len(idx.notes)
+
+        orphans = sorted(idx.orphans)[:20]
+        dead_ends = sorted(idx.dead_ends)[:20]
+
+        # Unresolved links: {link_target: [source_files]}
+        unresolved_sorted = sorted(
+            idx.unresolved.items(),
+            key=lambda x: len(x[1]),
+            reverse=True,
+        )[:20]
+        unresolved_links = {
+            link: sorted(sources) for link, sources in unresolved_sorted
+        }
+
+        # Tag cloud: {tag: count}
+        tag_counts = sorted(
+            ((tag, len(paths)) for tag, paths in idx.tags.items()),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:30]
+        tag_cloud = {tag: count for tag, count in tag_counts}
+
+        # Top connected: notes with most backlinks.
+        backlink_counts = sorted(
+            (
+                (path, len(bl))
+                for path, bl in idx.backlinks.items()
+                if bl  # skip notes with 0 backlinks
+            ),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:10]
+        top_connected = [
+            {"note": path, "backlink_count": count}
+            for path, count in backlink_counts
+        ]
+
+        return json.dumps({
+            "total_notes": total_notes,
+            "orphans": orphans,
+            "dead_ends": dead_ends,
+            "unresolved_links": unresolved_links,
+            "tag_cloud": tag_cloud,
+            "top_connected": top_connected,
+        }, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Note Backlinks",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
+    """Get all notes that link to a given note, with context.
+
+    Args:
+        note_path: Vault-relative path or note name (e.g. "Home" or "Cards/Home.md").
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        idx = _load_or_build_index(vault)
+        if idx is None:
+            return json.dumps(
+                {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
+            )
+
+        # Resolve the note path.
+        resolved = None
+        if note_path in idx.notes:
+            resolved = note_path
+        else:
+            for path, entry in idx.notes.items():
+                if entry.title.lower() == note_path.lower():
+                    resolved = path
+                    break
+            if resolved is None and not note_path.endswith(".md"):
+                candidate = note_path + ".md"
+                if candidate in idx.notes:
+                    resolved = candidate
+
+        if resolved is None:
+            return json.dumps(
+                {"ok": False, "error": {"type": "NoteNotFound", "message": f"Note not found in index: {note_path}"}}
+            )
+
+        backlink_paths = sorted(idx.backlinks.get(resolved, set()))
+        note_title = idx.notes[resolved].title
+
+        results: list[dict] = []
+        for bl_path in backlink_paths:
+            bl_entry = idx.notes.get(bl_path)
+            context_line = ""
+
+            # Read the backlinking note directly from vault files (no Obsidian CLI needed).
+            content = _read_vault_file(bl_path, vault=vault)
+            if content:
+                for line in content.split("\n"):
+                    if f"[[{note_title}]]" in line or f"[[{note_title}|" in line:
+                        context_line = line.strip()
+                        break
+                    # Also check for path-based links.
+                    if f"[[{resolved}" in line:
+                        context_line = line.strip()
+                        break
+
+            results.append({
+                "file": bl_path,
+                "context_line": context_line,
+                "tags": bl_entry.tags if bl_entry else [],
+            })
+
+        return json.dumps(results, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
     title="Doctor Health Check",
     annotations=ToolAnnotations(
         readOnlyHint=True,
@@ -474,6 +750,322 @@ def obsidian_doctor(vault: str | None = None) -> str:
     try:
         checks = run_doctor(vault=vault)
         return json.dumps(checks, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Graduate Candidates",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_graduate_candidates(
+    lookback_days: int = 7,
+    vault: str | None = None,
+) -> str:
+    """Scan recent daily notes for ideas worth promoting to standalone notes.
+
+    Detects headings with rich content, paragraphs with multiple wikilinks,
+    #idea/#insight tags, and "TODO: expand" markers. Returns candidates
+    ranked by richness with existing-note detection.
+
+    Args:
+        lookback_days: Days to look back for daily notes (default 7).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = graduate_candidates(vault=vault, lookback_days=lookback_days)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Graduate Execute",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_graduate_execute(
+    title: str,
+    content: str,
+    source_file: str | None = None,
+    target_folder: str | None = None,
+    confirm: bool = False,
+    dry_run: bool = False,
+    vault: str | None = None,
+) -> str:
+    """Create a note in the agent drafts folder with provenance frontmatter.
+
+    Enforces "agents read, humans write": notes land in a segregated
+    drafts folder (default: Inbox/Agent Drafts) for human review.
+
+    REQUIRES confirm=True to write, or dry_run=True to preview.
+
+    Args:
+        title: Note title (becomes the file name).
+        content: Markdown body of the note.
+        source_file: Vault-relative path of the originating daily note.
+        target_folder: Target folder (default: Inbox/Agent Drafts).
+        confirm: Must be True to actually create the note.
+        dry_run: If True, return a preview without creating anything.
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = graduate_execute(
+            title=title,
+            content=content,
+            vault=vault,
+            target_folder=target_folder,
+            source_file=source_file,
+            confirm=confirm,
+            dry_run=dry_run,
+        )
+        return json.dumps(result, indent=2)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": {"type": "ValueError", "message": str(exc)}})
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Ghost Voice Profile",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_ghost(
+    question: str | None = None,
+    sample_notes: int = 20,
+    vault: str | None = None,
+) -> str:
+    """Analyze writing style from recent vault notes to build a voice profile.
+
+    Reads the N most recently modified notes, extracts sentence length,
+    vocabulary richness, common phrases, structural preferences, and tone
+    markers. Use this to understand and reproduce the user's authentic
+    writing voice.
+
+    Args:
+        question: Optional question to answer in the user's voice (included in response for context).
+        sample_notes: Number of recent notes to sample (default 20).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = ghost_voice_profile(vault=vault, sample_notes=sample_notes)
+        if question:
+            result["question"] = question
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Drift Analysis",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_drift(
+    lookback_days: int = 60,
+    vault: str | None = None,
+) -> str:
+    """Analyze drift between stated intentions and actual behavior.
+
+    Reads daily notes over the lookback period, extracts stated intentions
+    (I will, Plan to, Goal:, TODO:, etc.), and cross-references with topics
+    actually discussed. Surfaces gaps (intentions not acted on) and surprises
+    (topics getting attention without stated intent).
+
+    Args:
+        lookback_days: Days to look back (default 60).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = drift_analysis(vault=vault, lookback_days=lookback_days)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Trace Idea",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_trace(
+    topic: str,
+    max_notes: int = 20,
+    vault: str | None = None,
+) -> str:
+    """Trace how an idea or topic evolved over time across vault notes.
+
+    Searches for the topic, sorts matching notes by date, extracts excerpts
+    around mentions, and groups into temporal phases (first_mention, growth,
+    plateau, revival). Use this to understand the evolution of your thinking.
+
+    Args:
+        topic: Topic string to trace.
+        max_notes: Maximum notes in the timeline (default 20).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = trace_idea(topic, vault=vault, max_notes=max_notes)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Deep Ideas",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_ideas(
+    max_ideas: int = 10,
+    vault: str | None = None,
+) -> str:
+    """Surface latent ideas from vault graph structure.
+
+    Finds forgotten ideas (orphaned #idea/#insight notes), convergence points
+    (high backlinks, no outgoing links), unresolved links (ideas referenced
+    but never written), rare tag connections, and cross-domain opportunities.
+    Use this to discover hidden patterns and actionable next steps.
+
+    Args:
+        max_ideas: Maximum ideas to return (default 10).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = deep_ideas(vault=vault, max_ideas=max_ideas)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Rebuild Index",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_rebuild_index(vault: str | None = None) -> str:
+    """Trigger a full rebuild of the vault graph index.
+
+    Use at session start for fresh data. Returns index statistics
+    including notes indexed, orphan count, tag count, and duration.
+    """
+    try:
+        vault_path = resolve_vault_path(vault)
+        store = IndexStore()
+        try:
+            t0 = time.monotonic()
+            index = store.build_full(vault_path=vault_path)
+            duration_ms = int((time.monotonic() - t0) * 1000)
+        finally:
+            store.close()
+
+        return json.dumps({
+            "notes_indexed": len(index.notes),
+            "orphans": len(index.orphans),
+            "tags": len(index.tags),
+            "duration_ms": duration_ms,
+        }, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Detect Delegations",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_delegations(
+    lookback_days: int = 1,
+    vault: str | None = None,
+) -> str:
+    """Scan recent notes for @agent: or @claude: delegation instructions.
+
+    Finds delegation patterns in daily notes and vault-wide searches.
+    Returns each delegation with file, line number, instruction text,
+    and status (pending or done).
+
+    Args:
+        lookback_days: Days to look back for daily notes (default 1).
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        results = detect_delegations(vault=vault, lookback_days=lookback_days)
+        return json.dumps(results, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Load Full Context",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_context_load(vault: str | None = None) -> str:
+    """Load full context bundle: context files, daily note with links, recent dailies, tasks, loops.
+
+    Use this at the start of an agent session to load all relevant vault
+    context in a single call. Reads are capped at 20 notes total.
+
+    Args:
+        vault: Target vault name (uses default if omitted).
+    """
+    try:
+        result = context_load_full(vault=vault)
+        return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
 

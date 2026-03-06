@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 from obsidian_connector.config import load_config
 from obsidian_connector.cache import CLICache
@@ -266,3 +267,70 @@ def list_tasks(
     if not isinstance(data, list):
         return [data] if isinstance(data, dict) else []
     return data
+
+
+def batch_read_notes(
+    paths: list[str],
+    vault: str | None = None,
+    max_concurrent: int = 4,
+) -> dict[str, str]:
+    """Read multiple notes with bounded concurrency.
+
+    Uses :class:`concurrent.futures.ThreadPoolExecutor` with *max_concurrent*
+    workers.  Falls back to sequential reads if any IPC error is detected.
+
+    Parameters
+    ----------
+    paths:
+        List of note names or vault-relative paths.
+    vault:
+        Target vault name.
+    max_concurrent:
+        Maximum worker threads (default 4).
+
+    Returns
+    -------
+    dict[str, str]
+        ``{path: content}`` dict.  Failed reads have an empty string value.
+    """
+    if not paths:
+        return {}
+
+    results: dict[str, str] = {}
+    failed: set[str] = set()
+    ipc_error_detected = False
+
+    def _read_one(path: str) -> tuple[str, str, bool]:
+        try:
+            content = read_note(path, vault=vault)
+            return (path, content, False)
+        except ObsidianCLIError as exc:
+            err_msg = str(exc).lower()
+            is_ipc = "ipc" in err_msg or "not running" in err_msg or "connect" in err_msg
+            return (path, "", is_ipc)
+
+    # Try concurrent reads first.
+    try:
+        with ThreadPoolExecutor(max_workers=min(max_concurrent, len(paths))) as pool:
+            futures = [pool.submit(_read_one, p) for p in paths]
+            for future in futures:
+                path, content, is_ipc = future.result()
+                results[path] = content
+                if content == "" and is_ipc:
+                    ipc_error_detected = True
+                if content == "":
+                    failed.add(path)
+    except (OSError, RuntimeError):
+        # Pool-level infrastructure failure -- fall back to sequential.
+        ipc_error_detected = True
+
+    # If IPC error was detected, retry only failed paths sequentially.
+    if ipc_error_detected:
+        for path in paths:
+            if path in failed or path not in results:
+                try:
+                    results[path] = read_note(path, vault=vault)
+                except ObsidianCLIError:
+                    results[path] = ""
+
+    return results
