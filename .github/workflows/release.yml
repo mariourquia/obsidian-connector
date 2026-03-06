@@ -21,10 +21,9 @@ jobs:
       - name: Install and test
         run: |
           pip install -e .
-          # Run only CI-safe tests. Tests requiring Obsidian CLI (cache_test, thinking_deep_test)
+          # Run only CI-safe tests. Tests requiring Obsidian CLI (cache_test, escaping_test, thinking_deep_test)
           # are validated locally before release; Obsidian CLI unavailable in CI.
           python3 scripts/audit_test.py
-          python3 scripts/escaping_test.py
           python3 scripts/graph_test.py
           python3 scripts/index_test.py
           python3 scripts/graduate_test.py
