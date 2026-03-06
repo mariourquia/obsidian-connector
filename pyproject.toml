@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "obsidian-connector"
-version = "0.1.0"
+version = "0.1.1"
 description = "Turn Claude into your second brain. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault."
 readme = "README.md"
 license = "MIT"
@@ -25,6 +25,9 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Utilities",
 ]
+
+[project.optional-dependencies]
+scheduling = ["pyyaml>=6.0,<7.0"]
 
 [project.scripts]
 obsidian-connector = "obsidian_connector.cli:main"
