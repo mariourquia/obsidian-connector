@@ -1495,16 +1495,35 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print("\nObsidian Connector Uninstaller")
                 print("=" * 40)
-                print("\nWhat would you like to remove?")
+                print("\nWhat would you like to keep?")
                 print()
 
-                # Ask about each artifact type
-                plan.remove_venv = input("Remove .venv directory? [y/N] ").lower() in ["y", "yes"]
-                plan.remove_skills = input("Remove Claude Code skills? [y/N] ").lower() in ["y", "yes"]
-                plan.remove_hook = input("Remove SessionStart hook? [y/N] ").lower() in ["y", "yes"]
-                plan.remove_plist = input("Remove launchd daily briefing? [y/N] ").lower() in ["y", "yes"]
-                plan.remove_logs = input("Remove logs? [y/N] ").lower() in ["y", "yes"]
-                plan.remove_cache = input("Remove cache/index files? [y/N] ").lower() in ["y", "yes"]
+                # Log the uninstall action with interactive mode intent
+                log_action(
+                    "uninstall",
+                    {"mode": "interactive", "force": False},
+                    vault,
+                    dry_run=False,
+                    affected_path="system-config",
+                )
+
+                # Ask about each artifact type (inverted logic: keep = default)
+                plan.remove_venv = input("Keep .venv directory? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_skills = input("Keep Claude Code skills? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_hook = input("Keep SessionStart hook? [y/N] ").lower() not in ["y", "yes"]
+
+                # Add explicit prompt for Claude config entry
+                keep_claude_config = input("Keep Claude config entry? [y/N] ").lower() in ["y", "yes"]
+                if not keep_claude_config and plan.config_changes:
+                    # Mark to remove config entry
+                    pass
+                elif keep_claude_config and plan.config_changes:
+                    # Don't remove config entry
+                    plan.config_changes = {}
+
+                plan.remove_plist = input("Keep launchd plist? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_logs = input("Keep logs? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_cache = input("Keep cache/index files? [y/N] ").lower() not in ["y", "yes"]
 
                 # Show plan
                 print("\n" + "=" * 40)
