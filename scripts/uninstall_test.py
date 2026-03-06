@@ -11,7 +11,8 @@ from obsidian_connector.uninstall import (
     validate_json,
     remove_from_json_config,
     remove_file_safely,
-    unload_launchd_plist
+    unload_launchd_plist,
+    execute_uninstall
 )
 
 def test_uninstall_plan_creation():
@@ -94,6 +95,31 @@ def test_remove_file_safely_missing(tmp_path):
 
     assert result is True
 
+def test_execute_uninstall(tmp_path):
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+    config = tmp_path / "config.json"
+    config.write_text('{"mcpServers": {"obsidian-connector": {}}}')
+
+    plan = UninstallPlan(
+        venv_path=venv,
+        files_to_remove=[venv],
+        config_changes={
+            "claude_desktop_config.json": {
+                "action": "remove_key",
+                "path": ["mcpServers", "obsidian-connector"]
+            }
+        },
+        remove_venv=True,
+        dry_run=False
+    )
+
+    result = execute_uninstall(plan, config_path=config)
+
+    assert result["status"] == "ok"
+    assert not venv.exists()
+    assert "obsidian-connector" not in json.loads(config.read_text()).get("mcpServers", {})
+
 if __name__ == "__main__":
     test_uninstall_plan_creation()
     print("test_uninstall_plan_creation PASS")
@@ -121,3 +147,7 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_remove_file_safely_missing(Path(tmp))
     print("test_remove_file_safely_missing PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_execute_uninstall(Path(tmp))
+    print("test_execute_uninstall PASS")
