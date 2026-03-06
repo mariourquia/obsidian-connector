@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-artifacts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,29 +35,75 @@ jobs:
           git archive --format=tar.gz --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.tar.gz"
           git archive --format=zip --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.zip"
 
+      - name: Generate checksums for source archives
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          sha256sum "obsidian-connector-${TAG_NAME}.tar.gz" \
+                    "obsidian-connector-${TAG_NAME}.zip" > "checksums.txt"
+          cat checksums.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            obsidian-connector-*.tar.gz
+            obsidian-connector-*.zip
+            checksums.txt
+
+  build-macos-dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Build macOS .dmg installer
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           bash scripts/create-dmg.sh "$TAG_NAME"
 
-      - name: Generate checksums
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: dist/obsidian-connector-*.dmg
+
+  create-release:
+    needs: [build-artifacts, build-macos-dmg]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Prepare release assets
         run: |
+          mkdir -p final-assets
+          cp release-assets/linux-artifacts/* final-assets/
+          cp release-assets/macos-artifacts/* final-assets/
+          ls -lah final-assets/
+
+      - name: Create full checksums
+        run: |
+          cd final-assets
           TAG_NAME="${GITHUB_REF_NAME}"
-          sha256sum "obsidian-connector-${TAG_NAME}.tar.gz" \
-                    "obsidian-connector-${TAG_NAME}.zip" \
-                    "dist/obsidian-connector-${TAG_NAME}.dmg" > "obsidian-connector-${TAG_NAME}.sha256"
-          cat "obsidian-connector-${TAG_NAME}.sha256"
+          # Recalculate checksums including the .dmg
+          sha256sum obsidian-connector-${TAG_NAME}.tar.gz \
+                    obsidian-connector-${TAG_NAME}.zip \
+                    obsidian-connector-${TAG_NAME}.dmg > obsidian-connector-${TAG_NAME}.sha256
+          cat obsidian-connector-${TAG_NAME}.sha256
 
       - name: Create release and upload assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
+          cd final-assets
           gh release create "$TAG_NAME" \
             "obsidian-connector-${TAG_NAME}.tar.gz" \
             "obsidian-connector-${TAG_NAME}.zip" \
-            "dist/obsidian-connector-${TAG_NAME}.dmg" \
+            "obsidian-connector-${TAG_NAME}.dmg" \
             "obsidian-connector-${TAG_NAME}.sha256" \
             --title "$TAG_NAME" \
             --generate-notes \
