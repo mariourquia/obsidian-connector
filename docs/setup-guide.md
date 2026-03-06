@@ -1,6 +1,6 @@
 ---
 title: "Setup Guide"
-status: draft
+status: verified
 owner: core
 last_reviewed: "2026-03-06"
 ---
@@ -147,6 +147,18 @@ bash scripts/mcp_launch_smoke.sh
 **Obsidian must be running.** The connector communicates with Obsidian via
 IPC. If Obsidian is closed, CLI-based tools return `ObsidianNotRunning`.
 Graph tools work without Obsidian since they read files directly.
+
+**"ModuleNotFoundError: No module named 'obsidian_connector'" on Claude Desktop.**
+When Claude Desktop runs a subprocess, it doesn't inherit the editable package
+path from the shell environment. The fix: ensure `PYTHONPATH` is set in the
+Claude Desktop config. Re-run `./scripts/install.sh` to regenerate the config
+with the correct environment variable. Or manually add to your `claude_desktop_config.json`:
+
+```json
+"env": {
+  "PYTHONPATH": "/path/to/obsidian-connector"
+}
+```
 
 **"Operation not permitted" on macOS.** Re-run `./scripts/install.sh` to
 update the Claude Desktop config. The installer points directly at the

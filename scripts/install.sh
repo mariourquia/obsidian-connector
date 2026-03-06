@@ -86,7 +86,11 @@ configure_claude() {
     server_json=$(cat <<ENTRY
 {
   "command": "$VENV_PYTHON",
-  "args": ["-m", "obsidian_connector.mcp_server"]
+  "args": ["-u", "-m", "obsidian_connector.mcp_server"],
+  "cwd": "$REPO_ROOT",
+  "env": {
+    "PYTHONPATH": "$REPO_ROOT"
+  }
 }
 ENTRY
 )
@@ -113,7 +117,9 @@ servers = cfg.get('mcpServers', {})
 if 'obsidian-connector' in servers:
     # Update the command path in case the repo moved
     servers['obsidian-connector']['command'] = '$VENV_PYTHON'
-    servers['obsidian-connector']['args'] = ['-m', 'obsidian_connector.mcp_server']
+    servers['obsidian-connector']['args'] = ['-u', '-m', 'obsidian_connector.mcp_server']
+    servers['obsidian-connector']['cwd'] = '$REPO_ROOT'
+    servers['obsidian-connector']['env'] = {'PYTHONPATH': '$REPO_ROOT'}
     with open('$CLAUDE_CONFIG', 'w') as f:
         json.dump(cfg, f, indent=2)
         f.write('\n')
@@ -178,7 +184,11 @@ else
     echo "    \"mcpServers\": {"
     echo "      \"obsidian-connector\": {"
     echo "        \"command\": \"$VENV_PYTHON\","
-    echo "        \"args\": [\"-m\", \"obsidian_connector.mcp_server\"]"
+    echo "        \"args\": [\"-u\", \"-m\", \"obsidian_connector.mcp_server\"],"
+    echo "        \"cwd\": \"$REPO_ROOT\","
+    echo "        \"env\": {"
+    echo "          \"PYTHONPATH\": \"$REPO_ROOT\""
+    echo "        }"
     echo "      }"
     echo "    }"
     echo "  }"

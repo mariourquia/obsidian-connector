@@ -4,6 +4,13 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-03-06
+
+### Fixed
+
+- **Claude Desktop subprocess isolation**: Added `PYTHONPATH` and `cwd` to MCP server configuration. The installer and manual setup now correctly pass environment variables so Python finds the editable package install. Resolves "ModuleNotFoundError: No module named 'obsidian_connector'" when running in Claude Desktop.
+- **Setup documentation**: Added troubleshooting section for PYTHONPATH configuration issues and clarified that Obsidian must be running for CLI-based tools.
+
 ## [0.1.1] - 2026-03-06
 
 ### Added
@@ -50,5 +57,6 @@ First public release.
 - No secrets stored, transmitted, or hardcoded
 - No network calls (100% local)
 
+[0.1.2]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/mariourquia/obsidian-connector/releases/tag/v0.1.0
