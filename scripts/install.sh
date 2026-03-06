@@ -279,11 +279,22 @@ if [[ "${INSTALL_SCHEDULE:-n}" =~ ^[Yy]$ ]]; then
     if [ ! -f "$PLIST_SRC" ]; then
         dim "  Plist template not found at $PLIST_SRC"
     else
-        # Replace placeholder with actual repo root and venv python
-        sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$PLIST_SRC" > "$PLIST_DST"
-        # Also update python path to use the venv
-        sed -i '' "s|/usr/bin/env</string>|$REPO_ROOT/.venv/bin/python3</string>|" "$PLIST_DST"
-        sed -i '' '/<string>python3<\/string>/d' "$PLIST_DST"
+        # Generate plist via Python to avoid sed issues with & and \ in paths
+        "$REPO_ROOT/.venv/bin/python3" -c "
+import sys
+src = sys.argv[1]
+dst = sys.argv[2]
+repo = sys.argv[3]
+venv_py = sys.argv[4]
+with open(src) as f:
+    content = f.read()
+# Replace __REPO_ROOT__ placeholder
+content = content.replace('__REPO_ROOT__', repo)
+# Replace /usr/bin/env + python3 with venv python directly
+content = content.replace('<string>/usr/bin/env</string>\n        <string>python3</string>', '<string>' + venv_py + '</string>')
+with open(dst, 'w') as f:
+    f.write(content)
+" "$PLIST_SRC" "$PLIST_DST" "$REPO_ROOT" "$REPO_ROOT/.venv/bin/python3"
 
         # Load the agent
         launchctl unload "$PLIST_DST" 2>/dev/null || true

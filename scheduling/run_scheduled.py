@@ -34,7 +34,8 @@ from obsidian_connector.workflows import (
 def _load_config() -> dict:
     """Load schedule config from default locations.
 
-    Falls back to built-in defaults if pyyaml is not installed.
+    Falls back to built-in defaults if pyyaml is not installed or
+    the YAML file is malformed.
     """
     candidates = [
         Path.home() / ".config" / "obsidian-connector" / "schedule.yaml",
@@ -49,7 +50,15 @@ def _load_config() -> dict:
             except ImportError:
                 # pyyaml not installed -- use defaults
                 return {}
+            except Exception as exc:
+                print(f"Warning: failed to parse {path}: {exc}", file=sys.stderr)
+                return {}
     return {}
+
+
+def _is_workflow_enabled(config: dict, workflow: str) -> bool:
+    """Check if a workflow is enabled in config (default: True)."""
+    return config.get(workflow, {}).get("enabled", True)
 
 
 def _osa_escape(s: str) -> str:
@@ -78,6 +87,10 @@ def _notify(title: str, message: str, config: dict) -> None:
 
 def run_morning(config: dict) -> None:
     """Generate and write morning briefing to daily note."""
+    if not _is_workflow_enabled(config, "morning"):
+        print("Morning workflow disabled in config.")
+        return
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     try:
@@ -138,6 +151,10 @@ def run_morning(config: dict) -> None:
 
 def run_evening(config: dict) -> None:
     """Generate and write evening close to daily note."""
+    if not _is_workflow_enabled(config, "evening"):
+        print("Evening workflow disabled in config.")
+        return
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     try:
@@ -181,6 +198,10 @@ def run_evening(config: dict) -> None:
 
 def run_weekly(config: dict) -> None:
     """Generate and write weekly review to daily note."""
+    if not _is_workflow_enabled(config, "weekly"):
+        print("Weekly workflow disabled in config.")
+        return
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     try:

@@ -261,8 +261,8 @@ if index:
     orphans = index.orphans
 
 # Thinking
-profile = ghost_voice_profile()
-drift = drift_analysis()
+profile = ghost_voice_profile(sample_notes=20)
+drift = drift_analysis(lookback_days=30)
 
 # Workflows
 brief = today_brief()
