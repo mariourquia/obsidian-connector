@@ -1,3 +1,14 @@
+---
+title: "Cache Layer Implementation Plan"
+status: verified
+owner: "mariourquia"
+last_reviewed: "2026-03-05"
+review_cycle_days: 90
+sources_of_truth:
+  - "obsidian_connector/cache.py"
+  - "obsidian_connector/config.py"
+---
+
 # Cache Layer Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
