@@ -333,7 +333,7 @@ See the [Second Brain Overview](docs/second-brain-overview.md) for the architect
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the prioritized backlog -- 23 items across
+See [docs/plans/ROADMAP.md](docs/plans/ROADMAP.md) for the prioritized backlog -- 23 items across
 4 milestones covering cross-platform support, resilience, intelligence, and
 integrations. Community PRs welcome.
 
