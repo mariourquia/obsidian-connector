@@ -1046,7 +1046,7 @@ def main(argv: list[str] | None = None) -> int:
             human = _fmt_connect(result)
 
         elif args.command == "neighborhood":
-            from obsidian_connector.mcp_server import _load_or_build_index
+            from obsidian_connector.index_store import load_or_build_index as _load_or_build_index
             idx = _load_or_build_index(args.vault)
             if idx is None:
                 raise ObsidianCLIError(
@@ -1088,7 +1088,7 @@ def main(argv: list[str] | None = None) -> int:
             human = _fmt_neighborhood(result)
 
         elif args.command == "vault-structure":
-            from obsidian_connector.mcp_server import _load_or_build_index
+            from obsidian_connector.index_store import load_or_build_index as _load_or_build_index
             idx = _load_or_build_index(args.vault)
             if idx is None:
                 raise ObsidianCLIError(
@@ -1138,7 +1138,7 @@ def main(argv: list[str] | None = None) -> int:
             human = _fmt_vault_structure(result)
 
         elif args.command == "backlinks":
-            from obsidian_connector.mcp_server import _load_or_build_index
+            from obsidian_connector.index_store import load_or_build_index as _load_or_build_index
             idx = _load_or_build_index(args.vault)
             if idx is None:
                 raise ObsidianCLIError(

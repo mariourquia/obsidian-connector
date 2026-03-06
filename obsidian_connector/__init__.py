@@ -29,7 +29,7 @@ from obsidian_connector.graph import (
     extract_links,
     extract_tags,
 )
-from obsidian_connector.index_store import IndexStore
+from obsidian_connector.index_store import IndexStore, load_or_build_index
 from obsidian_connector.search import enrich_search_results
 from obsidian_connector.thinking import (
     deep_ideas,
@@ -87,6 +87,7 @@ __all__ = [
     "graduate_execute",
     "list_open_loops",
     "list_tasks",
+    "load_or_build_index",
     "log_action",
     "log_decision",
     "log_to_daily",
