@@ -13,11 +13,9 @@ Call `obsidian_check_in` to get current state.
 
 ## Step 2: Drift analysis
 
-Call `obsidian_drift` with:
-- `lookback_days=7`
-- For the `intention` parameter, check if the user has stated intentions in their vault. Search for "intention" or "goal" or "commitment" in recent notes. If found, use those. If not, ask the user: "What were your intentions for this week?"
+Call `obsidian_drift` with `lookback_days=7`. The tool extracts stated intentions from daily notes automatically (it looks for keywords like "intention", "goal", "commitment").
 
-Present the drift analysis: coverage percentage, gaps, surprises.
+Present the drift analysis: coverage percentage, gaps, surprises. If no intentions were found in the vault, ask the user: "What were your intentions for this week?" and include their answer in the weekly summary.
 
 ## Step 3: Idea graduation
 

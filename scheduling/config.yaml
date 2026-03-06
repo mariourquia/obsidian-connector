@@ -1,22 +1,19 @@
 # obsidian-connector scheduling configuration
 # Copy to ~/.config/obsidian-connector/schedule.yaml and customize.
-
-timezone: America/New_York
+#
+# Note: timezone and per-workflow time/day fields are reserved for future
+# use (launchd controls actual scheduling). The `enabled` flag controls
+# whether run_scheduled.py executes or exits silently for each workflow.
 
 morning:
   enabled: true
-  time: "08:00"
 
 evening:
   enabled: true
-  time: "18:00"
 
 weekly:
   enabled: true
-  day: sunday
-  time: "09:00"
 
 notification:
   enabled: true
   method: osascript        # osascript (built-in) or terminal-notifier
-  open_on_click: obsidian  # obsidian or claude

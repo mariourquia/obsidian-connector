@@ -1524,8 +1524,9 @@ def check_in(
     daily_note_exists = False
     try:
         brief = today_brief(vault=vault)
-        daily_content = brief.get("daily_note", "") or ""
-        daily_note_exists = bool(daily_content)
+        raw = brief.get("daily_note")
+        daily_note_exists = raw is not None  # exists even if empty
+        daily_content = raw or ""
     except ObsidianCLIError:
         pass
 
@@ -1557,7 +1558,6 @@ def check_in(
     # -- Count unreviewed agent drafts ----------------------------------------
     unreviewed_drafts = 0
     try:
-        cfg = load_config()
         vault_path = resolve_vault_path(vault)
         if vault_path:
             drafts_dir = os.path.join(vault_path, "Inbox", "Agent Drafts")
