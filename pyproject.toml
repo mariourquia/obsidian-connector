@@ -13,9 +13,6 @@ authors = [
     { name = "Mario Urquia", email = "60152193+mariourquia@users.noreply.github.com" },
 ]
 dependencies = ["mcp>=1.0.0,<2.0.0"]
-
-[project.optional-dependencies]
-scheduling = ["pyyaml>=6.0,<7.0"]
 keywords = ["obsidian", "cli", "notes", "productivity", "automation", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -28,6 +25,9 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Utilities",
 ]
+
+[project.optional-dependencies]
+scheduling = ["pyyaml>=6.0,<7.0"]
 
 [project.scripts]
 obsidian-connector = "obsidian_connector.cli:main"
