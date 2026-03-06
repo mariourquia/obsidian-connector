@@ -36,10 +36,18 @@ jobs:
           git archive --format=tar.gz --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.tar.gz"
           git archive --format=zip --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.zip"
 
+      - name: Build macOS .dmg installer
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          bash scripts/create-dmg.sh "$TAG_NAME"
+
       - name: Generate checksums
         run: |
           TAG_NAME="${GITHUB_REF_NAME}"
-          sha256sum "obsidian-connector-${TAG_NAME}.tar.gz" "obsidian-connector-${TAG_NAME}.zip" > "obsidian-connector-${TAG_NAME}.sha256"
+          sha256sum "obsidian-connector-${TAG_NAME}.tar.gz" \
+                    "obsidian-connector-${TAG_NAME}.zip" \
+                    "dist/obsidian-connector-${TAG_NAME}.dmg" > "obsidian-connector-${TAG_NAME}.sha256"
           cat "obsidian-connector-${TAG_NAME}.sha256"
 
       - name: Create release and upload assets
@@ -50,6 +58,7 @@ jobs:
           gh release create "$TAG_NAME" \
             "obsidian-connector-${TAG_NAME}.tar.gz" \
             "obsidian-connector-${TAG_NAME}.zip" \
+            "dist/obsidian-connector-${TAG_NAME}.dmg" \
             "obsidian-connector-${TAG_NAME}.sha256" \
             --title "$TAG_NAME" \
             --generate-notes \
