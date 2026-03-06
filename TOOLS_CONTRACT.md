@@ -26,6 +26,9 @@ these tools are available to Claude and other MCP clients:
 | `obsidian_challenge_belief` | `belief`, `vault?`, `max_evidence?` | JSON `{belief, counter_evidence[], supporting_evidence[], verdict}` |
 | `obsidian_emerge_ideas` | `topic`, `vault?`, `max_clusters?` | JSON `{topic, total_notes, clusters[]}` |
 | `obsidian_connect_domains` | `domain_a`, `domain_b`, `vault?`, `max_connections?` | JSON `{domain_a, domain_b, connections[], domain_a_only[], domain_b_only[]}` |
+| `obsidian_neighborhood` | `note_path`, `depth?`, `vault?` | JSON `{note, backlinks[], forward_links[], tags[], neighbors[]}` |
+| `obsidian_vault_structure` | `vault?` | JSON `{total_notes, orphans[], dead_ends[], unresolved_links{}, tag_cloud{}, top_connected[]}` |
+| `obsidian_backlinks` | `note_path`, `vault?` | JSON array of `{file, context_line, tags[]}` |
 | `obsidian_doctor` | `vault?` | JSON array of health check results |
 
 All `vault` parameters are optional.  When omitted, the configured default
@@ -190,6 +193,38 @@ python main.py connect "health" "productivity"
 python main.py --json connect "real estate" "machine learning" --max-connections 5
 ```
 
+### neighborhood
+
+Get the graph neighborhood of a note: backlinks, forward links, shared tags,
+and N-hop neighbors.  Uses the vault note index (built on first call).
+Read-only.
+
+```bash
+python main.py neighborhood "Home"
+python main.py --json neighborhood "Home" --depth 2
+python main.py neighborhood "Cards/Project Alpha.md"
+```
+
+### vault-structure
+
+Get vault topology: orphan notes, dead ends, unresolved links, tag cloud,
+and most-connected notes.  Uses the vault note index.  Read-only.
+
+```bash
+python main.py vault-structure
+python main.py --json vault-structure
+```
+
+### backlinks
+
+Get all notes that link to a given note, with the line containing the link
+and the backlinking note's tags.  Uses the vault note index.  Read-only.
+
+```bash
+python main.py backlinks "Home"
+python main.py --json backlinks "Cards/Project Alpha.md"
+```
+
 ### doctor
 
 Run health checks on Obsidian CLI connectivity, vault resolution, and
@@ -344,7 +379,7 @@ obsidian-connector/
   obsidian_connector/
     __init__.py                    Public API re-exports
     cli.py                         CLI entry point (obsx / obsidian-connector)
-    mcp_server.py                  MCP server (16 tools for Claude Desktop)
+    mcp_server.py                  MCP server (18 tools for Claude Desktop)
     audit.py                       Append-only audit log
     cache.py                       In-memory TTL cache
     client.py                      Core CLI wrapper + 4 functions
@@ -352,6 +387,8 @@ obsidian-connector/
     doctor.py                      Health-check diagnostics
     envelope.py                    Canonical JSON envelope builder
     errors.py                      Typed exception hierarchy
+    graph.py                       Graph-aware vault indexing (links, tags, backlinks)
+    index_store.py                 SQLite-backed persistent note index
     search.py                      Search result enrichment
     workflows.py                   Higher-level workflows + thinking tools
   scripts/
@@ -361,6 +398,8 @@ obsidian-connector/
     audit_test.py                  Audit log tests
     cache_test.py                  Cache module and integration tests
     escaping_test.py               Content escaping edge-case tests
+    graph_test.py                  Graph module tests
+    index_test.py                  Index store tests
     mcp_launch_smoke.sh            MCP server launch smoke test
   bin/
     obsx                           CLI wrapper (no venv activation needed)
