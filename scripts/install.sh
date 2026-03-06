@@ -192,3 +192,112 @@ fi
 echo ""
 dim "CLI available at: $REPO_ROOT/bin/obsx"
 dim "Health check:     $REPO_ROOT/bin/obsx doctor"
+
+# ── Optional: Second Brain Assistant ────────────────────────────────
+
+echo ""
+bold "Optional: Second Brain Assistant"
+dim  "These features turn Claude into a proactive second brain."
+dim  "Each is independent -- install any combination."
+echo ""
+
+# ── Skills ──────────────────────────────────────────────────────────
+
+read -rp "  Install Claude Code skills (/morning, /evening, /idea, /weekly)? [y/N] " INSTALL_SKILLS
+if [[ "${INSTALL_SKILLS:-n}" =~ ^[Yy]$ ]]; then
+    COMMANDS_DIR="$REPO_ROOT/.claude/commands"
+    mkdir -p "$COMMANDS_DIR"
+    copied=0
+    for skill in "$REPO_ROOT"/skills/*.md; do
+        [ -f "$skill" ] || continue
+        cp "$skill" "$COMMANDS_DIR/"
+        copied=$((copied + 1))
+    done
+    if [ "$copied" -gt 0 ]; then
+        green "  Installed $copied skill(s) to .claude/commands/"
+    else
+        dim "  No skill files found in skills/"
+    fi
+else
+    dim "  Skipped skills"
+fi
+
+# ── SessionStart Hook ──────────────────────────────────────────────
+
+read -rp "  Install SessionStart hook (shows suggestions at session start)? [y/N] " INSTALL_HOOK
+if [[ "${INSTALL_HOOK:-n}" =~ ^[Yy]$ ]]; then
+    SETTINGS_FILE="$REPO_ROOT/.claude/settings.json"
+    HOOK_CMD="bash $REPO_ROOT/hooks/session_start.sh"
+
+    "$REPO_ROOT/.venv/bin/python3" -c "
+import json, os, sys
+
+path = '$SETTINGS_FILE'
+hook_cmd = '$HOOK_CMD'
+
+# Load existing or start fresh
+cfg = {}
+if os.path.isfile(path):
+    with open(path) as f:
+        cfg = json.load(f)
+
+hooks = cfg.setdefault('hooks', {})
+session_hooks = hooks.setdefault('SessionStart', [])
+
+# Check if already installed
+already = any(h.get('command') == hook_cmd for h in session_hooks)
+if not already:
+    session_hooks.append({
+        'type': 'command',
+        'command': hook_cmd
+    })
+
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+    f.write('\n')
+
+print('present' if already else 'added')
+" 2>/dev/null
+    result=$?
+    if [ $result -eq 0 ]; then
+        green "  SessionStart hook configured in .claude/settings.json"
+    else
+        dim "  Could not configure hook. Add manually to .claude/settings.json"
+    fi
+else
+    dim "  Skipped hook"
+fi
+
+# ── Scheduled Automation ───────────────────────────────────────────
+
+read -rp "  Install scheduled daily briefing (macOS launchd)? [y/N] " INSTALL_SCHEDULE
+if [[ "${INSTALL_SCHEDULE:-n}" =~ ^[Yy]$ ]]; then
+    PLIST_SRC="$REPO_ROOT/scheduling/com.obsidian-connector.daily.plist"
+    PLIST_DST="$HOME/Library/LaunchAgents/com.obsidian-connector.daily.plist"
+
+    if [ ! -f "$PLIST_SRC" ]; then
+        dim "  Plist template not found at $PLIST_SRC"
+    else
+        # Replace placeholder with actual repo root and venv python
+        sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$PLIST_SRC" > "$PLIST_DST"
+        # Also update python path to use the venv
+        sed -i '' "s|/usr/bin/env</string>|$REPO_ROOT/.venv/bin/python3</string>|" "$PLIST_DST"
+        sed -i '' '/<string>python3<\/string>/d' "$PLIST_DST"
+
+        # Load the agent
+        launchctl unload "$PLIST_DST" 2>/dev/null || true
+        if launchctl load "$PLIST_DST" 2>/dev/null; then
+            green "  Scheduled daily briefing installed and loaded"
+            dim "  Runs at 08:00 daily. Edit scheduling/config.yaml to customize."
+            dim "  Uninstall: launchctl unload $PLIST_DST && rm $PLIST_DST"
+        else
+            dim "  Plist written to $PLIST_DST but launchctl load failed."
+            dim "  Try: launchctl load $PLIST_DST"
+        fi
+    fi
+else
+    dim "  Skipped scheduling"
+fi
+
+echo ""

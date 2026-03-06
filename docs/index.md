@@ -20,6 +20,9 @@ here or in a sub-index linked from here.
 
 ## Standalone docs
 
+- [Second Brain Overview](./second-brain-overview.md) -- architecture and pitch for the proactive assistant
+- [Setup Guide](./setup-guide.md) -- three installation paths (Desktop, CLI, both)
+- [Daily Optimization Guide](./daily-optimization.md) -- 18 recipes across 4 phases
 - [Tech Debt Tracker](./tech-debt-tracker.md)
 
 ## Execution plans

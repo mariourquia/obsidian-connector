@@ -34,6 +34,7 @@ from obsidian_connector.thinking import (
 )
 from obsidian_connector.workflows import (
     challenge_belief,
+    check_in,
     close_day_reflection,
     connect_domains,
     context_load_full,
@@ -671,6 +672,39 @@ def _fmt_context_load(data: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_check_in(data: dict) -> str:
+    """Human-readable check-in output."""
+    lines: list[str] = []
+    lines.append(f"Time: {data.get('time_of_day', '?')}")
+    lines.append(f"Daily note: {'exists' if data.get('daily_note_exists') else 'not found'}")
+
+    completed = data.get("completed_rituals", [])
+    if completed:
+        lines.append(f"Completed: {', '.join(completed)}")
+
+    pending = data.get("pending_rituals", [])
+    if pending:
+        lines.append(f"Pending: {', '.join(pending)}")
+
+    loops = data.get("open_loop_count", 0)
+    if loops:
+        lines.append(f"Open loops: {loops}")
+
+    delegations = data.get("pending_delegations", 0)
+    if delegations:
+        lines.append(f"Pending delegations: {delegations}")
+
+    drafts = data.get("unreviewed_drafts", 0)
+    if drafts:
+        lines.append(f"Unreviewed drafts: {drafts}")
+
+    suggestion = data.get("suggestion", "")
+    if suggestion:
+        lines.append(f"\n{suggestion}")
+
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -844,6 +878,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- context-load ------------------------------------------------------
     p = sub.add_parser("context-load", help="Load full context bundle for agent session.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- check-in ----------------------------------------------------------
+    p = sub.add_parser("check-in", help="Time-aware check-in: what should you do now?")
+    p.add_argument("--timezone", default=None, help="IANA timezone (e.g. America/New_York).")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     # -- doctor ------------------------------------------------------------
@@ -1287,6 +1326,11 @@ def main(argv: list[str] | None = None) -> int:
             result = context_load_full(vault=args.vault)
             data = result
             human = _fmt_context_load(result)
+
+        elif args.command == "check-in":
+            result = check_in(vault=vault, timezone_name=args.timezone)
+            data = result
+            human = _fmt_check_in(result)
 
         elif args.command == "doctor":
             from obsidian_connector.doctor import run_doctor

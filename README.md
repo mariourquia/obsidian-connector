@@ -1,9 +1,20 @@
 # obsidian-connector
 
-Give Claude (and other AI agents) full access to your [Obsidian](https://obsidian.md) vault --
-search, read, write, analyze the graph, surface ideas, and manage your knowledge base.
+Turn Claude into your second brain. Morning briefings, idea capture,
+evening reflections, weekly reviews -- all driven by your Obsidian vault.
 
-27 MCP tools. 26 CLI commands. Full Python API. Runs 100% locally.
+28 MCP tools. 27 CLI commands. 4 skills. Scheduled automation. Full Python API.
+Runs 100% locally.
+
+## What it does
+
+Your assistant proactively drives your day:
+- **Morning**: Reads your daily note, surfaces open loops and delegations, writes a briefing
+- **Ideas**: Captures thoughts to your vault in two seconds, surfaces related notes
+- **Evening**: Reviews what you accomplished, suggests what to carry forward
+- **Weekly**: Checks drift between intentions and actions, graduates ideas, audits vault health
+
+Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prompt).
 
 ## Quick start
 
@@ -89,7 +100,7 @@ Restart Claude Desktop after saving.
 
 </details>
 
-## What you get: 27 tools for Claude
+## What's under the hood
 
 ### Core vault operations
 
@@ -149,6 +160,7 @@ Daily workflow, open loop tracking, idea graduation, and delegation management.
 | `obsidian_graduate_execute` | Create an agent draft note from a graduated idea |
 | `obsidian_delegations` | Scan for `@agent:`/`@claude:` delegation instructions |
 | `obsidian_context_load` | Load full context bundle for agent session start |
+| `obsidian_check_in` | Time-aware check-in: ritual status, open loops, suggestions |
 
 ### HTTP mode (alternative)
 
@@ -166,7 +178,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 
 ## CLI usage
 
-26 commands available as `./bin/obsx` (works without venv activation) or `obsx`
+27 commands available as `./bin/obsx` (works without venv activation) or `obsx`
 (after `pip install -e .`).
 
 ```bash
@@ -206,6 +218,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx graduate execute --title "Factor Model" --content "Analysis of..." --confirm
 ./bin/obsx delegations --lookback-days 7
 ./bin/obsx context-load
+./bin/obsx check-in                    # time-aware status + suggestion
 
 # ── Global flags (before subcommand) ──
 ./bin/obsx --json search "OKRs"        # JSON envelope output
@@ -229,7 +242,7 @@ from obsidian_connector import (
     # Workflows
     today_brief, my_world_snapshot, close_day_reflection,
     list_open_loops, graduate_candidates, graduate_execute,
-    detect_delegations, context_load_full,
+    detect_delegations, context_load_full, check_in,
 )
 
 # Search and read
@@ -254,6 +267,9 @@ drift = drift_analysis(intention="write daily notes", lookback_days=30)
 # Workflows
 brief = today_brief()
 candidates = graduate_candidates(lookback_days=7)
+
+# Check-in
+status = check_in()  # time_of_day, pending_rituals, suggestion
 ```
 
 ## Configuration
@@ -308,11 +324,12 @@ update the config.
 See [TOOLS_CONTRACT.md](TOOLS_CONTRACT.md) for the canonical JSON envelope schema,
 typed error hierarchy, and full command reference.
 
-## Daily optimization guide
+## Second brain assistant
 
-18 recipes for using the connector to think clearer, decide better, and ship
-more -- organized as a four-phase daily operating system (Awareness, Decision-Making,
-Execution, Reflection). See [docs/daily-optimization.md](docs/daily-optimization.md).
+Your assistant drives four workflows through skills, hooks, and scheduled automation.
+See the [Second Brain Overview](docs/second-brain-overview.md) for the architecture,
+[Setup Guide](docs/setup-guide.md) for installation, and the
+[Operating Manual](docs/daily-optimization.md) for all 18 recipes.
 
 ## License
 
