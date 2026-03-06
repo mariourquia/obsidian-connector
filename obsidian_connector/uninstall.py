@@ -137,3 +137,42 @@ def unload_launchd_plist(plist_path: Path) -> bool:
         return True
     except (IOError, OSError):
         return False
+
+
+def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
+    """Execute uninstall plan. Creates backups, removes artifacts."""
+    removed = []
+    errors = []
+
+    # Backup config if changes needed
+    if plan.config_changes and config_path.exists():
+        backup_config_file(config_path)
+
+    # Remove files
+    for file_path in plan.files_to_remove:
+        if remove_file_safely(file_path):
+            removed.append(str(file_path))
+        else:
+            errors.append(f"Failed to remove: {file_path}")
+
+    # Remove config entries
+    for config_file, change in plan.config_changes.items():
+        if change.get("action") == "remove_key":
+            if remove_from_json_config(config_path, change.get("path", [])):
+                removed.append(f"{config_file}: removed {change['path'][-1]}")
+            else:
+                errors.append(f"Failed to update {config_file}")
+
+    # Unload plist
+    if plan.remove_plist and plan.plist_path:
+        if unload_launchd_plist(plan.plist_path):
+            removed.append(str(plan.plist_path))
+        else:
+            errors.append(f"Failed to unload plist: {plan.plist_path}")
+
+    return {
+        "status": "ok" if not errors else "warning",
+        "removed": removed,
+        "errors": errors,
+        "summary": f"Removed {len(removed)} artifacts" + (f" ({len(errors)} errors)" if errors else "")
+    }
