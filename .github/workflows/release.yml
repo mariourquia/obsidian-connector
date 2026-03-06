@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install and test
+        run: |
+          pip install -e .
+          python3 scripts/cache_test.py
+          python3 scripts/audit_test.py
+          python3 scripts/escaping_test.py
+          python3 scripts/graph_test.py
+          python3 scripts/index_test.py
+          python3 scripts/graduate_test.py
+          python3 scripts/thinking_deep_test.py
+          python3 scripts/delegation_test.py
+
+      - name: Build source archive
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          git archive --format=tar.gz --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.tar.gz"
+          git archive --format=zip --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.zip"
+
+      - name: Generate checksums
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          sha256sum "obsidian-connector-${TAG_NAME}.tar.gz" "obsidian-connector-${TAG_NAME}.zip" > "obsidian-connector-${TAG_NAME}.sha256"
+          cat "obsidian-connector-${TAG_NAME}.sha256"
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG_NAME" \
+            "obsidian-connector-${TAG_NAME}.tar.gz" \
+            "obsidian-connector-${TAG_NAME}.zip" \
+            "obsidian-connector-${TAG_NAME}.sha256" \
+            --title "$TAG_NAME" \
+            --generate-notes \
+            --draft
