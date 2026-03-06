@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"],
+      "env": {
+        "OBSIDIAN_VAULT": ""
+      }
+    }
+  }
+}

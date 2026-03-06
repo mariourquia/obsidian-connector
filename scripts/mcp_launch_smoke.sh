@@ -32,10 +32,10 @@ fi
 
 # 4. Check tools/list response
 TOOL_COUNT=$(echo "$RESPONSE" | tr '\n' ' ' | grep -o '"name"' | wc -l | tr -d ' ')
-if [[ "$TOOL_COUNT" -ge 8 ]]; then
-    echo "PASS: tools/list returned $TOOL_COUNT tools (expected >=8)"
+if [[ "$TOOL_COUNT" -ge 16 ]]; then
+    echo "PASS: tools/list returned $TOOL_COUNT tools (expected >=16)"
 else
-    echo "FAIL: tools/list returned $TOOL_COUNT tools (expected >=8)"
+    echo "FAIL: tools/list returned $TOOL_COUNT tools (expected >=16)"
     exit 1
 fi
 

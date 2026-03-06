@@ -57,6 +57,16 @@ ci-local: docs-lint-strict test-cache test-mcp ## Run everything CI would run, l
 .PHONY: check
 check: docs-lint test-all doctor ## Full check: docs + tests + health
 
+# ─── MCPB Packaging ──────────────────────────────────────────────────────
+
+.PHONY: mcpb-build
+mcpb-build: ## Build MCPB package (when mcpb CLI is available)
+	@echo "MCPB packaging not yet available. See docs/distribution/MCPB_RESEARCH.md"
+
+.PHONY: mcpb-validate
+mcpb-validate: ## Validate mcpb.json manifest
+	$(PYTHON) -c "import json; json.load(open('mcpb.json')); print('mcpb.json: valid JSON')"
+
 # ─── Help ────────────────────────────────────────────────────────────────
 
 .PHONY: help
