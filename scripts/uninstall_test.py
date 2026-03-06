@@ -4,7 +4,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from obsidian_connector.uninstall import UninstallPlan, detect_installed_artifacts, backup_config_file, validate_json
+from obsidian_connector.uninstall import (
+    UninstallPlan,
+    detect_installed_artifacts,
+    backup_config_file,
+    validate_json,
+    remove_from_json_config,
+    remove_file_safely,
+    unload_launchd_plist
+)
 
 def test_uninstall_plan_creation():
     plan = UninstallPlan(
@@ -59,6 +67,33 @@ def test_validate_json():
     assert validate_json('invalid json') is False
     assert validate_json('') is False
 
+def test_remove_from_json_config(tmp_path):
+    config = tmp_path / "config.json"
+    config.write_text('{"mcpServers": {"obsidian-connector": {}, "other": {}}}')
+
+    result = remove_from_json_config(config, ["mcpServers", "obsidian-connector"])
+
+    assert result is True
+    updated = json.loads(config.read_text())
+    assert "obsidian-connector" not in updated.get("mcpServers", {})
+    assert "other" in updated.get("mcpServers", {})
+
+def test_remove_file_safely(tmp_path):
+    file = tmp_path / "test.txt"
+    file.write_text("content")
+
+    result = remove_file_safely(file)
+
+    assert result is True
+    assert not file.exists()
+
+def test_remove_file_safely_missing(tmp_path):
+    file = tmp_path / "missing.txt"
+
+    result = remove_file_safely(file)
+
+    assert result is True
+
 if __name__ == "__main__":
     test_uninstall_plan_creation()
     print("test_uninstall_plan_creation PASS")
@@ -74,3 +109,15 @@ if __name__ == "__main__":
 
     test_validate_json()
     print("test_validate_json PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_remove_from_json_config(Path(tmp))
+    print("test_remove_from_json_config PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_remove_file_safely(Path(tmp))
+    print("test_remove_file_safely PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_remove_file_safely_missing(Path(tmp))
+    print("test_remove_file_safely_missing PASS")
