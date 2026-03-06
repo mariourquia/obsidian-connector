@@ -1,3 +1,11 @@
+---
+title: "Second Brain Assistant Implementation Plan"
+status: deprecated
+replaced_by: main
+owner: "mariourquia"
+last_reviewed: "2026-03-06"
+---
+
 # Second Brain Assistant Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.

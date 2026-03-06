@@ -1,12 +1,9 @@
 ---
 title: "Cache Layer Implementation Plan"
-status: verified
+status: deprecated
+replaced_by: main
 owner: "mariourquia"
 last_reviewed: "2026-03-05"
-review_cycle_days: 90
-sources_of_truth:
-  - "obsidian_connector/cache.py"
-  - "obsidian_connector/config.py"
 ---
 
 # Cache Layer Implementation Plan

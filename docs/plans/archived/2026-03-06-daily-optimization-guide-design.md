@@ -1,7 +1,14 @@
+---
+title: "Daily Optimization Guide Design"
+status: deprecated
+replaced_by: main
+owner: "mariourquia"
+last_reviewed: "2026-03-06"
+---
+
 # Design: Daily Optimization Guide
 
 **Date**: 2026-03-06
-**Status**: approved
 
 ## Purpose
 

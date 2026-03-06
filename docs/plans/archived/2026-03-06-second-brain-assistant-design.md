@@ -1,7 +1,14 @@
+---
+title: "Second Brain Assistant Design"
+status: deprecated
+replaced_by: main
+owner: "mariourquia"
+last_reviewed: "2026-03-06"
+---
+
 # Design: Second Brain Assistant
 
 **Date**: 2026-03-06
-**Status**: approved
 
 ## Problem
 
