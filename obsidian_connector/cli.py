@@ -27,8 +27,11 @@ from obsidian_connector.envelope import (
 from obsidian_connector.audit import log_action
 from obsidian_connector.search import enrich_search_results
 from obsidian_connector.workflows import (
+    challenge_belief,
     close_day_reflection,
+    connect_domains,
     create_research_note,
+    emerge_ideas,
     find_prior_work,
     list_open_loops,
     log_decision,
@@ -194,6 +197,107 @@ def _fmt_open_loops(data: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _fmt_challenge(data: dict) -> str:
+    """Human-readable challenge belief output."""
+    lines: list[str] = []
+    lines.append(f"Belief: {data.get('belief', '?')}")
+
+    counter = data.get("counter_evidence", [])
+    if counter:
+        lines.append(f"\nCounter-evidence ({len(counter)}):")
+        for item in counter:
+            lines.append(f"  {item['file']}")
+            if item.get("heading"):
+                lines.append(f"    heading: {item['heading']}")
+            if item.get("excerpt"):
+                excerpt = item["excerpt"][:120]
+                lines.append(f"    excerpt: {excerpt}{'...' if len(item.get('excerpt', '')) > 120 else ''}")
+    else:
+        lines.append("\nNo counter-evidence found.")
+
+    supporting = data.get("supporting_evidence", [])
+    if supporting:
+        lines.append(f"\nSupporting evidence ({len(supporting)}):")
+        for item in supporting:
+            lines.append(f"  {item['file']}")
+            if item.get("heading"):
+                lines.append(f"    heading: {item['heading']}")
+            if item.get("excerpt"):
+                excerpt = item["excerpt"][:120]
+                lines.append(f"    excerpt: {excerpt}{'...' if len(item.get('excerpt', '')) > 120 else ''}")
+    else:
+        lines.append("\nNo supporting evidence found.")
+
+    verdict = data.get("verdict", "")
+    if verdict:
+        lines.append(f"\nVerdict: {verdict}")
+
+    return "\n".join(lines)
+
+
+def _fmt_emerge(data: dict) -> str:
+    """Human-readable emerge ideas output."""
+    lines: list[str] = []
+    lines.append(f"Topic: {data.get('topic', '?')}")
+    lines.append(f"Total notes: {data.get('total_notes', 0)}")
+
+    clusters = data.get("clusters", [])
+    if clusters:
+        lines.append(f"\nClusters ({len(clusters)}):")
+        for cluster in clusters:
+            lines.append(f"\n  [{cluster.get('folder', '?')}] ({cluster.get('count', 0)} notes)")
+            for note in cluster.get("notes", []):
+                lines.append(f"    {note['file']}")
+                if note.get("heading"):
+                    lines.append(f"      heading: {note['heading']}")
+                if note.get("excerpt"):
+                    excerpt = note["excerpt"][:120]
+                    lines.append(f"      excerpt: {excerpt}{'...' if len(note.get('excerpt', '')) > 120 else ''}")
+    else:
+        lines.append("\nNo clusters found.")
+
+    return "\n".join(lines)
+
+
+def _fmt_connect(data: dict) -> str:
+    """Human-readable connect domains output."""
+    lines: list[str] = []
+    lines.append(f"Domain A: {data.get('domain_a', '?')}")
+    lines.append(f"Domain B: {data.get('domain_b', '?')}")
+
+    connections = data.get("connections", [])
+    if connections:
+        lines.append(f"\nConnections ({len(connections)}):")
+        for conn in connections:
+            lines.append(f"  {conn['file']}")
+            if conn.get("heading"):
+                lines.append(f"    heading: {conn['heading']}")
+            if conn.get("excerpt"):
+                excerpt = conn["excerpt"][:120]
+                lines.append(f"    excerpt: {excerpt}{'...' if len(conn.get('excerpt', '')) > 120 else ''}")
+            lines.append(f"    matches: A={conn.get('match_a', 0)}, B={conn.get('match_b', 0)}")
+    else:
+        lines.append("\nNo connections found.")
+
+    a_only = data.get("domain_a_only", [])
+    if a_only:
+        lines.append(f"\nDomain A only ({len(a_only)}):")
+        for f in a_only[:10]:
+            lines.append(f"  {f}")
+        if len(a_only) > 10:
+            lines.append(f"  ... and {len(a_only) - 10} more")
+
+    b_only = data.get("domain_b_only", [])
+    if b_only:
+        lines.append(f"\nDomain B only ({len(b_only)}):")
+        for f in b_only[:10]:
+            lines.append(f"  {f}")
+        if len(b_only) > 10:
+            lines.append(f"  ... and {len(b_only) - 10} more")
+
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -282,6 +386,25 @@ def build_parser() -> argparse.ArgumentParser:
     # -- open-loops --------------------------------------------------------
     p = sub.add_parser("open-loops", help="List open loops (OL: lines and #openloop tags).")
     p.add_argument("--lookback-days", type=int, default=30, help="Lookback window in days (default 30).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- challenge ---------------------------------------------------------
+    p = sub.add_parser("challenge", help="Challenge a belief against vault evidence.")
+    p.add_argument("belief", help="The belief to challenge.")
+    p.add_argument("--max-evidence", type=int, default=10, help="Max evidence items (default 10).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- emerge ------------------------------------------------------------
+    p = sub.add_parser("emerge", help="Cluster notes into idea groups around a topic.")
+    p.add_argument("topic", help="Topic to explore.")
+    p.add_argument("--max-clusters", type=int, default=5, help="Max clusters (default 5).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- connect -----------------------------------------------------------
+    p = sub.add_parser("connect", help="Find connections between two domains.")
+    p.add_argument("domain_a", help="First domain.")
+    p.add_argument("domain_b", help="Second domain.")
+    p.add_argument("--max-connections", type=int, default=10, help="Max connections (default 10).")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     # -- doctor ------------------------------------------------------------
@@ -454,6 +577,34 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_open_loops(result)
+
+        elif args.command == "challenge":
+            result = challenge_belief(
+                belief=args.belief,
+                vault=args.vault,
+                max_evidence=args.max_evidence,
+            )
+            data = result
+            human = _fmt_challenge(result)
+
+        elif args.command == "emerge":
+            result = emerge_ideas(
+                topic=args.topic,
+                vault=args.vault,
+                max_clusters=args.max_clusters,
+            )
+            data = result
+            human = _fmt_emerge(result)
+
+        elif args.command == "connect":
+            result = connect_domains(
+                domain_a=args.domain_a,
+                domain_b=args.domain_b,
+                vault=args.vault,
+                max_connections=args.max_connections,
+            )
+            data = result
+            human = _fmt_connect(result)
 
         elif args.command == "doctor":
             from obsidian_connector.doctor import run_doctor
