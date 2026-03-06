@@ -1,83 +1,126 @@
 # obsidian-connector
 
-Python wrapper for the [Obsidian](https://obsidian.md) CLI.
-Read, search, and manage your vault from scripts and automation.
+Give Claude (and other AI agents) access to your [Obsidian](https://obsidian.md) vault.
+Search notes, read content, log decisions, and manage tasks -- all through an MCP server or CLI.
 
-## Requirements
+## Claude Desktop setup (MCP server)
+
+### Requirements
 
 - Python 3.11+
 - Obsidian desktop app with CLI enabled (v1.12+)
 - macOS (Linux/Windows support planned)
 
-## Installation
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/mariourquia/obsidian-connector.git
 cd obsidian-connector
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 
-After installation, the CLI is available as both `obsidian-connector` and `obsx`.
+### 2. Configure Claude Desktop
 
-## Quick start
+Add this to your `claude_desktop_config.json`:
 
-### CLI
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"]
+    }
+  }
+}
+```
+
+Replace `/ABSOLUTE/PATH/TO/` with your actual clone path (e.g. `/Users/you/Documents/GitHub/`).
+
+To target a specific vault, add an `env` key:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"],
+      "env": {
+        "OBSIDIAN_VAULT": "My Vault Name"
+      }
+    }
+  }
+}
+```
+
+### 3. Restart Claude Desktop
+
+Quit and reopen Claude Desktop. The Obsidian tools will appear automatically.
+
+### Available tools
+
+| Tool | Description |
+|---|---|
+| `obsidian_search` | Full-text search across the vault |
+| `obsidian_read` | Read a note by name or path |
+| `obsidian_tasks` | List tasks (filterable by status, path, limit) |
+| `obsidian_log_daily` | Append text to today's daily note |
+| `obsidian_log_decision` | Log a structured decision record |
+| `obsidian_find_prior_work` | Search + summarize top N matching notes |
+| `obsidian_create_note` | Create a note from a template |
+| `obsidian_doctor` | Health check on CLI connectivity |
+
+### Important
+
+Obsidian must be running for the tools to work. The connector communicates
+with the Obsidian desktop app via IPC -- if Obsidian is closed, all tools
+will return an error.
+
+---
+
+## CLI usage
+
+After installation, the CLI is available as `obsx` (or `obsidian-connector`):
 
 ```bash
+# Search across the vault
+obsx search "quarterly review"
+
+# Read a specific note
+obsx read "Project Alpha"
+
 # Append to today's daily note
-obsidian-connector log-daily "Meeting notes: discussed Q3 roadmap"
-
-# Search across the vault (human-readable)
-obsidian-connector search "quarterly review"
-
-# Search with JSON output for scripting
-obsidian-connector search "quarterly review" --json
-
-# Read a specific note by name or path
-obsidian-connector read "Project Alpha"
-obsidian-connector read "Cards/Project Alpha.md"
+obsx log-daily "Meeting notes: discussed Q3 roadmap"
 
 # List incomplete tasks
-obsidian-connector tasks --status todo
+obsx tasks --status todo
 
-# List tasks as JSON, limited to 10
-obsidian-connector tasks --status todo --limit 10 --json
-
-# Log a structured decision record to the daily note
-obsidian-connector log-decision \
+# Log a structured decision
+obsx log-decision \
   --project "AMOS" \
   --summary "Switched from REST to event-driven ingestion" \
   --details "Reduces latency on deal updates from 2s to 200ms."
 
-# Create a new note from a template
-obsidian-connector create-research-note \
-  --title "CMBS Spread Analysis" \
-  --template "Template, Note"
+# Find prior work on a topic
+obsx find-prior-work "machine learning" --top-n 3
 
-# Find prior work on a topic (top 3 hits with excerpts)
-obsidian-connector find-prior-work "machine learning" --top-n 3
+# Health check
+obsx doctor
 
-# Run health checks
-obsidian-connector doctor
+# JSON output (global flag, before subcommand)
+obsx --json search "OKRs"
+obsx --json doctor
 
-# Dry-run: see what would happen without mutating
-obsidian-connector log-daily "test" --dry-run
-
-# Canonical JSON envelope for any command (global flag)
-obsidian-connector --json search "OKRs"
-obsidian-connector --json doctor
-
-# Search with context and deduplication
-obsidian-connector search "quarterly" --max-results 5 --context-lines 2 --dedupe
+# Dry-run (preview without writing)
+obsx log-daily "test" --dry-run
 ```
 
-All commands accept `--vault <name>` and `--json` as global flags:
+All commands accept `--vault <name>` and `--json` as global flags.
 
-```bash
-obsidian-connector --vault "Work" --json search "OKRs"
-```
-
-### Python API
+## Python API
 
 ```python
 from obsidian_connector import log_to_daily, search_notes, read_note, list_tasks
@@ -97,42 +140,12 @@ prior = find_prior_work("machine learning", top_n=3)
 
 ## Vault configuration
 
-The connector resolves which vault to target using this priority (highest wins):
+The connector resolves which vault to target (highest priority wins):
 
 1. **Explicit argument** -- `search_notes("query", vault="Work")` or `--vault Work`
 2. **Environment variable** -- `export OBSIDIAN_VAULT="Work"`
 3. **config.json** -- `default_vault` field in `config.json` at the project root
-4. **None** -- omit `vault=` from the CLI call (Obsidian uses the active vault)
-
-### config.json
-
-Place a `config.json` in the project root (or CWD when running):
-
-```json
-{
-  "default_vault": "Obsidian Vault",
-  "daily_note_behavior": "append",
-  "default_folders": {
-    "inbox": "Inbox",
-    "projects": "Projects",
-    "archive": "Archive"
-  }
-}
-```
-
-### Example: targeting a specific vault
-
-```bash
-# Via CLI flag
-obsidian-connector --vault "Work" search "meeting notes"
-
-# Via env var
-OBSIDIAN_VAULT="Work" obsidian-connector tasks --todo
-
-# Via Python API
-from obsidian_connector import search_notes
-search_notes("meeting notes", vault="Work")
-```
+4. **None** -- omit `vault=` (Obsidian uses the active vault)
 
 ### Environment variables
 
