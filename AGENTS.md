@@ -1,7 +1,7 @@
 # AGENTS.md (Repository Map)
 
 > This file is your entry point. Read it first, follow links for detail.
-> **Hard limit: ≤120 lines.** Do not add implementation details here.
+> **Hard limit: <= 120 lines.** Do not add implementation details here.
 
 ## Start here (routing)
 
@@ -15,9 +15,22 @@
 
 ## What this repo does
 
-Python wrapper for the Obsidian desktop app CLI. Exposes vault operations
-(search, read, tasks, log, create) as a Python API, CLI (`obsx`), and
-MCP server for Claude Desktop.
+Python wrapper for the Obsidian desktop app. Exposes vault operations
+(search, read, write, graph analysis, thinking tools, workflow management)
+as a Python API, CLI (`obsx` -- 26 commands), and MCP server (27 tools)
+for Claude Desktop.
+
+## Module map
+
+| Module | Purpose |
+|--------|---------|
+| `client.py` | Core CLI wrapper, batch reads |
+| `cli.py` | 26 CLI subcommands |
+| `mcp_server.py` | 27 MCP tools (FastMCP) |
+| `workflows.py` | Daily ops, loops, graduate, delegations, context |
+| `thinking.py` | Ghost, drift, trace, ideas |
+| `graph.py` | Vault graph indexing (links, tags, backlinks) |
+| `index_store.py` | SQLite persistent index |
 
 ## Operating rules
 
@@ -46,18 +59,23 @@ MCP server for Claude Desktop.
 ## Available local commands
 
 ```
-make docs-lint            # Validate docs structure
-make docs-lint-strict     # Errors only (CI equivalent)
-make docs-staleness       # Check git-based staleness
-python3 scripts/smoke_test.py   # Core function smoke tests
-python3 scripts/cache_test.py   # Cache module tests
-bash scripts/mcp_launch_smoke.sh  # MCP server launch test
-./bin/obsx doctor         # Health check (Obsidian connectivity)
+./scripts/install.sh          # One-command setup (venv + Claude Desktop config)
+make docs-lint                # Validate docs structure
+make docs-lint-strict         # Errors only (CI equivalent)
+make docs-staleness           # Check git-based staleness
+python3 scripts/smoke_test.py       # Core function smoke tests
+python3 scripts/graph_test.py       # Graph module tests
+python3 scripts/index_test.py       # Index store tests
+python3 scripts/graduate_test.py    # Graduate pipeline tests
+python3 scripts/thinking_deep_test.py  # Thinking tools tests (56 assertions)
+bash scripts/mcp_launch_smoke.sh    # MCP server launch test
+./bin/obsx doctor             # Health check (Obsidian connectivity)
 ```
 
 ## Tools & skills reference
 
+- Installer: `scripts/install.sh`
 - Docs linter: `tools/docs_lint.py`
 - CLI wrapper: `bin/obsx` (no venv needed)
-- MCP server: `bin/obsx-mcp` (for Claude Desktop)
+- MCP server: `python3 -m obsidian_connector.mcp_server`
 - Templates: `templates/` (exec-plan, design-doc, frontmatter)
