@@ -326,7 +326,7 @@ def my_world_snapshot(
     vault:
         Target vault name.
     lookback_days:
-        Number of days to look back for daily notes.
+        Number of days to look back for daily notes (clamped to 1-90).
 
     Returns
     -------
@@ -339,6 +339,8 @@ def my_world_snapshot(
         - ``vault_stats`` -- ``{total_files: int}``
         - ``recent_searches_hint`` -- a hint about what to search next
     """
+    lookback_days = min(max(1, lookback_days), 90)
+
     # Open tasks
     try:
         open_tasks = list_tasks(filter={"todo": True, "limit": 20}, vault=vault)
@@ -1154,6 +1156,12 @@ def graduate_execute(
         f"{content}"
     )
 
+    # Sanitize title and target_folder to prevent path traversal.
+    if "/" in title or "\\" in title:
+        raise ValueError(f"title must not contain path separators: {title!r}")
+    if ".." in Path(target_folder).parts:
+        raise ValueError(f"target_folder must not contain '..': {target_folder!r}")
+
     note_path = f"{target_folder}/{title}.md"
 
     if dry_run:
@@ -1169,9 +1177,17 @@ def graduate_execute(
     from obsidian_connector.config import resolve_vault_path
 
     vault_dir = resolve_vault_path(vault)
-    target_dir = vault_dir / target_folder
+    target_dir = (vault_dir / target_folder).resolve()
+    target_file = (target_dir / f"{title}.md").resolve()
+
+    # Verify both paths are within the vault (defense in depth).
+    vault_resolved = vault_dir.resolve()
+    if not str(target_dir).startswith(str(vault_resolved)):
+        raise ValueError(f"target_folder escapes vault: {target_folder!r}")
+    if not str(target_file).startswith(str(vault_resolved)):
+        raise ValueError(f"title escapes vault: {title!r}")
+
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_file = target_dir / f"{title}.md"
     target_file.write_text(full_content, encoding="utf-8")
 
     # Log the mutation to the audit trail.
@@ -1348,11 +1364,13 @@ def context_load_full(vault: str | None = None) -> dict:
 
     cfg = _load_config()
 
-    # 1. Context files from config.
+    # 1. Context files from config (skip paths with traversal components).
     context_file_entries: list[dict] = []
     for cf_path in cfg.context_files:
         if read_count >= _MAX_READS:
             break
+        if ".." in Path(cf_path).parts:
+            continue
         try:
             content = read_note(cf_path, vault=vault)
             read_count += 1
