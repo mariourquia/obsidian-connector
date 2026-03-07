@@ -48,12 +48,15 @@ def detect_installed_artifacts(
         try:
             with open(claude_config_path) as f:
                 cfg = json.load(f)
-            if "obsidian-connector" in cfg.get("mcpServers", {}):
-                config_changes["claude_desktop_config.json"] = {
-                    "action": "remove_key",
-                    "path": ["mcpServers", "obsidian-connector"]
-                }
-        except (json.JSONDecodeError, IOError):
+            mcp_servers = cfg.get("mcpServers", {})
+            # Handle case where mcpServers is null or not a dict
+            if mcp_servers and isinstance(mcp_servers, dict):
+                if "obsidian-connector" in mcp_servers:
+                    config_changes["claude_desktop_config.json"] = {
+                        "action": "remove_key",
+                        "path": ["mcpServers", "obsidian-connector"]
+                    }
+        except (json.JSONDecodeError, IOError, TypeError):
             pass
 
     # Check plist
@@ -112,10 +115,13 @@ def remove_from_json_config(config_path: Path, key_path: List[str]) -> bool:
 
 
 def remove_file_safely(file_path: Path) -> bool:
-    """Remove file if it exists. Idempotent."""
+    """Remove file if it exists. Idempotent. Handles symlinks correctly."""
     try:
-        if file_path.exists():
-            if file_path.is_dir():
+        if file_path.exists() or file_path.is_symlink():
+            # Check for symlink first (is_dir follows symlinks)
+            if file_path.is_symlink():
+                file_path.unlink()
+            elif file_path.is_dir():
                 shutil.rmtree(file_path)
             else:
                 file_path.unlink()
