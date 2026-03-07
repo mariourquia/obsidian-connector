@@ -12,7 +12,7 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-28 tools are available to Claude and other MCP clients.  All `vault`
+29 tools are available to Claude and other MCP clients.  All `vault`
 parameters are optional -- when omitted, the configured default vault is used.
 
 ### Core vault operations
@@ -70,6 +70,12 @@ These tools read vault `.md` files directly and work without Obsidian running.
 | `obsidian_context_load` | `vault?` | JSON full context bundle for agent session start |
 | `obsidian_check_in` | `vault?`, `timezone?` | JSON `{time_of_day, daily_note_exists, completed_rituals[], pending_rituals[], pending_delegations, unreviewed_drafts, open_loop_count, suggestion}` |
 
+### System administration
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `uninstall` | `dry_run?`, `remove_venv?`, `remove_skills?`, `remove_hook?`, `remove_plist?`, `remove_logs?`, `remove_cache?` | JSON removal plan (dry_run=true) or removal results (dry_run=false) |
+
 **Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
 shell out to `obsidian` or `python main.py` from within an MCP-connected session.
 
@@ -110,6 +116,7 @@ The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 | `check-in` | Time-aware check-in with suggestions | no |
 | `rebuild-index` | Force-rebuild the vault graph index | no |
 | `doctor` | Health check on CLI and vault | no |
+| `uninstall` | Safely remove installation artifacts (two-mode: dry-run or force) | yes |
 
 ## Canonical JSON envelope
 
@@ -276,8 +283,9 @@ obsidian-connector/
   TOOLS_CONTRACT.md                This file
   obsidian_connector/
     __init__.py                    Public API re-exports (45 symbols)
-    cli.py                         CLI entry point (27 subcommands)
-    mcp_server.py                  MCP server (28 tools for Claude Desktop)
+    cli.py                         CLI entry point (28 subcommands)
+    mcp_server.py                  MCP server (29 tools for Claude Desktop)
+    uninstall.py                   Safe two-mode uninstaller (CLI + MCP)
     workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
     thinking.py                    Thinking tools: ghost, drift, trace, ideas
     graph.py                       Graph indexing: links, tags, frontmatter, NoteIndex

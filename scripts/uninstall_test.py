@@ -146,6 +146,82 @@ def test_dry_run_uninstall(tmp_path):
     assert venv.exists()  # Nothing was actually removed
     assert result["plan"]["files_to_remove"] == [str(venv)]
 
+def test_uninstall_cli_dry_run(tmp_path):
+    """Test CLI uninstall subcommand with --dry-run flag."""
+    import tempfile
+    from pathlib import Path
+
+    # Setup fake installation
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+    skills_dir = tmp_path / ".claude" / "commands"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "morning.md").write_text("# Morning")
+
+    config_file = tmp_path / "claude_desktop_config.json"
+    config_file.write_text('{"mcpServers": {"obsidian-connector": {}}}')
+
+    # Test CLI with --dry-run
+    from obsidian_connector.cli import main
+    result = main(["--vault", str(tmp_path), "uninstall", "--dry-run"])
+
+    # Should succeed and not remove anything
+    assert result == 0
+    assert venv.exists()
+    assert config_file.exists()
+
+def test_uninstall_cli_force_mode(tmp_path):
+    """Test CLI uninstall subcommand with --force flag."""
+    from pathlib import Path
+    import io
+    import sys
+
+    # Test CLI with --force flag (without actually removing anything, just parsing)
+    from obsidian_connector.cli import main
+
+    # Capture output
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+
+    try:
+        result = main(["--vault", str(tmp_path), "uninstall", "--force", "--remove-venv", "--dry-run"])
+        output = sys.stdout.getvalue()
+    finally:
+        sys.stdout = old_stdout
+
+    # Should succeed
+    assert result == 0
+
+def test_uninstall_cli_json_output(tmp_path):
+    """Test CLI uninstall subcommand with --json flag."""
+    from pathlib import Path
+
+    # Setup fake installation
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+
+    # Test CLI with --dry-run and --json
+    from obsidian_connector.cli import main
+    import io
+    import sys
+
+    # Capture output
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+
+    try:
+        result = main(["--vault", str(tmp_path), "--json", "uninstall", "--dry-run"])
+        output = sys.stdout.getvalue()
+    finally:
+        sys.stdout = old_stdout
+
+    # Should succeed and produce valid JSON
+    assert result == 0
+    data = json.loads(output)
+    assert data["ok"] is True
+    assert data["command"] == "uninstall"
+    assert data["data"]["dry_run"] is True
+
 if __name__ == "__main__":
     test_uninstall_plan_creation()
     print("test_uninstall_plan_creation PASS")
@@ -181,3 +257,15 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_dry_run_uninstall(Path(tmp))
     print("test_dry_run_uninstall PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_uninstall_cli_dry_run(Path(tmp))
+    print("test_uninstall_cli_dry_run PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_uninstall_cli_force_mode(Path(tmp))
+    print("test_uninstall_cli_force_mode PASS")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        test_uninstall_cli_json_output(Path(tmp))
+    print("test_uninstall_cli_json_output PASS")
