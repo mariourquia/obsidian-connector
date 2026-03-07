@@ -32,6 +32,11 @@ from obsidian_connector.thinking import (
 )
 from obsidian_connector.config import resolve_vault_path
 from obsidian_connector.index_store import IndexStore
+from obsidian_connector.uninstall import (
+    detect_installed_artifacts,
+    dry_run_uninstall,
+    execute_uninstall,
+)
 from obsidian_connector.workflows import (
     challenge_belief,
     check_in,
@@ -1098,6 +1103,85 @@ def obsidian_check_in(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Uninstall obsidian-connector",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=True,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def uninstall(
+    dry_run: bool = True,
+    remove_venv: bool = False,
+    remove_skills: bool = False,
+    remove_hook: bool = False,
+    remove_plist: bool = False,
+    remove_logs: bool = False,
+    remove_cache: bool = False,
+) -> str:
+    """Safely remove obsidian-connector installation artifacts.
+
+    Two-mode operation:
+    1. dry_run=True (default): Preview what will be removed (JSON plan)
+    2. dry_run=False: Execute removal with all specified --remove-* flags
+
+    Args:
+        dry_run: If True, show plan without removing anything. Default True.
+        remove_venv: Remove .venv directory (use with dry_run=False).
+        remove_skills: Remove Claude Code skills.
+        remove_hook: Remove SessionStart hook.
+        remove_plist: Remove launchd plist.
+        remove_logs: Remove audit logs.
+        remove_cache: Remove cache/index files.
+
+    Returns:
+        JSON with removal plan (dry_run=True) or removal results (dry_run=False).
+        Includes backed-up config file locations for safe rollback.
+    """
+    from pathlib import Path
+
+    try:
+        # Resolve paths
+        repo_root = Path(__file__).parent.parent
+        venv_path = repo_root / ".venv"
+        claude_config_path = (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / "Claude"
+            / "claude_desktop_config.json"
+        )
+
+        # Detect what's installed
+        plan = detect_installed_artifacts(
+            repo_root=repo_root,
+            venv_path=venv_path,
+            claude_config_path=claude_config_path,
+        )
+
+        if dry_run:
+            # Preview mode: show what would be removed
+            result = dry_run_uninstall(plan)
+        else:
+            # Execution mode: remove artifacts
+            plan.remove_venv = remove_venv
+            plan.remove_skills = remove_skills
+            plan.remove_hook = remove_hook
+            plan.remove_plist = remove_plist
+            plan.remove_logs = remove_logs
+            plan.remove_cache = remove_cache
+
+            result = execute_uninstall(plan, config_path=claude_config_path)
+
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 def main() -> None:
