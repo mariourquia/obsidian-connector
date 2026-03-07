@@ -8,8 +8,10 @@ thin wrapper that imports from here for backward compatibility with
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
+from pathlib import Path
 
 from obsidian_connector.client import (
     ObsidianCLIError,
@@ -31,6 +33,11 @@ from obsidian_connector.thinking import (
     drift_analysis,
     ghost_voice_profile,
     trace_idea,
+)
+from obsidian_connector.uninstall import (
+    detect_installed_artifacts,
+    dry_run_uninstall,
+    execute_uninstall,
 )
 from obsidian_connector.workflows import (
     challenge_belief,
@@ -705,6 +712,70 @@ def _fmt_check_in(data: dict) -> str:
     return "\n".join(lines)
 
 
+def _format_uninstall_plan(data: dict) -> str:
+    """Human-readable dry-run uninstall plan."""
+    lines: list[str] = []
+    lines.append("Uninstall Plan (dry-run):")
+    lines.append("=" * 40)
+
+    plan = data.get("plan", {})
+    files = plan.get("files_to_remove", [])
+    if files:
+        lines.append(f"\nFiles to remove ({len(files)}):")
+        for f in files:
+            lines.append(f"  - {f}")
+
+    config = plan.get("config_changes", {})
+    if config:
+        lines.append("\nConfig changes:")
+        for config_file, change in config.items():
+            if change.get("action") == "remove_key":
+                path_str = " > ".join(change.get("path", []))
+                lines.append(f"  - {config_file}: remove {path_str}")
+
+    plist = plan.get("plist_action")
+    if plist:
+        lines.append(f"\nPlist action:")
+        lines.append(f"  - {plist}")
+
+    summary = plan.get("summary", "")
+    if summary:
+        lines.append(f"\nSummary: {summary}")
+
+    return "\n".join(lines)
+
+
+def _format_uninstall_result(data: dict) -> str:
+    """Human-readable uninstall result."""
+    if data.get("cancelled"):
+        return "Uninstall cancelled."
+
+    lines: list[str] = []
+    status = data.get("status", "unknown")
+    if status == "ok":
+        lines.append("Uninstall complete!")
+    else:
+        lines.append("Uninstall complete with warnings.")
+
+    removed = data.get("removed", [])
+    if removed:
+        lines.append("\nRemoved:")
+        for item in removed:
+            lines.append(f"  - {item}")
+
+    errors = data.get("errors", [])
+    if errors:
+        lines.append("\nErrors:")
+        for error in errors:
+            lines.append(f"  - {error}")
+
+    summary = data.get("summary", "")
+    if summary:
+        lines.append(f"\n{summary}")
+
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -887,6 +958,50 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- doctor ------------------------------------------------------------
     sub.add_parser("doctor", help="Run health checks on Obsidian CLI and vault connectivity.")
+
+    # -- uninstall ---------------------------------------------------------
+    p = sub.add_parser("uninstall", help="Safely remove obsidian-connector (interactive or MCP mode).")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview what will be removed without making changes."
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Non-interactive mode (for MCP) - requires explicit flags for each artifact type."
+    )
+    p.add_argument(
+        "--remove-venv",
+        action="store_true",
+        help="Remove .venv directory (use with --force)."
+    )
+    p.add_argument(
+        "--remove-skills",
+        action="store_true",
+        help="Remove Claude Code skills (use with --force)."
+    )
+    p.add_argument(
+        "--remove-hook",
+        action="store_true",
+        help="Remove SessionStart hook (use with --force)."
+    )
+    p.add_argument(
+        "--remove-plist",
+        action="store_true",
+        help="Remove launchd plist (use with --force)."
+    )
+    p.add_argument(
+        "--remove-logs",
+        action="store_true",
+        help="Remove logs (use with --force)."
+    )
+    p.add_argument(
+        "--remove-cache",
+        action="store_true",
+        help="Remove cache/index files (use with --force)."
+    )
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     return parser
 
@@ -1346,6 +1461,104 @@ def main(argv: list[str] | None = None) -> int:
             result = check_in(vault=vault, timezone_name=args.timezone)
             data = result
             human = _fmt_check_in(result)
+
+        elif args.command == "uninstall":
+            # Resolve paths
+            repo_root = Path(__file__).parent.parent
+            venv_path = repo_root / ".venv"
+            claude_config_path = Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+
+            # Detect what's installed
+            plan = detect_installed_artifacts(
+                repo_root=repo_root,
+                venv_path=venv_path,
+                claude_config_path=claude_config_path
+            )
+
+            # Handle --dry-run flag
+            if args.dry_run:
+                result = dry_run_uninstall(plan)
+                data = result
+                human = _format_uninstall_plan(result)
+            # Handle --force flag (MCP mode)
+            elif args.force:
+                plan.remove_venv = args.remove_venv
+                plan.remove_skills = args.remove_skills
+                plan.remove_hook = args.remove_hook
+                plan.remove_plist = args.remove_plist
+                plan.remove_logs = args.remove_logs
+                plan.remove_cache = args.remove_cache
+                result = execute_uninstall(plan, config_path=claude_config_path)
+                data = result
+                human = _format_uninstall_result(result)
+            # Interactive mode (default for CLI)
+            else:
+                print("\nObsidian Connector Uninstaller")
+                print("=" * 40)
+                print("\nWhat would you like to keep?")
+                print()
+
+                # Log the uninstall action with interactive mode intent
+                log_action(
+                    "uninstall",
+                    {"mode": "interactive", "force": False},
+                    vault,
+                    dry_run=False,
+                    affected_path="system-config",
+                )
+
+                # Ask about each artifact type (inverted logic: keep = default)
+                plan.remove_venv = input("Keep .venv directory? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_skills = input("Keep Claude Code skills? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_hook = input("Keep SessionStart hook? [y/N] ").lower() not in ["y", "yes"]
+
+                # Add explicit prompt for Claude config entry
+                keep_claude_config = input("Keep Claude config entry? [y/N] ").lower() in ["y", "yes"]
+                if not keep_claude_config and plan.config_changes:
+                    # Mark to remove config entry
+                    pass
+                elif keep_claude_config and plan.config_changes:
+                    # Don't remove config entry
+                    plan.config_changes = {}
+
+                plan.remove_plist = input("Keep launchd plist? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_logs = input("Keep logs? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_cache = input("Keep cache/index files? [y/N] ").lower() not in ["y", "yes"]
+
+                # Show plan
+                print("\n" + "=" * 40)
+                print("Removal Plan:")
+                print("=" * 40)
+                if plan.remove_venv and venv_path.exists():
+                    print(f"  - Remove: {venv_path}")
+                if plan.remove_skills:
+                    print("  - Remove: Claude Code skills from .claude/commands/")
+                if plan.remove_hook:
+                    print("  - Remove: SessionStart hook from .claude/settings.json")
+                if plan.remove_plist and plan.plist_path:
+                    print(f"  - Remove: {plan.plist_path}")
+                if plan.remove_logs:
+                    print("  - Remove: Audit logs")
+                if plan.remove_cache:
+                    print("  - Remove: Index cache")
+                for config_file, change in plan.config_changes.items():
+                    if change.get("action") == "remove_key":
+                        path_str = " > ".join(change.get("path", []))
+                        print(f"  - Remove from {config_file}: {path_str}")
+
+                # Final confirmation
+                print()
+                confirm = input("Proceed with removal? [y/N] ").lower() in ["y", "yes"]
+
+                if not confirm:
+                    print("Cancelled.")
+                    data = {"cancelled": True}
+                    human = "Uninstall cancelled."
+                else:
+                    # Execute
+                    result = execute_uninstall(plan, config_path=claude_config_path)
+                    data = result
+                    human = _format_uninstall_result(result)
 
         elif args.command == "doctor":
             from obsidian_connector.doctor import run_doctor
