@@ -222,6 +222,66 @@ source_file: "daily/2026-03-05.md"
 This enforces the "agents read, humans write" boundary. Drafts require
 human review before promotion to permanent notes.
 
+## Cross-platform support
+
+All platform-specific logic is centralized in `obsidian_connector/platform.py`.
+No other module hardcodes OS-specific paths. The `platform.py` module provides
+OS detection, path resolution, scheduling, notifications, and process detection.
+
+### Platform support matrix
+
+| Feature | macOS | Linux | Windows |
+|---------|-------|-------|---------|
+| CLI wrapper (Obsidian CLI) | Full | Full | Not available (no CLI) |
+| Graph tools (direct file access) | Full | Full | Full |
+| Thinking tools (direct file access) | Full | Full | Full |
+| Workflow OS | Full | Full | Full |
+| Scheduling | launchd (available) | systemd (available) | Task Scheduler (not implemented) |
+| Notifications | osascript (available) | notify-send (if installed) | PowerShell toast (not implemented) |
+| Uninstaller | Full | Full (systemd) | Partial (no scheduler cleanup) |
+| Config auto-detection | `~/Library/Application Support/` | `$XDG_CONFIG_HOME/` or `~/.config/` | `%APPDATA%/` |
+
+### Tools requiring Obsidian to be running
+
+These tools communicate with the Obsidian desktop app via IPC and require
+the app to be open:
+
+- `obsidian_search`, `obsidian_read`, `obsidian_tasks`
+- `obsidian_log_daily`, `obsidian_log_decision`, `obsidian_create_note`
+- `obsidian_find_prior_work`, `obsidian_challenge_belief`, `obsidian_emerge_ideas`, `obsidian_connect_domains`
+
+### Tools that work without Obsidian running
+
+These tools read vault `.md` files directly via pathlib and do not need
+the Obsidian desktop app or its CLI:
+
+- Graph: `obsidian_neighborhood`, `obsidian_vault_structure`, `obsidian_backlinks`, `obsidian_rebuild_index`
+- Thinking: `obsidian_ghost`, `obsidian_drift`, `obsidian_trace`, `obsidian_ideas`
+- Workflow OS: `obsidian_my_world`, `obsidian_today`, `obsidian_close_day`, `obsidian_open_loops`, `obsidian_graduate_candidates`, `obsidian_graduate_execute`, `obsidian_delegations`, `obsidian_context_load`, `obsidian_check_in`
+- System: `obsidian_doctor`, `uninstall`
+
+### Platform-specific behavior notes
+
+**Scheduling backend:** The scheduling backend varies by OS. On macOS,
+`install_schedule()` writes launchd plists to `~/Library/LaunchAgents/`.
+On Linux, it writes systemd user units to `~/.config/systemd/user/`.
+Windows Task Scheduler support is planned for v0.3.0.
+
+**Config paths:** Vault auto-detection reads `obsidian.json` from the
+platform-appropriate config directory. On Linux, `XDG_CONFIG_HOME` is
+respected (falls back to `~/.config`). On Windows, `%APPDATA%` is used.
+
+**File backend fallback:** On platforms where the Obsidian CLI is not
+available (e.g., Windows, headless Linux), graph tools, thinking tools,
+and workflow OS tools still function because they read vault files directly
+via pathlib. Only CLI-dependent operations (search, read, tasks, mutations
+via the Obsidian CLI) require the desktop app.
+
+**Doctor diagnostics:** The `doctor` command reports platform-specific
+information including detected OS, scheduler type and availability,
+Claude Desktop config path, Obsidian process status, and a feature
+availability summary.
+
 ## Vault targeting
 
 Resolution order (highest priority wins):
@@ -231,7 +291,7 @@ Resolution order (highest priority wins):
 3. `OBSIDIAN_VAULT` environment variable (vault name)
 4. `vault_path` in `config.json`
 5. `default_vault` in `config.json`
-6. Auto-detected from `~/Library/Application Support/obsidian/obsidian.json`
+6. Auto-detected from platform-specific `obsidian.json` (macOS: `~/Library/Application Support/obsidian/obsidian.json`, Linux: `~/.config/obsidian/obsidian.json`, Windows: `%APPDATA%/obsidian/obsidian.json`)
 
 ## Failure modes and recovery
 
@@ -294,9 +354,10 @@ obsidian-connector/
     cache.py                       In-memory TTL cache
     client.py                      Core CLI wrapper + batch reads
     config.py                      Layered config + vault path resolution
-    doctor.py                      Health-check diagnostics
+    doctor.py                      Health-check diagnostics (cross-platform)
     envelope.py                    Canonical JSON envelope builder
     errors.py                      Typed exception hierarchy
+    platform.py                    Platform abstraction (OS detection, paths, scheduling)
     search.py                      Search result enrichment
   scripts/
     install.sh                     One-command installer
@@ -313,6 +374,7 @@ obsidian-connector/
     escaping_test.py               Content escaping edge-case tests
     graph_test.py                  Graph module tests
     index_test.py                  Index store tests
+    platform_test.py               Platform abstraction tests (OS, paths, scheduling, doctor)
     mcp_launch_smoke.sh            MCP server launch smoke test
   bin/
     obsx                           CLI wrapper (no venv activation needed)
