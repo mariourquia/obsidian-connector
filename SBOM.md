@@ -1,7 +1,7 @@
 # Software Bill of Materials (SBOM)
 
-Generated: 2026-03-06
-Package: obsidian-connector v0.1.1
+Generated: 2026-03-16
+Package: obsidian-connector v0.2.0
 Python: >=3.11
 
 ## Audit Status
@@ -51,6 +51,9 @@ These modules use only the Python standard library:
 - `obsidian_connector.config` (os, json, pathlib)
 - `obsidian_connector.thinking` (re, collections, datetime)
 - `obsidian_connector.workflows` (os, re, datetime, pathlib)
+- `obsidian_connector.platform` (os, subprocess, pathlib, platform)
+- `obsidian_connector.file_backend` (os, re, pathlib, tempfile)
+- `obsidian_connector.uninstall` (json, os, shutil, tempfile, pathlib)
 
 Only `mcp_server.py` imports the `mcp` package.
 
