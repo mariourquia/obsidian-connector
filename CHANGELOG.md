@@ -46,7 +46,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Config file backups created before any modification (`claude_desktop_config.json.backup-TIMESTAMP`)
 - JSON validation after config edits prevents writing corrupted config
 - Launchd plist properly unloaded before removal
-- All uninstall actions logged to audit trail
+- Interactive CLI uninstall actions logged to audit trail
 
 ## [0.1.2] - 2026-03-06
 
