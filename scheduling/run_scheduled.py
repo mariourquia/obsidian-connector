@@ -2,7 +2,7 @@
 """Headless scheduled runner for obsidian-connector.
 
 Calls Python API directly (no LLM needed). Writes structured output
-to the daily note and sends a macOS notification.
+to the daily note and sends a desktop notification (cross-platform).
 
 Usage:
     python3 scheduling/run_scheduled.py morning
@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -61,28 +60,18 @@ def _is_workflow_enabled(config: dict, workflow: str) -> bool:
     return config.get(workflow, {}).get("enabled", True)
 
 
-def _osa_escape(s: str) -> str:
-    """Escape a string for safe interpolation into AppleScript literals."""
-    return s.replace("\\", "\\\\").replace('"', '\\"')
-
-
 def _notify(title: str, message: str, config: dict) -> None:
-    """Send a macOS notification."""
+    """Send a desktop notification (platform-aware).
+
+    Delegates to platform.send_notification() which uses the native
+    notification method for the current OS (macOS, Linux, or Windows).
+    """
     notif_config = config.get("notification", {})
     if not notif_config.get("enabled", True):
         return
 
-    method = notif_config.get("method", "osascript")
-    if method == "osascript":
-        safe_title = _osa_escape(title)
-        safe_msg = _osa_escape(message)
-        script = f'display notification "{safe_msg}" with title "{safe_title}"'
-        subprocess.run(["osascript", "-e", script], capture_output=True)
-    elif method == "terminal-notifier":
-        subprocess.run(
-            ["terminal-notifier", "-title", title, "-message", message],
-            capture_output=True,
-        )
+    from obsidian_connector.platform import send_notification
+    send_notification(title, message)
 
 
 def run_morning(config: dict) -> None:

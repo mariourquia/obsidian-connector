@@ -483,6 +483,20 @@ def test_doctor_uses_platform_binary_candidates():
 
 
 # ------------------------------------------------------------------
+# run_scheduled.py cross-platform notification test (Task 9)
+# ------------------------------------------------------------------
+
+def test_run_scheduled_uses_platform_notify():
+    """Verify run_scheduled.py no longer hardcodes osascript."""
+    source = Path(__file__).parent.parent / "scheduling" / "run_scheduled.py"
+    text = source.read_text()
+    assert "osascript" not in text, "run_scheduled.py should use platform.send_notification"
+    assert "_osa_escape" not in text, "run_scheduled.py should not contain _osa_escape"
+    assert "send_notification" in text, "run_scheduled.py should import send_notification"
+    print("PASS: test_run_scheduled_uses_platform_notify")
+
+
+# ------------------------------------------------------------------
 # Refactor validation tests (Tasks 5-6)
 # ------------------------------------------------------------------
 
@@ -572,6 +586,9 @@ if __name__ == "__main__":
     test_doctor_reports_claude_config()
     test_doctor_reports_platform_features()
     test_doctor_uses_platform_binary_candidates()
+
+    # Task 9: run_scheduled.py cross-platform notifications
+    test_run_scheduled_uses_platform_notify()
 
     # Tasks 5-6: refactor validation
     test_config_uses_platform_paths()
