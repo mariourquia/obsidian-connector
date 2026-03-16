@@ -1466,7 +1466,8 @@ def main(argv: list[str] | None = None) -> int:
             # Resolve paths
             repo_root = Path(__file__).parent.parent
             venv_path = repo_root / ".venv"
-            claude_config_path = Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+            from obsidian_connector.platform import get_platform_paths
+            claude_config_path = get_platform_paths().claude_config_dir / "claude_desktop_config.json"
 
             # Detect what's installed
             plan = detect_installed_artifacts(
