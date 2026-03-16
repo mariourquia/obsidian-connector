@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +35,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e .
       - name: Unit tests (no Obsidian required)
+        shell: bash
         run: |
           python3 scripts/cache_test.py
           python3 scripts/audit_test.py
