@@ -59,14 +59,21 @@ def detect_installed_artifacts(
         except (json.JSONDecodeError, IOError, TypeError):
             pass
 
-    # Check plist
-    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.obsidian-connector.daily.plist"
+    from obsidian_connector.platform import get_platform_paths
+    paths = get_platform_paths()
+
+    # Check scheduler artifact (launchd plist on macOS, systemd unit on Linux, None on Windows)
+    plist_path: Path | None = None
+    if paths.scheduler_dir is not None:
+        candidate = paths.scheduler_dir / "com.obsidian-connector.daily.plist"
+        if candidate.exists():
+            plist_path = candidate
 
     return UninstallPlan(
         venv_path=venv_path,
         files_to_remove=files_to_remove,
         config_changes=config_changes,
-        plist_path=plist_path if plist_path.exists() else None
+        plist_path=plist_path,
     )
 
 
@@ -189,6 +196,24 @@ def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
             removed.append(str(plan.plist_path))
         else:
             errors.append(f"Failed to unload plist: {plan.plist_path}")
+
+    # Remove audit logs
+    if plan.remove_logs:
+        logs_dir = Path.home() / ".obsidian-connector" / "logs"
+        if logs_dir.exists():
+            if remove_file_safely(logs_dir):
+                removed.append(str(logs_dir))
+            else:
+                errors.append(f"Failed to remove: {logs_dir}")
+
+    # Remove cache/index files
+    if plan.remove_cache:
+        index_db = Path.home() / ".obsidian-connector" / "index.sqlite"
+        if index_db.exists():
+            if remove_file_safely(index_db):
+                removed.append(str(index_db))
+            else:
+                errors.append(f"Failed to remove: {index_db}")
 
     return {
         "status": "ok" if not errors else "warning",
