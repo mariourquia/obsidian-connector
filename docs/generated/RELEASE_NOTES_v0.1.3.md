@@ -1,6 +1,7 @@
 ---
 title: "Release Notes -- obsidian-connector v0.1.3"
 status: draft
+# generated, do not edit
 owner: mariourquia
 last_reviewed: "2026-03-16"
 ---

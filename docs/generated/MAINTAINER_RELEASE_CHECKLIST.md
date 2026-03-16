@@ -1,6 +1,7 @@
 ---
 title: "Maintainer Release Checklist"
 status: draft
+# generated, do not edit
 owner: mariourquia
 last_reviewed: "2026-03-16"
 ---
