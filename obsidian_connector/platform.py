@@ -264,16 +264,92 @@ def _uninstall_launchd(job_name: str) -> bool:
         return False
 
 
+def _generate_systemd_unit(
+    repo_root: Path, python_path: Path, workflow: str, hour: int, minute: int
+) -> tuple[str, str]:
+    """Generate systemd .service and .timer unit file contents.
+
+    Returns
+    -------
+    tuple[str, str]
+        (service_content, timer_content)
+    """
+    service_name = f"obsidian-connector-{workflow}"
+    service = f"""[Unit]
+Description=obsidian-connector {workflow} workflow
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart={python_path} {repo_root}/scheduling/run_scheduled.py {workflow}
+WorkingDirectory={repo_root}
+Environment=PYTHONPATH={repo_root}
+
+[Install]
+WantedBy=default.target
+"""
+    timer = f"""[Unit]
+Description=obsidian-connector {workflow} timer
+
+[Timer]
+OnCalendar=*-*-* {hour:02d}:{minute:02d}:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+"""
+    return service, timer
+
+
 def _install_systemd(
     repo_root: Path, python_path: Path, workflow: str, hour: int, minute: int
 ) -> bool:
     """Install a systemd user timer for the given workflow (Linux)."""
-    raise NotImplementedError("systemd scheduling not yet implemented")
+    try:
+        service_content, timer_content = _generate_systemd_unit(
+            repo_root, python_path, workflow, hour, minute
+        )
+        unit_dir = Path.home() / ".config" / "systemd" / "user"
+        unit_dir.mkdir(parents=True, exist_ok=True)
+
+        service_name = f"obsidian-connector-{workflow}"
+        (unit_dir / f"{service_name}.service").write_text(service_content)
+        (unit_dir / f"{service_name}.timer").write_text(timer_content)
+
+        subprocess.run(
+            ["systemctl", "--user", "daemon-reload"],
+            capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["systemctl", "--user", "enable", "--now", f"{service_name}.timer"],
+            capture_output=True, check=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, OSError):
+        return False
 
 
 def _uninstall_systemd(job_name: str) -> bool:
     """Disable and remove a systemd user timer and service (Linux)."""
-    raise NotImplementedError("systemd scheduling not yet implemented")
+    try:
+        # Map from com.obsidian-connector.{workflow} to obsidian-connector-{workflow}
+        service_name = job_name.replace("com.obsidian-connector.", "obsidian-connector-")
+        subprocess.run(
+            ["systemctl", "--user", "disable", "--now", f"{service_name}.timer"],
+            capture_output=True, check=False,
+        )
+        unit_dir = Path.home() / ".config" / "systemd" / "user"
+        for ext in (".service", ".timer"):
+            unit_file = unit_dir / f"{service_name}{ext}"
+            if unit_file.exists():
+                unit_file.unlink()
+        subprocess.run(
+            ["systemctl", "--user", "daemon-reload"],
+            capture_output=True, check=False,
+        )
+        return True
+    except OSError:
+        return False
 
 
 # ------------------------------------------------------------------
@@ -327,16 +403,59 @@ def send_notification(title: str, message: str) -> bool:
     return False
 
 
+def _generate_schtasks_command(
+    repo_root: Path, python_path: Path, workflow: str, time: str
+) -> list[str]:
+    """Generate a schtasks /CREATE command for Windows Task Scheduler.
+
+    Parameters
+    ----------
+    repo_root: Path to the obsidian-connector repo.
+    python_path: Path to the Python interpreter (venv).
+    workflow: One of "morning", "evening", "weekly".
+    time: 24h time string, e.g. "08:00".
+
+    Returns
+    -------
+    list[str]
+        Command list suitable for subprocess.run().
+    """
+    task_name = f"obsidian-connector-{workflow}"
+    script_path = repo_root / "scheduling" / "run_scheduled.py"
+    return [
+        "schtasks", "/CREATE",
+        "/SC", "DAILY",
+        "/TN", task_name,
+        "/TR", f'"{python_path}" "{script_path}" {workflow}',
+        "/ST", time,
+        "/F",  # Force overwrite if exists
+    ]
+
+
 def _install_task_scheduler(
     repo_root: Path, python_path: Path, workflow: str, time: str
 ) -> bool:
     """Install a Windows Task Scheduler task for the given workflow."""
-    raise NotImplementedError("Windows Task Scheduler not yet implemented")
+    try:
+        cmd = _generate_schtasks_command(repo_root, python_path, workflow, time)
+        result = subprocess.run(cmd, capture_output=True, check=True)
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, OSError):
+        return False
 
 
 def _uninstall_task_scheduler(job_name: str) -> bool:
     """Remove a Windows Task Scheduler task."""
-    raise NotImplementedError("Windows Task Scheduler not yet implemented")
+    try:
+        # Convert com.obsidian-connector.X format to obsidian-connector-X
+        task_name = job_name.replace("com.obsidian-connector.", "obsidian-connector-")
+        result = subprocess.run(
+            ["schtasks", "/DELETE", "/TN", task_name, "/F"],
+            capture_output=True, check=False,
+        )
+        return result.returncode == 0
+    except OSError:
+        return False
 
 
 # ------------------------------------------------------------------
