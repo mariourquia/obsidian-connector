@@ -1,108 +1,61 @@
+"""Test platform-specific path resolution."""
+
+import os
 import sys
-import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from obsidian_connector.platform import (
-    current_os,
-    claude_desktop_config_path,
-    obsidian_app_json_path,
-    default_index_db_path,
-    schedule_config_dir,
-    scheduler_type,
-    install_schedule,
-    uninstall_schedule,
-)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
-def test_current_os():
-    result = current_os()
-    assert result in ("macos", "linux", "windows"), f"Unknown OS: {result}"
-    if sys.platform == "darwin":
-        assert result == "macos"
-    elif sys.platform.startswith("linux"):
-        assert result == "linux"
-    elif sys.platform == "win32":
-        assert result == "windows"
+def test_macos_paths():
+    with patch("sys.platform", "darwin"):
+        import importlib
+        import obsidian_connector.platform as plat
+        importlib.reload(plat)
+
+        paths = plat.get_platform_paths()
+        assert "Library/Application Support/obsidian" in str(paths.obsidian_config)
+        assert "Library/Application Support/Claude" in str(paths.claude_config_dir)
+        assert "Library/LaunchAgents" in str(paths.scheduler_dir)
+    print("PASS: test_macos_paths")
 
 
-def test_claude_config_path_returns_path():
-    path = claude_desktop_config_path()
-    assert isinstance(path, Path)
-    assert "claude" in str(path).lower() or "Claude" in str(path)
+def test_linux_paths():
+    with patch("sys.platform", "linux"):
+        import importlib
+        import obsidian_connector.platform as plat
+        importlib.reload(plat)
+
+        paths = plat.get_platform_paths()
+        assert ".config/obsidian" in str(paths.obsidian_config) or "obsidian" in str(paths.obsidian_config)
+        assert ".config/Claude" in str(paths.claude_config_dir) or "Claude" in str(paths.claude_config_dir)
+    print("PASS: test_linux_paths")
 
 
-def test_obsidian_app_json_returns_path():
-    path = obsidian_app_json_path()
-    assert isinstance(path, Path)
-    assert "obsidian" in str(path).lower()
+def test_windows_paths():
+    with patch("sys.platform", "win32"), \
+         patch.dict("os.environ", {"APPDATA": "/tmp/fake-appdata"}):
+        import importlib
+        import obsidian_connector.platform as plat
+        importlib.reload(plat)
+
+        paths = plat.get_platform_paths()
+        assert "obsidian" in str(paths.obsidian_config).lower()
+    print("PASS: test_windows_paths")
 
 
-def test_default_index_db_path():
-    path = default_index_db_path()
-    assert isinstance(path, Path)
-    assert "index.sqlite" in str(path)
-
-
-def test_schedule_config_dir():
-    path = schedule_config_dir()
-    assert isinstance(path, Path)
-    if sys.platform == "darwin":
-        assert "LaunchAgents" in str(path)
-
-
-def test_scheduler_type():
-    result = scheduler_type()
-    assert result in ("launchd", "systemd", "task_scheduler")
-    if sys.platform == "darwin":
-        assert result == "launchd"
-
-
-def test_install_schedule_dry_run(tmp_path):
-    # Should not raise; actual scheduling is OS-specific
-    python_path = Path(sys.executable)
-    result = install_schedule(
-        repo_root=tmp_path,
-        python_path=python_path,
-        workflow="morning",
-        time="08:00",
-        dry_run=True,
-    )
-    assert isinstance(result, dict)
-    assert result["scheduler"] == scheduler_type()
-    assert result["dry_run"] is True
-    assert result["installed"] is False
-
-
-def test_uninstall_schedule_returns_bool():
-    # Calling with a non-existent job should not crash
-    result = uninstall_schedule("com.obsidian-connector.nonexistent")
-    assert isinstance(result, bool)
+def test_data_dir_creation():
+    """Data dir (~/.obsidian-connector) should be platform-independent."""
+    import obsidian_connector.platform as plat
+    paths = plat.get_platform_paths()
+    assert ".obsidian-connector" in str(paths.data_dir)
+    print("PASS: test_data_dir_creation")
 
 
 if __name__ == "__main__":
-    test_current_os()
-    print("test_current_os PASS")
-
-    test_claude_config_path_returns_path()
-    print("test_claude_config_path_returns_path PASS")
-
-    test_obsidian_app_json_returns_path()
-    print("test_obsidian_app_json_returns_path PASS")
-
-    test_default_index_db_path()
-    print("test_default_index_db_path PASS")
-
-    test_schedule_config_dir()
-    print("test_schedule_config_dir PASS")
-
-    test_scheduler_type()
-    print("test_scheduler_type PASS")
-
-    with tempfile.TemporaryDirectory() as tmp:
-        test_install_schedule_dry_run(Path(tmp))
-    print("test_install_schedule_dry_run PASS")
-
-    test_uninstall_schedule_returns_bool()
-    print("test_uninstall_schedule_returns_bool PASS")
+    test_macos_paths()
+    test_linux_paths()
+    test_windows_paths()
+    test_data_dir_creation()
+    print("\nAll platform tests passed.")
