@@ -63,7 +63,8 @@ def get_platform_paths() -> PlatformPaths:
             scheduler_type="task_scheduler",
         )
     else:
-        xdg_config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
+        # XDG spec: empty $XDG_CONFIG_HOME is treated as unset
+        xdg_config = Path(os.environ.get("XDG_CONFIG_HOME") or (home / ".config"))
         return PlatformPaths(
             obsidian_config=xdg_config / "obsidian" / "obsidian.json",
             claude_config_dir=xdg_config / "Claude",
