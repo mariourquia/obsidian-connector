@@ -2,7 +2,7 @@
 title: "Roadmap"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-03-06"
+last_reviewed: "2026-03-16"
 ---
 
 # Roadmap
@@ -101,6 +101,7 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 | -- | `infra` | SBOM generation | v0.1.1 |
 | -- | `infra` | pyyaml optional dependency | v0.1.1 |
 | -- | `infra` | `__version__` in package | v0.1.1 |
+| -- | `feature` | Safe two-mode uninstaller (`obsx uninstall`) | v0.1.3 |
 
 ---
 
