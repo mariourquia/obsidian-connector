@@ -275,6 +275,57 @@ def _uninstall_systemd(job_name: str) -> bool:
     raise NotImplementedError("systemd scheduling not yet implemented")
 
 
+# ------------------------------------------------------------------
+# Notification abstraction
+# ------------------------------------------------------------------
+
+def send_notification(title: str, message: str) -> bool:
+    """Send a desktop notification using the OS-native method.
+
+    Returns True if the notification was dispatched, False on failure
+    or unsupported platform. Never raises.
+    """
+    os_name = current_os()
+    try:
+        if os_name == "macos":
+            safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
+            safe_msg = message.replace("\\", "\\\\").replace('"', '\\"')
+            script = f'display notification "{safe_msg}" with title "{safe_title}"'
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                timeout=5,
+            )
+            return result.returncode == 0
+        elif os_name == "linux":
+            result = subprocess.run(
+                ["notify-send", title, message],
+                capture_output=True,
+                timeout=5,
+            )
+            return result.returncode == 0
+        elif os_name == "windows":
+            # PowerShell toast notification
+            ps_script = (
+                f'[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; '
+                f'$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); '
+                f'$text = $template.GetElementsByTagName("text"); '
+                f'$text.Item(0).AppendChild($template.CreateTextNode("{title}")) > $null; '
+                f'$text.Item(1).AppendChild($template.CreateTextNode("{message}")) > $null; '
+                f'$toast = [Windows.UI.Notifications.ToastNotification]::new($template); '
+                f'[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("obsidian-connector").Show($toast)'
+            )
+            result = subprocess.run(
+                ["powershell", "-Command", ps_script],
+                capture_output=True,
+                timeout=10,
+            )
+            return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+    return False
+
+
 def _install_task_scheduler(
     repo_root: Path, python_path: Path, workflow: str, time: str
 ) -> bool:
