@@ -1108,7 +1108,7 @@ def obsidian_check_in(
         openWorldHint=False,
     ),
 )
-def uninstall(
+def obsidian_uninstall(
     dry_run: bool = True,
     remove_venv: bool = False,
     remove_skills: bool = False,

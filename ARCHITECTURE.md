@@ -2,7 +2,7 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-03-06"
+last_reviewed: "2026-03-16"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
@@ -29,7 +29,7 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (14 modules) |
+| `obsidian_connector/` | Core Python package (17 modules) |
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | Knowledge base (harness engineering, frontmatter-enforced) |
@@ -43,6 +43,8 @@ persisted to SQLite for fast incremental updates.
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
 | `cli.py` | CLI entry point (`obsx`): 26 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
 | `mcp_server.py` | MCP server (FastMCP): 27 tools for Claude Desktop (stdio + HTTP transports) |
+| `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
+| `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
 | `workflows.py` | Higher-level workflows: daily ops, open loops, graduate pipeline, delegation detection, context loader |
 | `thinking.py` | Thinking tools: ghost (voice), drift (intention vs behavior), trace (idea evolution), ideas (graph analysis) |
 | `graph.py` | Graph-aware vault indexing: parse links, tags, frontmatter from `.md` files, build `NoteIndex` |
@@ -53,6 +55,7 @@ persisted to SQLite for fast incremental updates.
 | `doctor.py` | Health-check diagnostics (binary, version, vault, reachability) |
 | `envelope.py` | Canonical JSON envelope builder for `--json` output |
 | `errors.py` | Typed exception hierarchy (ObsidianNotFound, VaultNotFound, etc.) |
+| `file_backend.py` | CLI-less vault access via direct file reads (search, read, tasks, daily log, note creation with path traversal protection). Not yet wired into MCP/CLI -- planned for v0.2.1 |
 | `search.py` | Search result enrichment and deduplication |
 
 ## Dependency flow
@@ -70,6 +73,9 @@ graph.py uses: config.py (vault path resolution)
 index_store.py uses: graph.py, config.py
 workflows.py uses: client.py, graph.py, index_store.py, config.py, audit.py
 thinking.py uses: client.py, graph.py, index_store.py, config.py
+platform.py uses: (no internal deps -- foundation layer)
+file_backend.py uses: config.py (vault path resolution)
+uninstall.py uses: platform.py, config.py
 ```
 
 ## Key entry points

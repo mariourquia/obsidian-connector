@@ -15,12 +15,17 @@ from pathlib import Path
 
 from obsidian_connector.client import ObsidianCLIError, read_note, search_notes
 from obsidian_connector.graph import NoteIndex
-from obsidian_connector.index_store import load_or_build_index
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
+    """Delegate to the canonical shared implementation."""
+    from obsidian_connector.index_store import load_or_build_index
+
+    return load_or_build_index(vault)
 
 
 def _read_note_content(path: str, vault: str | None = None) -> str:
@@ -93,7 +98,7 @@ def ghost_voice_profile(
         Confidence: ``"low"`` (<10 notes), ``"medium"`` (10--30),
         ``"high"`` (>30).
     """
-    idx = load_or_build_index(vault)
+    idx = _load_or_build_index(vault)
     if idx is None or len(idx.notes) == 0:
         return {
             "profile": {},
@@ -468,7 +473,7 @@ def trace_idea(
         }
 
     # Load index for mtime data.
-    idx = load_or_build_index(vault)
+    idx = _load_or_build_index(vault)
 
     # Build timeline entries with dates.
     timeline_raw: list[dict] = []
@@ -486,7 +491,7 @@ def trace_idea(
                 full = root / file_path
                 if full.is_file():
                     mtime = full.stat().st_mtime
-            except Exception:
+            except OSError:
                 pass
 
         date_str = (
@@ -617,7 +622,7 @@ def deep_ideas(
     dict
         Keys: ``ideas``, ``vault_health``.
     """
-    idx = load_or_build_index(vault)
+    idx = _load_or_build_index(vault)
     if idx is None or len(idx.notes) == 0:
         return {
             "ideas": [],

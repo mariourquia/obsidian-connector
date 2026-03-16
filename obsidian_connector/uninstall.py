@@ -1,18 +1,19 @@
 import json
+import os
 import shutil
-import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 
 @dataclass
 class UninstallPlan:
     """Tracks artifacts to remove during uninstall."""
     venv_path: Path
-    files_to_remove: List[Path] = field(default_factory=list)
-    config_changes: Dict[str, Any] = field(default_factory=dict)
+    files_to_remove: list[Path] = field(default_factory=list)
+    config_changes: dict[str, Any] = field(default_factory=dict)
     plist_path: Path | None = None
     remove_plist: bool = False
     remove_venv: bool = False
@@ -96,7 +97,7 @@ def validate_json(content: str) -> bool:
         return False
 
 
-def remove_from_json_config(config_path: Path, key_path: List[str]) -> bool:
+def remove_from_json_config(config_path: Path, key_path: list[str]) -> bool:
     """Remove a key from JSON config file. Validates JSON after change."""
     try:
         with open(config_path) as f:
@@ -110,12 +111,24 @@ def remove_from_json_config(config_path: Path, key_path: List[str]) -> bool:
         # Remove target key
         del obj[key_path[-1]]
 
-        # Validate and write back
+        # Validate before writing
         content = json.dumps(cfg, indent=2) + "\n"
         if not validate_json(content):
             return False
 
-        config_path.write_text(content)
+        # Write to temp file in same directory, then atomic rename
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(config_path.parent),
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(cfg, f, indent=2)
+                f.write("\n")
+            os.replace(tmp_path, str(config_path))
+        except BaseException:
+            os.unlink(tmp_path)
+            raise
         return True
     except (KeyError, TypeError, json.JSONDecodeError, IOError):
         return False
@@ -157,7 +170,7 @@ def unload_launchd_plist(plist_path: Path) -> bool:
     return uninstall_scheduled_job(plist_path)
 
 
-def dry_run_uninstall(plan: UninstallPlan) -> Dict[str, Any]:
+def dry_run_uninstall(plan: UninstallPlan) -> dict[str, Any]:
     """Preview-only uninstall (no actual removal). Returns JSON."""
     return {
         "status": "ok",
@@ -171,7 +184,7 @@ def dry_run_uninstall(plan: UninstallPlan) -> Dict[str, Any]:
     }
 
 
-def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
+def execute_uninstall(plan: UninstallPlan, config_path: Path) -> dict[str, Any]:
     """Execute uninstall plan. Creates backups, removes artifacts."""
     removed = []
     errors = []
