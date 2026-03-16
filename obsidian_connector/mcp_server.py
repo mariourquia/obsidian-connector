@@ -32,6 +32,7 @@ from obsidian_connector.thinking import (
 )
 from obsidian_connector.config import resolve_vault_path
 from obsidian_connector.index_store import IndexStore
+from obsidian_connector.audit import log_action
 from obsidian_connector.uninstall import (
     detect_installed_artifacts,
     dry_run_uninstall,
@@ -1165,6 +1166,22 @@ def uninstall(
 
         if dry_run:
             # Preview mode: show what would be removed
+            log_action(
+                "uninstall",
+                {
+                    "mode": "mcp",
+                    "dry_run": True,
+                    "remove_venv": remove_venv,
+                    "remove_skills": remove_skills,
+                    "remove_hook": remove_hook,
+                    "remove_plist": remove_plist,
+                    "remove_logs": remove_logs,
+                    "remove_cache": remove_cache,
+                },
+                vault=None,
+                dry_run=True,
+                affected_path="system-config",
+            )
             result = dry_run_uninstall(plan)
         else:
             # Execution mode: remove artifacts
@@ -1175,6 +1192,22 @@ def uninstall(
             plan.remove_logs = remove_logs
             plan.remove_cache = remove_cache
 
+            log_action(
+                "uninstall",
+                {
+                    "mode": "mcp",
+                    "dry_run": False,
+                    "remove_venv": remove_venv,
+                    "remove_skills": remove_skills,
+                    "remove_hook": remove_hook,
+                    "remove_plist": remove_plist,
+                    "remove_logs": remove_logs,
+                    "remove_cache": remove_cache,
+                },
+                vault=None,
+                dry_run=False,
+                affected_path="system-config",
+            )
             result = execute_uninstall(plan, config_path=claude_config_path)
 
         return json.dumps(result, indent=2)
