@@ -770,6 +770,38 @@ def test_workflows_path_operations_safe():
 
 
 # ------------------------------------------------------------------
+# Linux install script tests (Task 10)
+# ------------------------------------------------------------------
+
+def test_linux_install_script_exists():
+    """Verify scripts/install-linux.sh exists and has required content."""
+    install_script = Path(__file__).parent.parent / "scripts" / "install-linux.sh"
+    assert install_script.exists(), "scripts/install-linux.sh must exist"
+    text = install_script.read_text()
+    assert "systemd" in text or "systemctl" in text, "Must reference systemd"
+    assert "XDG_CONFIG_HOME" in text or ".config" in text, "Must use XDG paths"
+    assert "obsidian-connector" in text, "Must reference obsidian-connector"
+    print("PASS: test_linux_install_script_exists")
+
+
+def test_linux_install_script_executable():
+    """Verify install-linux.sh has executable permission."""
+    install_script = Path(__file__).parent.parent / "scripts" / "install-linux.sh"
+    assert install_script.exists()
+    assert os.access(str(install_script), os.X_OK), "install-linux.sh must be executable"
+    print("PASS: test_linux_install_script_executable")
+
+
+def test_install_sh_dispatches_to_linux():
+    """Verify install.sh has OS dispatch for Linux."""
+    install_script = Path(__file__).parent.parent / "scripts" / "install.sh"
+    text = install_script.read_text()
+    assert "install-linux.sh" in text, "install.sh must dispatch to install-linux.sh on Linux"
+    assert "Linux" in text, "install.sh must detect Linux"
+    print("PASS: test_install_sh_dispatches_to_linux")
+
+
+# ------------------------------------------------------------------
 # Refactor validation tests (Tasks 5-6)
 # ------------------------------------------------------------------
 
@@ -886,6 +918,11 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_graph_relative_paths_use_forward_slashes(Path(tmp))
     test_workflows_path_operations_safe()
+
+    # Task 10: Linux install script
+    test_linux_install_script_exists()
+    test_linux_install_script_executable()
+    test_install_sh_dispatches_to_linux()
 
     # Tasks 5-6: refactor validation
     test_config_uses_platform_paths()
