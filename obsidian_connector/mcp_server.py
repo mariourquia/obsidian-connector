@@ -31,7 +31,7 @@ from obsidian_connector.thinking import (
     trace_idea,
 )
 from obsidian_connector.config import resolve_vault_path
-from obsidian_connector.index_store import IndexStore
+from obsidian_connector.index_store import IndexStore, load_or_build_index
 from obsidian_connector.audit import log_action
 from obsidian_connector.uninstall import (
     detect_installed_artifacts,
@@ -76,13 +76,6 @@ def _error_envelope(exc: ObsidianCLIError) -> str:
     return json.dumps(
         {"ok": False, "error": {"type": error_type, "message": str(exc)}}
     )
-
-
-def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
-    """Delegate to the canonical shared implementation."""
-    from obsidian_connector.index_store import load_or_build_index
-
-    return load_or_build_index(vault)
 
 
 def _read_vault_file(rel_path: str, vault: str | None = None) -> str:
@@ -540,7 +533,7 @@ def obsidian_neighborhood(
         vault: Target vault name (uses default if omitted).
     """
     try:
-        idx = _load_or_build_index(vault)
+        idx = load_or_build_index(vault)
         if idx is None:
             return json.dumps(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
@@ -580,7 +573,7 @@ def obsidian_neighborhood(
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -602,7 +595,7 @@ def obsidian_vault_structure(vault: str | None = None) -> str:
         vault: Target vault name (uses default if omitted).
     """
     try:
-        idx = _load_or_build_index(vault)
+        idx = load_or_build_index(vault)
         if idx is None:
             return json.dumps(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
@@ -656,7 +649,7 @@ def obsidian_vault_structure(vault: str | None = None) -> str:
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -679,7 +672,7 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
         vault: Target vault name (uses default if omitted).
     """
     try:
-        idx = _load_or_build_index(vault)
+        idx = load_or_build_index(vault)
         if idx is None:
             return json.dumps(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
@@ -733,7 +726,7 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
         return json.dumps(results, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -875,7 +868,7 @@ def obsidian_ghost(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -910,7 +903,7 @@ def obsidian_drift(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -946,7 +939,7 @@ def obsidian_trace(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -981,7 +974,7 @@ def obsidian_ideas(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -1149,13 +1142,8 @@ def uninstall(
         # Resolve paths
         repo_root = Path(__file__).parent.parent
         venv_path = repo_root / ".venv"
-        claude_config_path = (
-            Path.home()
-            / "Library"
-            / "Application Support"
-            / "Claude"
-            / "claude_desktop_config.json"
-        )
+        from obsidian_connector.platform import claude_desktop_config_path
+        claude_config_path = claude_desktop_config_path()
 
         # Detect what's installed
         plan = detect_installed_artifacts(
@@ -1211,7 +1199,7 @@ def uninstall(
             result = execute_uninstall(plan, config_path=claude_config_path)
 
         return json.dumps(result, indent=2)
-    except Exception as exc:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
