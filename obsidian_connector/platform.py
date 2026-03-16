@@ -7,6 +7,7 @@ of hardcoding ~/Library/... or %APPDATA%\\... paths.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -336,3 +337,72 @@ def _install_task_scheduler(
 def _uninstall_task_scheduler(job_name: str) -> bool:
     """Remove a Windows Task Scheduler task."""
     raise NotImplementedError("Windows Task Scheduler not yet implemented")
+
+
+# ------------------------------------------------------------------
+# Process detection and binary resolution
+# ------------------------------------------------------------------
+
+def is_obsidian_running() -> bool:
+    """Check if the Obsidian desktop app is currently running."""
+    os_name = current_os()
+    try:
+        if os_name == "macos":
+            result = subprocess.run(
+                ["pgrep", "-x", "Obsidian"],
+                capture_output=True, timeout=5,
+            )
+            return result.returncode == 0
+        elif os_name == "linux":
+            result = subprocess.run(
+                ["pgrep", "-x", "obsidian"],
+                capture_output=True, timeout=5,
+            )
+            return result.returncode == 0
+        elif os_name == "windows":
+            result = subprocess.run(
+                ["tasklist", "/FI", "IMAGENAME eq Obsidian.exe", "/NH"],
+                capture_output=True, text=True, timeout=5,
+            )
+            return "Obsidian.exe" in result.stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        pass
+    return False
+
+
+def obsidian_binary_candidates() -> list[str]:
+    """Return a list of candidate Obsidian CLI binary names/paths.
+
+    Ordered by preference. The caller should try each until one works.
+    """
+    os_name = current_os()
+    if os_name == "macos":
+        return ["obsidian", "/Applications/Obsidian.app/Contents/MacOS/Obsidian"]
+    elif os_name == "linux":
+        candidates = ["obsidian"]
+        # AppImage typically extracted or symlinked
+        home = Path.home()
+        appimage_paths = [
+            home / "Applications" / "Obsidian.AppImage",
+            home / ".local" / "bin" / "obsidian",
+            Path("/usr/bin/obsidian"),
+            Path("/usr/local/bin/obsidian"),
+        ]
+        for p in appimage_paths:
+            if p.exists():
+                candidates.insert(0, str(p))
+        # Flatpak and Snap
+        if shutil.which("flatpak"):
+            candidates.append("flatpak run md.obsidian.Obsidian")
+        if Path("/snap/obsidian/current").exists():
+            candidates.append("/snap/obsidian/current/obsidian")
+        return candidates
+    elif os_name == "windows":
+        # Windows has no CLI; return the desktop app path.
+        appdata = os.environ.get("LOCALAPPDATA", "")
+        if appdata:
+            exe = Path(appdata) / "Obsidian" / "Obsidian.exe"
+            if exe.exists():
+                return [str(exe)]
+        return ["Obsidian.exe"]
+    return ["obsidian"]
