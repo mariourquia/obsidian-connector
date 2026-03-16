@@ -261,15 +261,7 @@ def run_doctor(vault: str | None = None) -> list[dict]:
 
 def _check_scheduler_available(sched: str) -> bool:
     """Check if the scheduler backend is actually implemented."""
-    if sched == "launchd":
-        return True
-    elif sched == "systemd":
-        # systemd scheduling raises NotImplementedError
-        return False
-    elif sched == "task_scheduler":
-        # Windows Task Scheduler raises NotImplementedError
-        return False
-    return False
+    return sched in ("launchd", "systemd", "task_scheduler")
 
 
 def _platform_feature_summary(os_name: str, sched: str) -> str:

@@ -366,8 +366,16 @@ def send_notification(title: str, message: str) -> bool:
     os_name = current_os()
     try:
         if os_name == "macos":
-            safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
-            safe_msg = message.replace("\\", "\\\\").replace('"', '\\"')
+            # Sanitize for AppleScript string literals
+            def _applescript_escape(s: str) -> str:
+                return (s.replace("\\", "\\\\")
+                         .replace('"', '\\"')
+                         .replace("'", "\\'")
+                         .replace("\n", "\\n")
+                         .replace("\r", "\\r")
+                         .replace("\t", "\\t"))
+            safe_title = _applescript_escape(title)
+            safe_msg = _applescript_escape(message)
             script = f'display notification "{safe_msg}" with title "{safe_title}"'
             result = subprocess.run(
                 ["osascript", "-e", script],
@@ -383,20 +391,28 @@ def send_notification(title: str, message: str) -> bool:
             )
             return result.returncode == 0
         elif os_name == "windows":
-            # PowerShell toast notification
+            # Safely encode to avoid PowerShell injection
+            import base64
+            # Pass title/message via environment variables instead of string interpolation
             ps_script = (
-                f'[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; '
-                f'$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); '
-                f'$text = $template.GetElementsByTagName("text"); '
-                f'$text.Item(0).AppendChild($template.CreateTextNode("{title}")) > $null; '
-                f'$text.Item(1).AppendChild($template.CreateTextNode("{message}")) > $null; '
-                f'$toast = [Windows.UI.Notifications.ToastNotification]::new($template); '
-                f'[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("obsidian-connector").Show($toast)'
+                '$title = $env:OBSX_NOTIF_TITLE; '
+                '$msg = $env:OBSX_NOTIF_MSG; '
+                '[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; '
+                '$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); '
+                '$text = $template.GetElementsByTagName("text"); '
+                '$text.Item(0).AppendChild($template.CreateTextNode($title)) > $null; '
+                '$text.Item(1).AppendChild($template.CreateTextNode($msg)) > $null; '
+                '$toast = [Windows.UI.Notifications.ToastNotification]::new($template); '
+                '[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("obsidian-connector").Show($toast)'
             )
+            env = os.environ.copy()
+            env["OBSX_NOTIF_TITLE"] = title
+            env["OBSX_NOTIF_MSG"] = message
             result = subprocess.run(
-                ["powershell", "-Command", ps_script],
+                ["powershell", "-NoProfile", "-Command", ps_script],
                 capture_output=True,
                 timeout=10,
+                env=env,
             )
             return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
