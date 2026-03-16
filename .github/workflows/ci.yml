@@ -45,6 +45,13 @@ jobs:
           python3 scripts/graduate_test.py
           python3 scripts/thinking_deep_test.py
           python3 scripts/delegation_test.py
+          python3 scripts/import_cycle_test.py
+          python3 scripts/platform_test.py
+          python3 scripts/audit_permissions_test.py
+          python3 scripts/edge_case_test.py
+          python3 scripts/uninstall_test.py
+          python3 scripts/mcp_tool_contract_test.py
+          python3 scripts/cli_parse_test.py
 
   mcp-launch:
     runs-on: ${{ matrix.os }}
