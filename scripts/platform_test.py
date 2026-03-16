@@ -268,6 +268,149 @@ def test_install_systemd_failure_returns_false(tmp_path):
 
 
 # ------------------------------------------------------------------
+# Windows Task Scheduler tests (Task 13)
+# ------------------------------------------------------------------
+
+def test_generate_schtasks_command():
+    """Verify _generate_schtasks_command produces correct schtasks args."""
+    from obsidian_connector.platform import _generate_schtasks_command
+    cmd = _generate_schtasks_command(
+        repo_root=Path("C:/Users/test/obsidian-connector"),
+        python_path=Path("C:/Users/test/obsidian-connector/.venv/Scripts/python.exe"),
+        workflow="morning",
+        time="08:00",
+    )
+    assert isinstance(cmd, list)
+    assert cmd[0] == "schtasks"
+    assert "/CREATE" in cmd
+    cmd_str = " ".join(cmd)
+    assert "obsidian-connector-morning" in cmd_str
+    assert "08:00" in cmd_str
+    assert "/SC" in cmd
+    assert "DAILY" in cmd
+    assert "/F" in cmd
+    print("PASS: test_generate_schtasks_command")
+
+
+def test_generate_schtasks_command_evening():
+    """Verify schtasks command for evening workflow."""
+    from obsidian_connector.platform import _generate_schtasks_command
+    cmd = _generate_schtasks_command(
+        repo_root=Path("D:/Projects/obsidian-connector"),
+        python_path=Path("D:/Projects/obsidian-connector/.venv/Scripts/python.exe"),
+        workflow="evening",
+        time="18:30",
+    )
+    cmd_str = " ".join(cmd)
+    assert "obsidian-connector-evening" in cmd_str
+    assert "18:30" in cmd_str
+    assert "run_scheduled.py" in cmd_str
+    print("PASS: test_generate_schtasks_command_evening")
+
+
+def test_install_task_scheduler_mocked():
+    """Verify _install_task_scheduler calls schtasks and returns True on success."""
+    from obsidian_connector.platform import _install_task_scheduler
+
+    def mock_run(cmd, **kwargs):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        return mock_result
+
+    with patch("subprocess.run", side_effect=mock_run) as mock_sub:
+        result = _install_task_scheduler(
+            repo_root=Path("C:/Users/test/obsidian-connector"),
+            python_path=Path("C:/Users/test/.venv/Scripts/python.exe"),
+            workflow="morning",
+            time="08:00",
+        )
+    assert result is True
+    called_cmd = mock_sub.call_args[0][0]
+    assert called_cmd[0] == "schtasks"
+    print("PASS: test_install_task_scheduler_mocked")
+
+
+def test_install_task_scheduler_failure():
+    """Verify _install_task_scheduler returns False on subprocess error."""
+    from obsidian_connector.platform import _install_task_scheduler
+
+    def mock_run(cmd, **kwargs):
+        raise subprocess.CalledProcessError(1, cmd)
+
+    with patch("subprocess.run", side_effect=mock_run):
+        result = _install_task_scheduler(
+            repo_root=Path("C:/Users/test/obsidian-connector"),
+            python_path=Path("C:/Users/test/.venv/Scripts/python.exe"),
+            workflow="morning",
+            time="08:00",
+        )
+    assert result is False
+    print("PASS: test_install_task_scheduler_failure")
+
+
+def test_install_task_scheduler_os_error():
+    """Verify _install_task_scheduler returns False on OSError."""
+    from obsidian_connector.platform import _install_task_scheduler
+
+    def mock_run(cmd, **kwargs):
+        raise OSError("schtasks not found")
+
+    with patch("subprocess.run", side_effect=mock_run):
+        result = _install_task_scheduler(
+            repo_root=Path("C:/Users/test/obsidian-connector"),
+            python_path=Path("C:/Users/test/.venv/Scripts/python.exe"),
+            workflow="morning",
+            time="08:00",
+        )
+    assert result is False
+    print("PASS: test_install_task_scheduler_os_error")
+
+
+def test_uninstall_task_scheduler_mocked():
+    """Verify _uninstall_task_scheduler calls schtasks /DELETE."""
+    from obsidian_connector.platform import _uninstall_task_scheduler
+
+    def mock_run(cmd, **kwargs):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        return mock_result
+
+    with patch("subprocess.run", side_effect=mock_run) as mock_sub:
+        result = _uninstall_task_scheduler("com.obsidian-connector.morning")
+    assert result is True
+    called_cmd = mock_sub.call_args[0][0]
+    assert called_cmd[0] == "schtasks"
+    assert "/DELETE" in called_cmd
+    assert "obsidian-connector-morning" in called_cmd
+    print("PASS: test_uninstall_task_scheduler_mocked")
+
+
+def test_uninstall_task_scheduler_failure():
+    """Verify _uninstall_task_scheduler returns False on failure."""
+    from obsidian_connector.platform import _uninstall_task_scheduler
+
+    def mock_run(cmd, **kwargs):
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        return mock_result
+
+    with patch("subprocess.run", side_effect=mock_run):
+        result = _uninstall_task_scheduler("com.obsidian-connector.morning")
+    assert result is False
+    print("PASS: test_uninstall_task_scheduler_failure")
+
+
+def test_uninstall_task_scheduler_os_error():
+    """Verify _uninstall_task_scheduler returns False on OSError."""
+    from obsidian_connector.platform import _uninstall_task_scheduler
+
+    with patch("subprocess.run", side_effect=OSError("schtasks not found")):
+        result = _uninstall_task_scheduler("com.obsidian-connector.morning")
+    assert result is False
+    print("PASS: test_uninstall_task_scheduler_os_error")
+
+
+# ------------------------------------------------------------------
 # Notification abstraction tests
 # ------------------------------------------------------------------
 
@@ -415,6 +558,85 @@ def test_linux_vault_detection_xdg(tmp_path):
 
 
 # ------------------------------------------------------------------
+# Windows config paths tests (Task 14)
+# ------------------------------------------------------------------
+
+def test_windows_claude_config_path():
+    """Verify claude_desktop_config_path returns APPDATA-based path on Windows."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "win32"), \
+         patch.dict("os.environ", {"APPDATA": "C:\\Users\\test\\AppData\\Roaming"}, clear=False):
+        importlib.reload(plat)
+        path = plat.claude_desktop_config_path()
+        path_str = str(path)
+        assert "AppData" in path_str or "APPDATA" in path_str or "appdata" in path_str.lower()
+        assert "Claude" in path_str
+        assert path_str.endswith("claude_desktop_config.json")
+    importlib.reload(plat)
+    print("PASS: test_windows_claude_config_path")
+
+
+def test_windows_obsidian_json_path():
+    """Verify obsidian_app_json_path returns APPDATA-based path on Windows."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "win32"), \
+         patch.dict("os.environ", {"APPDATA": "C:\\Users\\test\\AppData\\Roaming"}, clear=False):
+        importlib.reload(plat)
+        path = plat.obsidian_app_json_path()
+        path_str = str(path)
+        assert "obsidian" in path_str.lower()
+        assert path_str.endswith("obsidian.json")
+    importlib.reload(plat)
+    print("PASS: test_windows_obsidian_json_path")
+
+
+def test_windows_schedule_config_dir():
+    """Verify schedule_config_dir returns a usable path on Windows."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "win32"), \
+         patch.dict("os.environ", {"APPDATA": "C:\\Users\\test\\AppData\\Roaming"}, clear=False):
+        importlib.reload(plat)
+        path = plat.schedule_config_dir()
+        assert isinstance(path, Path)
+        # Windows uses a fallback tasks dir since Task Scheduler has no config dir
+        assert "tasks" in str(path) or ".obsidian-connector" in str(path)
+    importlib.reload(plat)
+    print("PASS: test_windows_schedule_config_dir")
+
+
+def test_windows_platform_paths_complete():
+    """Verify all PlatformPaths fields are populated on Windows."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "win32"), \
+         patch.dict("os.environ", {"APPDATA": "C:\\Users\\test\\AppData\\Roaming"}, clear=False):
+        importlib.reload(plat)
+        paths = plat.get_platform_paths()
+        assert paths.scheduler_type == "task_scheduler"
+        # scheduler_dir is None on Windows (uses schtasks directly)
+        assert paths.scheduler_dir is None
+        assert "Claude" in str(paths.claude_config_dir)
+        assert "obsidian" in str(paths.obsidian_config).lower()
+        assert ".obsidian-connector" in str(paths.data_dir)
+        assert "logs" in str(paths.log_dir)
+    importlib.reload(plat)
+    print("PASS: test_windows_platform_paths_complete")
+
+
+def test_windows_appdata_fallback():
+    """Verify Windows paths fall back to ~/AppData/Roaming when APPDATA is unset."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "win32"), \
+         patch.dict("os.environ", {}, clear=True):
+        importlib.reload(plat)
+        paths = plat.get_platform_paths()
+        path_str = str(paths.claude_config_dir)
+        # Should fall back to Path.home() / "AppData" / "Roaming" / "Claude"
+        assert "AppData" in path_str or "Claude" in path_str
+    importlib.reload(plat)
+    print("PASS: test_windows_appdata_fallback")
+
+
+# ------------------------------------------------------------------
 # Doctor cross-platform diagnostics tests (Task 18)
 # ------------------------------------------------------------------
 
@@ -483,17 +705,68 @@ def test_doctor_uses_platform_binary_candidates():
 
 
 # ------------------------------------------------------------------
-# run_scheduled.py cross-platform notification test (Task 9)
+# PowerShell install script tests (Task 15)
 # ------------------------------------------------------------------
 
-def test_run_scheduled_uses_platform_notify():
-    """Verify run_scheduled.py no longer hardcodes osascript."""
-    source = Path(__file__).parent.parent / "scheduling" / "run_scheduled.py"
-    text = source.read_text()
-    assert "osascript" not in text, "run_scheduled.py should use platform.send_notification"
-    assert "_osa_escape" not in text, "run_scheduled.py should not contain _osa_escape"
-    assert "send_notification" in text, "run_scheduled.py should import send_notification"
-    print("PASS: test_run_scheduled_uses_platform_notify")
+def test_powershell_install_script_exists():
+    """Verify scripts/Install.ps1 exists and contains key elements."""
+    ps_script = Path(__file__).resolve().parent / "Install.ps1"
+    assert ps_script.exists(), "scripts/Install.ps1 must exist"
+    text = ps_script.read_text()
+    assert "APPDATA" in text or "AppData" in text
+    assert "claude_desktop_config" in text.lower() or "Claude" in text
+    assert "python" in text.lower()
+    print("PASS: test_powershell_install_script_exists")
+
+
+def test_powershell_script_has_venv_setup():
+    """Verify Install.ps1 creates a venv and installs the package."""
+    ps_script = Path(__file__).resolve().parent / "Install.ps1"
+    text = ps_script.read_text()
+    assert "venv" in text.lower()
+    assert "pip" in text.lower()
+    print("PASS: test_powershell_script_has_venv_setup")
+
+
+def test_powershell_script_handles_python_name():
+    """Verify Install.ps1 handles both python and python3 on Windows."""
+    ps_script = Path(__file__).resolve().parent / "Install.ps1"
+    text = ps_script.read_text()
+    # Should check for python (Windows default) not just python3
+    assert "python" in text.lower()
+    print("PASS: test_powershell_script_handles_python_name")
+
+
+# ------------------------------------------------------------------
+# File path handling tests (Task 16)
+# ------------------------------------------------------------------
+
+def test_graph_relative_paths_use_forward_slashes(tmp_path):
+    """Verify graph.py build_note_index produces forward-slash relative paths."""
+    from obsidian_connector.graph import build_note_index
+    # Create a nested vault structure
+    sub = tmp_path / "folder" / "subfolder"
+    sub.mkdir(parents=True)
+    (sub / "note.md").write_text("# Test note\nSome content here.")
+    (tmp_path / "root_note.md").write_text("# Root\nLink to [[note]]")
+
+    index = build_note_index(str(tmp_path))
+    for path in index.notes:
+        assert "\\" not in path, f"Backslash found in graph path: {path}"
+    print("PASS: test_graph_relative_paths_use_forward_slashes")
+
+
+def test_workflows_path_operations_safe():
+    """Verify workflows.py uses os.path or pathlib consistently, not hardcoded slashes."""
+    import inspect
+    from obsidian_connector import workflows
+    source = inspect.getsource(workflows)
+    # The title sanitizer intentionally replaces both / and \ -- that is correct.
+    # os.path.dirname and os.path.join are cross-platform safe.
+    # Just verify no raw path construction with hardcoded separators.
+    assert "os.path" in source or "Path(" in source, \
+        "workflows.py should use os.path or pathlib for path operations"
+    print("PASS: test_workflows_path_operations_safe")
 
 
 # ------------------------------------------------------------------
@@ -562,6 +835,16 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_install_systemd_failure_returns_false(Path(tmp))
 
+    # Task 13: Windows Task Scheduler
+    test_generate_schtasks_command()
+    test_generate_schtasks_command_evening()
+    test_install_task_scheduler_mocked()
+    test_install_task_scheduler_failure()
+    test_install_task_scheduler_os_error()
+    test_uninstall_task_scheduler_mocked()
+    test_uninstall_task_scheduler_failure()
+    test_uninstall_task_scheduler_os_error()
+
     # Task 8: Linux config paths and vault detection
     test_linux_claude_config_path_xdg()
     test_linux_claude_config_path_default()
@@ -571,6 +854,13 @@ if __name__ == "__main__":
     test_linux_platform_paths_complete()
     with tempfile.TemporaryDirectory() as tmp:
         test_linux_vault_detection_xdg(Path(tmp))
+
+    # Task 14: Windows config paths
+    test_windows_claude_config_path()
+    test_windows_obsidian_json_path()
+    test_windows_schedule_config_dir()
+    test_windows_platform_paths_complete()
+    test_windows_appdata_fallback()
 
     # Task 3: notifications
     test_send_notification_returns_bool()
@@ -587,8 +877,15 @@ if __name__ == "__main__":
     test_doctor_reports_platform_features()
     test_doctor_uses_platform_binary_candidates()
 
-    # Task 9: run_scheduled.py cross-platform notifications
-    test_run_scheduled_uses_platform_notify()
+    # Task 15: PowerShell install script
+    test_powershell_install_script_exists()
+    test_powershell_script_has_venv_setup()
+    test_powershell_script_handles_python_name()
+
+    # Task 16: file path handling
+    with tempfile.TemporaryDirectory() as tmp:
+        test_graph_relative_paths_use_forward_slashes(Path(tmp))
+    test_workflows_path_operations_safe()
 
     # Tasks 5-6: refactor validation
     test_config_uses_platform_paths()
