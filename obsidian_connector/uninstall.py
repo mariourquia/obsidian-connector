@@ -137,19 +137,24 @@ def remove_file_safely(file_path: Path) -> bool:
         return False
 
 
+def uninstall_scheduled_job(job_name_or_path: Path | str) -> bool:
+    """Unload and remove a scheduled job (platform-aware).
+
+    Delegates to platform.uninstall_schedule() which handles launchd
+    on macOS, systemd on Linux, and Task Scheduler on Windows.
+    """
+    from obsidian_connector.platform import uninstall_schedule
+    return uninstall_schedule(str(job_name_or_path))
+
+
 def unload_launchd_plist(plist_path: Path) -> bool:
-    """Unload and remove launchd plist."""
-    try:
-        if plist_path.exists():
-            subprocess.run(
-                ["launchctl", "unload", str(plist_path)],
-                capture_output=True,
-                check=False
-            )
-            plist_path.unlink()
-        return True
-    except (IOError, OSError):
-        return False
+    """Unload and remove launchd plist.
+
+    .. deprecated:: 0.2.0
+        Use :func:`uninstall_scheduled_job` instead, which is
+        platform-aware.
+    """
+    return uninstall_scheduled_job(plist_path)
 
 
 def dry_run_uninstall(plan: UninstallPlan) -> Dict[str, Any]:
@@ -190,12 +195,12 @@ def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
             else:
                 errors.append(f"Failed to update {config_file}")
 
-    # Unload plist
+    # Unload scheduled job (platform-aware)
     if plan.remove_plist and plan.plist_path:
-        if unload_launchd_plist(plan.plist_path):
+        if uninstall_scheduled_job(plan.plist_path):
             removed.append(str(plan.plist_path))
         else:
-            errors.append(f"Failed to unload plist: {plan.plist_path}")
+            errors.append(f"Failed to unload scheduled job: {plan.plist_path}")
 
     # Remove audit logs
     if plan.remove_logs:
