@@ -4,8 +4,17 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 
 from obsidian_connector.config import load_config
+from obsidian_connector.platform import (
+    claude_desktop_config_path,
+    current_os,
+    get_platform_paths,
+    is_obsidian_running,
+    obsidian_binary_candidates,
+    scheduler_type,
+)
 
 
 def run_doctor(vault: str | None = None) -> list[dict]:
@@ -24,28 +33,67 @@ def run_doctor(vault: str | None = None) -> list[dict]:
     cfg = load_config()
     results: list[dict] = []
 
+    # --- 0. Platform ---
+    os_name = current_os()
+    results.append({
+        "check": "platform",
+        "ok": True,
+        "detail": f"{os_name} ({sys.platform})",
+        "action": None,
+    })
+
+    # --- 0b. Scheduler ---
+    sched = scheduler_type()
+    paths = get_platform_paths()
+    sched_available = _check_scheduler_available(sched)
+    sched_detail = f"{sched} ({'available' if sched_available else 'not implemented'})"
+    results.append({
+        "check": "scheduler",
+        "ok": sched_available,
+        "detail": sched_detail,
+        "action": None if sched_available else f"{sched} scheduling is not yet implemented on {os_name}.",
+    })
+
+    # --- 0c. Config paths ---
+    claude_cfg = claude_desktop_config_path()
+    claude_exists = claude_cfg.exists()
+    results.append({
+        "check": "claude_config",
+        "ok": claude_exists,
+        "detail": str(claude_cfg),
+        "action": None if claude_exists else "Claude Desktop config not found. Install Claude Desktop or create the config file.",
+    })
+
+    # --- 0d. Obsidian process ---
+    running = is_obsidian_running()
+    results.append({
+        "check": "obsidian_running",
+        "ok": running,
+        "detail": "running" if running else "not detected",
+        "action": None if running else "Start Obsidian desktop app for CLI access.",
+    })
+
     # --- 1. obsidian_binary ---
-    try:
-        path = shutil.which(cfg.obsidian_bin)
+    candidates = obsidian_binary_candidates()
+    found_binary = None
+    for candidate in candidates:
+        # Handle multi-word candidates (e.g. "flatpak run md.obsidian.Obsidian")
+        bin_name = candidate.split()[0]
+        path = shutil.which(bin_name)
         if path:
-            results.append(
-                {"check": "obsidian_binary", "ok": True, "detail": path, "action": None}
-            )
-        else:
-            results.append(
-                {
-                    "check": "obsidian_binary",
-                    "ok": False,
-                    "detail": f"'{cfg.obsidian_bin}' not found on PATH",
-                    "action": "Install Obsidian or add to PATH. See https://obsidian.md",
-                }
-            )
-    except Exception as exc:
+            found_binary = candidate
+            break
+
+    if found_binary:
+        results.append(
+            {"check": "obsidian_binary", "ok": True, "detail": found_binary, "action": None}
+        )
+    else:
         results.append(
             {
                 "check": "obsidian_binary",
                 "ok": False,
-                "detail": str(exc),
+                "detail": f"no Obsidian binary found (checked: {', '.join(candidates[:3])})",
                 "action": "Install Obsidian or add to PATH. See https://obsidian.md",
             }
         )
@@ -199,4 +247,55 @@ def run_doctor(vault: str | None = None) -> list[dict]:
             }
         )
 
+    # --- 5. Platform feature summary ---
+    features = _platform_feature_summary(os_name, sched)
+    results.append({
+        "check": "platform_features",
+        "ok": True,
+        "detail": features,
+        "action": None,
+    })
+
     return results
+
+
+def _check_scheduler_available(sched: str) -> bool:
+    """Check if the scheduler backend is actually implemented."""
+    if sched == "launchd":
+        return True
+    elif sched == "systemd":
+        # systemd scheduling raises NotImplementedError
+        return False
+    elif sched == "task_scheduler":
+        # Windows Task Scheduler raises NotImplementedError
+        return False
+    return False
+
+
+def _platform_feature_summary(os_name: str, sched: str) -> str:
+    """Build a human-readable feature availability summary."""
+    features: list[str] = []
+
+    # CLI access
+    if os_name in ("macos", "linux"):
+        features.append("CLI: available")
+    else:
+        features.append("CLI: not available (use file backend)")
+
+    # Scheduling
+    sched_available = _check_scheduler_available(sched)
+    status = "available" if sched_available else "not implemented"
+    features.append(f"Scheduling: {sched} ({status})")
+
+    # Graph tools (always available -- direct file access)
+    features.append("Graph tools: available (direct file access)")
+
+    # Notifications
+    if os_name == "macos":
+        features.append("Notifications: osascript (available)")
+    elif os_name == "linux":
+        features.append("Notifications: notify-send (if installed)")
+    elif os_name == "windows":
+        features.append("Notifications: PowerShell toast (available)")
+
+    return "; ".join(features)
