@@ -6,34 +6,17 @@ import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-from obsidian_connector.config import load_config
 from obsidian_connector.cache import CLICache
+from obsidian_connector.config import load_config
+from obsidian_connector.errors import (
+    ObsidianCLIError,
+    CommandTimeout,
+    ObsidianNotFound,
+    ObsidianNotRunning,
+    VaultNotFound,
+)
 
 _cache = CLICache()
-
-# Late imports for typed errors are done inside run_obsidian() to avoid
-# circular imports (errors.py imports ObsidianCLIError from this module).
-
-
-# ---------------------------------------------------------------------------
-# Custom exception
-# ---------------------------------------------------------------------------
-
-class ObsidianCLIError(Exception):
-    """Raised when the Obsidian CLI exits with a non-zero code."""
-
-    def __init__(
-        self, command: list[str], returncode: int, stdout: str, stderr: str
-    ) -> None:
-        self.command = command
-        self.returncode = returncode
-        self.stdout = stdout
-        self.stderr = stderr
-        detail = stderr.strip() or stdout.strip()
-        super().__init__(
-            f"obsidian exited {returncode}: {detail!r}\n"
-            f"  command: {command}"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -56,13 +39,6 @@ def run_obsidian(
     timeout:
         Seconds before the subprocess is killed.  Falls back to config.
     """
-    from obsidian_connector.errors import (
-        CommandTimeout,
-        ObsidianNotFound,
-        ObsidianNotRunning,
-        VaultNotFound,
-    )
-
     cfg = load_config()
     _cache.ttl = cfg.cache_ttl
     cmd: list[str] = [cfg.obsidian_bin]

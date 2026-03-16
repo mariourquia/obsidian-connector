@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault.
 
-29 MCP tools. 27 CLI commands. 4 skills. Scheduled automation. Full Python API.
+29 MCP tools. 29 CLI commands. 4 skills. Scheduled automation. Full Python API.
 Runs 100% locally.
 
 ## What it does
@@ -29,7 +29,7 @@ Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prom
 
 - [Obsidian](https://obsidian.md) desktop app (v1.12+) with CLI enabled
 - Python 3.11+ ([download](https://www.python.org/downloads/))
-- macOS (Linux/Windows support planned)
+- macOS, Linux, or Windows
 
 ### Option A: Download and double-click (easiest)
 
@@ -74,7 +74,10 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Then add this to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Then add this to your Claude Desktop config file:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -169,6 +172,12 @@ Daily workflow, open loop tracking, idea graduation, and delegation management.
 | `obsidian_context_load` | Load full context bundle for agent session start |
 | `obsidian_check_in` | Time-aware check-in: ritual status, open loops, suggestions |
 
+### Management
+
+| Tool | What it does |
+|---|---|
+| `uninstall` | Safely remove installation artifacts (dry-run by default) |
+
 ### HTTP mode (alternative)
 
 If you prefer running the server as a standalone HTTP endpoint:
@@ -185,7 +194,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 
 ## CLI usage
 
-27 commands available as `./bin/obsx` (works without venv activation) or `obsx`
+29 commands available as `./bin/obsx` (works without venv activation) or `obsx`
 (after `pip install -e .`).
 
 ```bash
@@ -226,6 +235,10 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx delegations --days 7
 ./bin/obsx context-load
 ./bin/obsx check-in                    # time-aware status + suggestion
+
+# ── Management ──
+./bin/obsx uninstall                   # preview what would be removed (dry-run)
+./bin/obsx uninstall --force           # remove artifacts (prompts per item)
 
 # ── Global flags (before subcommand) ──
 ./bin/obsx --json search "OKRs"        # JSON envelope output
