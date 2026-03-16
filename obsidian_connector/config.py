@@ -24,10 +24,10 @@ _OBSIDIAN_APP_JSON = obsidian_app_json_path()
 
 
 def _find_config_file() -> Path | None:
-    """Locate config.json -- check CWD, then package parent directory."""
+    """Locate config.json -- check package parent directory, then CWD."""
     candidates = [
-        Path.cwd() / _CONFIG_FILENAME,
         Path(__file__).resolve().parent.parent / _CONFIG_FILENAME,
+        Path.cwd() / _CONFIG_FILENAME,
     ]
     for path in candidates:
         if path.is_file():

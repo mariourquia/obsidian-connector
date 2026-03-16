@@ -19,7 +19,17 @@ from obsidian_connector.client import (
 )
 from obsidian_connector.config import load_config, resolve_vault_path
 from obsidian_connector.graph import extract_links
-from obsidian_connector.index_store import load_or_build_index
+
+
+# ---------------------------------------------------------------------------
+# Graph index helper
+# ---------------------------------------------------------------------------
+
+def _load_or_build_index(vault: str | None = None):
+    """Delegate to the canonical shared implementation."""
+    from obsidian_connector.index_store import load_or_build_index
+
+    return load_or_build_index(vault)
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +244,7 @@ def find_prior_work(
         )
 
     # Graph enrichment: add backlink_count and shared_tags if index available.
-    idx = load_or_build_index(vault)
+    idx = _load_or_build_index(vault)
     if idx is not None:
         for r in results:
             file_path = r["file"]
@@ -387,7 +397,7 @@ def my_world_snapshot(
     }
 
     # Graph enrichment: add vault_summary from index if available.
-    idx = load_or_build_index(vault)
+    idx = _load_or_build_index(vault)
     if idx is not None:
         top_tags = sorted(
             ((tag, len(paths)) for tag, paths in idx.tags.items()),
@@ -456,9 +466,9 @@ def today_brief(vault: str | None = None) -> dict:
                         "heading": heading,
                         "excerpt": excerpt[:300],
                     })
-                except (ObsidianCLIError, Exception):
+                except (ObsidianCLIError, ValueError):
                     continue
-        except Exception:
+        except (ObsidianCLIError, ValueError):
             pass
 
     return {
@@ -918,7 +928,7 @@ def graduate_candidates(
 
     # Try to check NoteIndex for existing standalone notes.
     try:
-        index = load_or_build_index(vault)
+        index = _load_or_build_index(vault)
         if index is not None:
             title_set = {
                 entry.title.lower(): entry.path
@@ -926,7 +936,7 @@ def graduate_candidates(
             }
         else:
             title_set = {}
-    except Exception:
+    except (OSError, KeyError, ValueError):
         title_set = {}
 
     for cand in candidates:
@@ -1557,7 +1567,7 @@ def check_in(
                     f for f in os.listdir(drafts_dir)
                     if f.endswith(".md")
                 ])
-    except Exception:
+    except OSError:
         pass
 
     # -- Build suggestion -----------------------------------------------------

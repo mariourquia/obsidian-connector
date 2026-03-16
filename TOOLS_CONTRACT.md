@@ -74,7 +74,7 @@ These tools read vault `.md` files directly and work without Obsidian running.
 
 | MCP Tool | Parameters | Returns |
 |---|---|---|
-| `uninstall` | `dry_run?`, `remove_venv?`, `remove_skills?`, `remove_hook?`, `remove_plist?`, `remove_logs?`, `remove_cache?` | JSON removal plan (dry_run=true) or removal results (dry_run=false) |
+| `obsidian_uninstall` | `dry_run?`, `remove_venv?`, `remove_skills?`, `remove_hook?`, `remove_plist?`, `remove_logs?`, `remove_cache?` | JSON removal plan (dry_run=true) or removal results (dry_run=false) |
 
 **Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
 shell out to `obsidian` or `python main.py` from within an MCP-connected session.
@@ -258,7 +258,7 @@ the Obsidian desktop app or its CLI:
 - Graph: `obsidian_neighborhood`, `obsidian_vault_structure`, `obsidian_backlinks`, `obsidian_rebuild_index`
 - Thinking: `obsidian_ghost`, `obsidian_drift`, `obsidian_trace`, `obsidian_ideas`
 - Workflow OS: `obsidian_my_world`, `obsidian_today`, `obsidian_close_day`, `obsidian_open_loops`, `obsidian_graduate_candidates`, `obsidian_graduate_execute`, `obsidian_delegations`, `obsidian_context_load`, `obsidian_check_in`
-- System: `obsidian_doctor`, `uninstall`
+- System: `obsidian_doctor`, `obsidian_uninstall`
 
 ### Platform-specific behavior notes
 

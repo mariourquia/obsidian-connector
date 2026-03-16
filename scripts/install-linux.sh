@@ -311,23 +311,7 @@ fi
 read -rp "  Install scheduled daily briefing (systemd user timer)? [y/N] " INSTALL_SCHEDULE
 if [[ "${INSTALL_SCHEDULE:-n}" =~ ^[Yy]$ ]]; then
     # Use platform.py to install systemd timer
-    if "$REPO_ROOT/.venv/bin/python3" -c "
-import sys
-sys.path.insert(0, '$REPO_ROOT')
-from obsidian_connector.platform import install_schedule
-from pathlib import Path
-result = install_schedule(
-    repo_root=Path('$REPO_ROOT'),
-    python_path=Path('$VENV_PYTHON'),
-    workflow='morning',
-    time='08:00',
-)
-if result.get('installed'):
-    print('installed')
-else:
-    print('failed')
-" 2>/dev/null; then
-        result=$("$REPO_ROOT/.venv/bin/python3" -c "
+    result=$("$REPO_ROOT/.venv/bin/python3" -c "
 import sys
 sys.path.insert(0, '$REPO_ROOT')
 from obsidian_connector.platform import install_schedule
@@ -340,17 +324,14 @@ result = install_schedule(
 )
 print('installed' if result.get('installed') else 'failed')
 " 2>/dev/null)
-        if [ "$result" = "installed" ]; then
-            green "  Scheduled daily briefing installed via systemd"
-            dim "  Runs at 08:00 daily. Edit scheduling/config.yaml to customize."
-            dim "  Timer: ~/.config/systemd/user/obsidian-connector-morning.timer"
-            dim "  Uninstall: systemctl --user disable --now obsidian-connector-morning.timer"
-        else
-            dim "  Could not install systemd timer."
-            dim "  Try manually: systemctl --user enable --now obsidian-connector-morning.timer"
-        fi
+    if [ "$result" = "installed" ]; then
+        green "  Scheduled daily briefing installed via systemd"
+        dim "  Runs at 08:00 daily. Edit scheduling/config.yaml to customize."
+        dim "  Timer: ~/.config/systemd/user/obsidian-connector-morning.timer"
+        dim "  Uninstall: systemctl --user disable --now obsidian-connector-morning.timer"
     else
-        dim "  Failed to configure systemd timer."
+        dim "  Could not install systemd timer."
+        dim "  Try manually: systemctl --user enable --now obsidian-connector-morning.timer"
     fi
 else
     dim "  Skipped scheduling"
