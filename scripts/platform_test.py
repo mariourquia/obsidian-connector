@@ -299,6 +299,190 @@ def test_obsidian_binary_candidates():
 
 
 # ------------------------------------------------------------------
+# Linux config paths and vault detection tests (Task 8)
+# ------------------------------------------------------------------
+
+def test_linux_claude_config_path_xdg():
+    """Verify claude_desktop_config_path respects XDG_CONFIG_HOME on Linux."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "linux"), \
+         patch.dict("os.environ", {"XDG_CONFIG_HOME": "/tmp/test_xdg"}, clear=False):
+        importlib.reload(plat)
+        path = plat.claude_desktop_config_path()
+        assert str(path).startswith("/tmp/test_xdg")
+        assert "Claude" in str(path)
+        assert str(path).endswith("claude_desktop_config.json")
+    # Restore module for subsequent tests
+    importlib.reload(plat)
+    print("PASS: test_linux_claude_config_path_xdg")
+
+
+def test_linux_claude_config_path_default():
+    """Verify claude_desktop_config_path falls back to ~/.config on Linux."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "linux"), \
+         patch.dict("os.environ", {"XDG_CONFIG_HOME": ""}, clear=False):
+        importlib.reload(plat)
+        path = plat.claude_desktop_config_path()
+        assert ".config/Claude" in str(path)
+        assert str(path).endswith("claude_desktop_config.json")
+    importlib.reload(plat)
+    print("PASS: test_linux_claude_config_path_default")
+
+
+def test_linux_obsidian_json_path_xdg():
+    """Verify obsidian_app_json_path respects XDG_CONFIG_HOME on Linux."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "linux"), \
+         patch.dict("os.environ", {"XDG_CONFIG_HOME": "/tmp/custom_xdg"}, clear=False):
+        importlib.reload(plat)
+        path = plat.obsidian_app_json_path()
+        assert str(path).startswith("/tmp/custom_xdg")
+        assert "obsidian" in str(path)
+        assert str(path).endswith("obsidian.json")
+    importlib.reload(plat)
+    print("PASS: test_linux_obsidian_json_path_xdg")
+
+
+def test_linux_obsidian_json_path_default():
+    """Verify obsidian_app_json_path falls back to ~/.config on Linux."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "linux"), \
+         patch.dict("os.environ", {"XDG_CONFIG_HOME": ""}, clear=False):
+        importlib.reload(plat)
+        path = plat.obsidian_app_json_path()
+        assert ".config/obsidian" in str(path)
+        assert str(path).endswith("obsidian.json")
+    importlib.reload(plat)
+    print("PASS: test_linux_obsidian_json_path_default")
+
+
+def test_linux_scheduler_dir_xdg():
+    """Verify schedule_config_dir returns systemd user dir under XDG on Linux."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "linux"), \
+         patch.dict("os.environ", {"XDG_CONFIG_HOME": "/tmp/xdg_sched"}, clear=False):
+        importlib.reload(plat)
+        path = plat.schedule_config_dir()
+        assert str(path).startswith("/tmp/xdg_sched")
+        assert "systemd/user" in str(path)
+    importlib.reload(plat)
+    print("PASS: test_linux_scheduler_dir_xdg")
+
+
+def test_linux_platform_paths_complete():
+    """Verify all PlatformPaths fields are populated on Linux."""
+    import obsidian_connector.platform as plat
+    with patch("sys.platform", "linux"), \
+         patch.dict("os.environ", {"XDG_CONFIG_HOME": ""}, clear=False):
+        importlib.reload(plat)
+        paths = plat.get_platform_paths()
+        assert paths.scheduler_type == "systemd"
+        assert paths.scheduler_dir is not None
+        assert "systemd/user" in str(paths.scheduler_dir)
+        assert ".obsidian-connector" in str(paths.data_dir)
+        assert "logs" in str(paths.log_dir)
+    importlib.reload(plat)
+    print("PASS: test_linux_platform_paths_complete")
+
+
+def test_linux_vault_detection_xdg(tmp_path):
+    """Verify vault detection works with XDG-based obsidian.json."""
+    # Create a fake obsidian.json at a custom XDG path
+    xdg_dir = tmp_path / "xdg_config"
+    obsidian_json = xdg_dir / "obsidian" / "obsidian.json"
+    obsidian_json.parent.mkdir(parents=True)
+    vault_dir = tmp_path / "my_vault"
+    vault_dir.mkdir()
+    obsidian_json.write_text(json.dumps({
+        "vaults": {
+            "abc123": {"path": str(vault_dir), "open": True}
+        }
+    }))
+
+    # Patch config.py's _OBSIDIAN_APP_JSON to point to our test file
+    import obsidian_connector.config as cfg_mod
+    original_json = cfg_mod._OBSIDIAN_APP_JSON
+    try:
+        cfg_mod._OBSIDIAN_APP_JSON = obsidian_json
+        # Clear any env overrides
+        with patch.dict("os.environ", {"OBSIDIAN_VAULT_PATH": ""}, clear=False):
+            resolved = cfg_mod.resolve_vault_path()
+            assert resolved == vault_dir, f"Expected {vault_dir}, got {resolved}"
+    finally:
+        cfg_mod._OBSIDIAN_APP_JSON = original_json
+    print("PASS: test_linux_vault_detection_xdg")
+
+
+# ------------------------------------------------------------------
+# Doctor cross-platform diagnostics tests (Task 18)
+# ------------------------------------------------------------------
+
+def test_doctor_reports_platform():
+    from obsidian_connector.doctor import run_doctor
+    results = run_doctor()
+    check_names = [r["check"] for r in results]
+    assert "platform" in check_names, "doctor should report current platform"
+    platform_check = [r for r in results if r["check"] == "platform"][0]
+    assert platform_check["ok"] is True
+    assert current_os() in platform_check["detail"]
+    print("PASS: test_doctor_reports_platform")
+
+
+def test_doctor_reports_scheduler():
+    from obsidian_connector.doctor import run_doctor
+    results = run_doctor()
+    check_names = [r["check"] for r in results]
+    assert "scheduler" in check_names, "doctor should report scheduler type"
+    scheduler_check = [r for r in results if r["check"] == "scheduler"][0]
+    assert scheduler_type() in scheduler_check["detail"]
+    print("PASS: test_doctor_reports_scheduler")
+
+
+def test_doctor_reports_obsidian_running():
+    from obsidian_connector.doctor import run_doctor
+    results = run_doctor()
+    check_names = [r["check"] for r in results]
+    assert "obsidian_running" in check_names, "doctor should report Obsidian process status"
+    running_check = [r for r in results if r["check"] == "obsidian_running"][0]
+    assert isinstance(running_check["ok"], bool)
+    assert running_check["detail"] in ("running", "not detected")
+    print("PASS: test_doctor_reports_obsidian_running")
+
+
+def test_doctor_reports_claude_config():
+    from obsidian_connector.doctor import run_doctor
+    results = run_doctor()
+    check_names = [r["check"] for r in results]
+    assert "claude_config" in check_names, "doctor should report Claude config path"
+    config_check = [r for r in results if r["check"] == "claude_config"][0]
+    assert isinstance(config_check["ok"], bool)
+    assert "claude" in config_check["detail"].lower() or "Claude" in config_check["detail"]
+    print("PASS: test_doctor_reports_claude_config")
+
+
+def test_doctor_reports_platform_features():
+    from obsidian_connector.doctor import run_doctor
+    results = run_doctor()
+    check_names = [r["check"] for r in results]
+    assert "platform_features" in check_names, "doctor should report platform features"
+    features_check = [r for r in results if r["check"] == "platform_features"][0]
+    assert features_check["ok"] is True
+    assert "CLI:" in features_check["detail"]
+    assert "Scheduling:" in features_check["detail"]
+    assert "Graph tools:" in features_check["detail"]
+    print("PASS: test_doctor_reports_platform_features")
+
+
+def test_doctor_uses_platform_binary_candidates():
+    from obsidian_connector.doctor import run_doctor
+    results = run_doctor()
+    check_names = [r["check"] for r in results]
+    assert "obsidian_binary" in check_names, "doctor should check for obsidian binary"
+    print("PASS: test_doctor_uses_platform_binary_candidates")
+
+
+# ------------------------------------------------------------------
 # Refactor validation tests (Tasks 5-6)
 # ------------------------------------------------------------------
 
@@ -364,12 +548,30 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp:
         test_install_systemd_failure_returns_false(Path(tmp))
 
+    # Task 8: Linux config paths and vault detection
+    test_linux_claude_config_path_xdg()
+    test_linux_claude_config_path_default()
+    test_linux_obsidian_json_path_xdg()
+    test_linux_obsidian_json_path_default()
+    test_linux_scheduler_dir_xdg()
+    test_linux_platform_paths_complete()
+    with tempfile.TemporaryDirectory() as tmp:
+        test_linux_vault_detection_xdg(Path(tmp))
+
     # Task 3: notifications
     test_send_notification_returns_bool()
 
     # Task 4: process detection
     test_is_obsidian_running_returns_bool()
     test_obsidian_binary_candidates()
+
+    # Task 18: doctor cross-platform diagnostics
+    test_doctor_reports_platform()
+    test_doctor_reports_scheduler()
+    test_doctor_reports_obsidian_running()
+    test_doctor_reports_claude_config()
+    test_doctor_reports_platform_features()
+    test_doctor_uses_platform_binary_candidates()
 
     # Tasks 5-6: refactor validation
     test_config_uses_platform_paths()
