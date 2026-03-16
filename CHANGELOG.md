@@ -4,6 +4,21 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-03-16
+
+### Added
+
+- **Uninstaller** (`obsx uninstall`): Two-mode safe uninstaller that cleanly removes all installation artifacts. Interactive CLI mode with per-artifact confirmation, and non-interactive `--force` mode for MCP/scripted contexts. Includes `--dry-run` preview, timestamped config backups, JSON validation after config edits, and idempotent operation.
+- **Uninstall MCP tool**: `uninstall` tool with `ToolAnnotations` (`destructiveHint=true`) for Claude Desktop. Defaults to dry-run for safety; explicit flags required for each artifact type.
+- **Comprehensive test suite**: 52 tests covering unit (Tasks 1-6), integration (Task 9), and edge cases (Task 11) for the uninstaller module.
+
+### Security
+
+- Config file backups created before any modification (`claude_desktop_config.json.backup-TIMESTAMP`)
+- JSON validation after config edits prevents writing corrupted config
+- Launchd plist properly unloaded before removal
+- All uninstall actions logged to audit trail
+
 ## [0.1.2] - 2026-03-06
 
 ### Fixed
@@ -57,6 +72,7 @@ First public release.
 - No secrets stored, transmitted, or hardcoded
 - No network calls (100% local)
 
+[0.1.3]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/mariourquia/obsidian-connector/releases/tag/v0.1.0
