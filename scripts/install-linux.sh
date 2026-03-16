@@ -1,29 +1,16 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────
-# obsidian-connector installer
+# obsidian-connector Linux installer
 #
 # One-command setup: creates the Python venv, installs the package,
-# and configures Claude Desktop to use the MCP server.
+# configures Claude Desktop (XDG), and optionally installs systemd
+# timers for scheduled workflows.
 #
 # Usage:
-#   ./scripts/install.sh          # from repo root
-#   bash scripts/install.sh       # explicit bash
+#   ./scripts/install-linux.sh       # from repo root
+#   bash scripts/install-linux.sh    # explicit bash
 # ──────────────────────────────────────────────────────────────────────
 set -euo pipefail
-
-# ── OS dispatch ──────────────────────────────────────────────────────
-
-SCRIPT_DIR_EARLY="$(cd "$(dirname "$0")" && pwd)"
-case "$(uname -s)" in
-    Linux)
-        exec "$SCRIPT_DIR_EARLY/install-linux.sh" "$@"
-        ;;
-    CYGWIN*|MINGW*|MSYS*)
-        echo "Windows detected. Use scripts/install.ps1 instead."
-        exit 1
-        ;;
-esac
-# macOS continues below
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -40,13 +27,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-bold "obsidian-connector installer"
+bold "obsidian-connector installer (Linux)"
 dim  "repo: $REPO_ROOT"
 echo ""
 
 # ── Step 1: Check Python ─────────────────────────────────────────────
 
-bold "[1/4] Checking Python..."
+bold "[1/5] Checking Python..."
 
 PYTHON=""
 for candidate in python3.14 python3.13 python3.12 python3.11 python3; do
@@ -63,14 +50,14 @@ done
 
 if [ -z "$PYTHON" ]; then
     die "Python 3.11+ is required but not found.
-    Install from https://www.python.org/downloads/ and re-run this script."
+    Install via your package manager (e.g. sudo apt install python3.11) and re-run."
 fi
 
 green "  Found $PYTHON ($($PYTHON --version))"
 
 # ── Step 2: Create venv and install ───────────────────────────────────
 
-bold "[2/4] Setting up Python environment..."
+bold "[2/5] Setting up Python environment..."
 
 if [ ! -d "$REPO_ROOT/.venv" ]; then
     "$PYTHON" -m venv "$REPO_ROOT/.venv"
@@ -84,27 +71,14 @@ fi
 
 green "  Installed obsidian-connector"
 
-# ── Step 3: Configure Claude Desktop ─────────────────────────────────
+# ── Step 3: Configure Claude Desktop (XDG) ───────────────────────────
 
-bold "[3/4] Configuring Claude Desktop..."
+bold "[3/5] Configuring Claude Desktop..."
 
 VENV_PYTHON="$REPO_ROOT/.venv/bin/python3"
 
-# Resolve Claude Desktop config path (cross-platform)
-case "$(uname -s)" in
-    Darwin*)
-        CLAUDE_CONFIG_DIR="$HOME/Library/Application Support/Claude"
-        ;;
-    Linux*)
-        CLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/Claude"
-        ;;
-    MINGW*|MSYS*|CYGWIN*)
-        CLAUDE_CONFIG_DIR="${APPDATA:-$HOME/AppData/Roaming}/Claude"
-        ;;
-    *)
-        CLAUDE_CONFIG_DIR="$HOME/.config/Claude"
-        ;;
-esac
+# XDG-compliant config path
+CLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/Claude"
 CLAUDE_CONFIG="$CLAUDE_CONFIG_DIR/claude_desktop_config.json"
 
 configure_claude() {
@@ -137,14 +111,13 @@ CONF
         return 0
     fi
 
-    # Config exists -- check if obsidian-connector is already there
+    # Config exists -- update or add obsidian-connector entry
     if "$REPO_ROOT/.venv/bin/python3" -c "
 import json, sys
 with open('$CLAUDE_CONFIG') as f:
     cfg = json.load(f)
 servers = cfg.get('mcpServers', {})
 if 'obsidian-connector' in servers:
-    # Update the command path in case the repo moved
     servers['obsidian-connector']['command'] = '$VENV_PYTHON'
     servers['obsidian-connector']['args'] = ['-u', '-m', 'obsidian_connector.mcp_server']
     servers['obsidian-connector']['cwd'] = '$REPO_ROOT'
@@ -181,9 +154,34 @@ print('present' if 'obsidian-connector' in cfg.get('mcpServers', {}) else 'missi
 CLAUDE_CONFIGURED=true
 configure_claude || CLAUDE_CONFIGURED=false
 
-# ── Step 4: Verify ───────────────────────────────────────────────────
+# ── Step 4: Check dependencies ───────────────────────────────────────
 
-bold "[4/4] Verifying installation..."
+bold "[4/5] Checking system dependencies..."
+
+# Check for notify-send (used for desktop notifications)
+if command -v notify-send &>/dev/null; then
+    green "  notify-send found (desktop notifications enabled)"
+else
+    dim "  notify-send not found -- install libnotify for notifications"
+    dim "  e.g.: sudo apt install libnotify-bin"
+fi
+
+# Check for Obsidian
+if command -v obsidian &>/dev/null; then
+    green "  Obsidian CLI found"
+elif [ -f "$HOME/.local/bin/obsidian" ]; then
+    green "  Obsidian found at ~/.local/bin/obsidian"
+elif command -v flatpak &>/dev/null && flatpak list 2>/dev/null | grep -q "md.obsidian.Obsidian"; then
+    green "  Obsidian found (Flatpak)"
+elif [ -d "/snap/obsidian" ]; then
+    green "  Obsidian found (Snap)"
+else
+    dim "  Obsidian not detected -- install from https://obsidian.md"
+fi
+
+# ── Step 5: Verify ───────────────────────────────────────────────────
+
+bold "[5/5] Verifying installation..."
 
 if "$REPO_ROOT/.venv/bin/python3" -c "import obsidian_connector; print('  Package OK')" 2>/dev/null; then
     green "  Installation verified"
@@ -194,9 +192,9 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────
 
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "-------------------------------------------------------------------"
 green "  Installation complete!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "-------------------------------------------------------------------"
 echo ""
 
 if [ "$CLAUDE_CONFIGURED" = true ]; then
@@ -207,7 +205,7 @@ if [ "$CLAUDE_CONFIGURED" = true ]; then
 else
     bold "Almost done -- manual step needed:"
     echo ""
-    echo "  Add this to: ~/Library/Application Support/Claude/claude_desktop_config.json"
+    echo "  Add this to: $CLAUDE_CONFIG"
     echo ""
     echo "  {"
     echo "    \"mcpServers\": {"
@@ -308,43 +306,51 @@ else
     dim "  Skipped hook"
 fi
 
-# ── Scheduled Automation ───────────────────────────────────────────
+# ── Scheduled Automation (systemd) ───────────────────────────────
 
-read -rp "  Install scheduled daily briefing (macOS launchd)? [y/N] " INSTALL_SCHEDULE
+read -rp "  Install scheduled daily briefing (systemd user timer)? [y/N] " INSTALL_SCHEDULE
 if [[ "${INSTALL_SCHEDULE:-n}" =~ ^[Yy]$ ]]; then
-    PLIST_SRC="$REPO_ROOT/scheduling/com.obsidian-connector.daily.plist"
-    PLIST_DST="$HOME/Library/LaunchAgents/com.obsidian-connector.daily.plist"
-
-    if [ ! -f "$PLIST_SRC" ]; then
-        dim "  Plist template not found at $PLIST_SRC"
-    else
-        # Generate plist via Python to avoid sed issues with & and \ in paths
-        "$REPO_ROOT/.venv/bin/python3" -c "
+    # Use platform.py to install systemd timer
+    if "$REPO_ROOT/.venv/bin/python3" -c "
 import sys
-src = sys.argv[1]
-dst = sys.argv[2]
-repo = sys.argv[3]
-venv_py = sys.argv[4]
-with open(src) as f:
-    content = f.read()
-# Replace __REPO_ROOT__ placeholder
-content = content.replace('__REPO_ROOT__', repo)
-# Replace /usr/bin/env + python3 with venv python directly
-content = content.replace('<string>/usr/bin/env</string>\n        <string>python3</string>', '<string>' + venv_py + '</string>')
-with open(dst, 'w') as f:
-    f.write(content)
-" "$PLIST_SRC" "$PLIST_DST" "$REPO_ROOT" "$REPO_ROOT/.venv/bin/python3"
-
-        # Load the agent
-        launchctl unload "$PLIST_DST" 2>/dev/null || true
-        if launchctl load "$PLIST_DST" 2>/dev/null; then
-            green "  Scheduled daily briefing installed and loaded"
+sys.path.insert(0, '$REPO_ROOT')
+from obsidian_connector.platform import install_schedule
+from pathlib import Path
+result = install_schedule(
+    repo_root=Path('$REPO_ROOT'),
+    python_path=Path('$VENV_PYTHON'),
+    workflow='morning',
+    time='08:00',
+)
+if result.get('installed'):
+    print('installed')
+else:
+    print('failed')
+" 2>/dev/null; then
+        result=$("$REPO_ROOT/.venv/bin/python3" -c "
+import sys
+sys.path.insert(0, '$REPO_ROOT')
+from obsidian_connector.platform import install_schedule
+from pathlib import Path
+result = install_schedule(
+    repo_root=Path('$REPO_ROOT'),
+    python_path=Path('$VENV_PYTHON'),
+    workflow='morning',
+    time='08:00',
+)
+print('installed' if result.get('installed') else 'failed')
+" 2>/dev/null)
+        if [ "$result" = "installed" ]; then
+            green "  Scheduled daily briefing installed via systemd"
             dim "  Runs at 08:00 daily. Edit scheduling/config.yaml to customize."
-            dim "  Uninstall: launchctl unload $PLIST_DST && rm $PLIST_DST"
+            dim "  Timer: ~/.config/systemd/user/obsidian-connector-morning.timer"
+            dim "  Uninstall: systemctl --user disable --now obsidian-connector-morning.timer"
         else
-            dim "  Plist written to $PLIST_DST but launchctl load failed."
-            dim "  Try: launchctl load $PLIST_DST"
+            dim "  Could not install systemd timer."
+            dim "  Try manually: systemctl --user enable --now obsidian-connector-morning.timer"
         fi
+    else
+        dim "  Failed to configure systemd timer."
     fi
 else
     dim "  Skipped scheduling"
