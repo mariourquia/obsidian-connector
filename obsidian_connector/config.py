@@ -14,13 +14,13 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from obsidian_connector.platform import obsidian_app_json_path, default_index_db_path
+
 _CONFIG_FILENAME = "config.json"
 
-_DEFAULT_INDEX_DB = Path.home() / ".obsidian-connector" / "index.sqlite"
+_DEFAULT_INDEX_DB = default_index_db_path()
 
-_OBSIDIAN_APP_JSON = (
-    Path.home() / "Library" / "Application Support" / "obsidian" / "obsidian.json"
-)
+_OBSIDIAN_APP_JSON = obsidian_app_json_path()
 
 
 def _find_config_file() -> Path | None:
