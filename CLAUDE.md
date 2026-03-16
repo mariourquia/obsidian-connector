@@ -7,7 +7,7 @@
 Python wrapper for the Obsidian desktop app CLI. Provides:
 - **Python API** -- `from obsidian_connector import search_notes, read_note, ...`
 - **CLI** -- `obsx search "query"` or `./bin/obsx search "query"`
-- **MCP server** -- 8 tools for Claude Desktop via stdio or HTTP
+- **MCP server** -- 29 tools for Claude Desktop via stdio or HTTP
 
 This repo uses **Harness Engineering** for agent-friendly development:
 1. **Knowledge Architecture** -- docs as system-of-record with mechanical enforcement
@@ -34,10 +34,15 @@ make docs-lint              # Validate docs structure (warnings + errors)
 make docs-lint-strict       # Errors only (CI equivalent)
 make docs-staleness         # Check git-based staleness
 make docs-changed           # Lint only changed docs (fast pre-commit)
-python3 scripts/smoke_test.py    # Core function smoke tests
-python3 scripts/cache_test.py    # Cache module tests
-bash scripts/mcp_launch_smoke.sh # MCP server launch test
-./bin/obsx doctor           # Health check (Obsidian connectivity)
+python3 scripts/smoke_test.py           # Core function smoke tests
+python3 scripts/cache_test.py           # Cache module tests
+python3 scripts/import_cycle_test.py    # Import cycle regression
+python3 scripts/platform_test.py        # Cross-platform path tests
+python3 scripts/mcp_tool_contract_test.py # MCP tool contract tests
+python3 scripts/cli_parse_test.py       # CLI argument parsing tests
+python3 scripts/audit_permissions_test.py # Audit dir permissions
+bash scripts/mcp_launch_smoke.sh        # MCP server launch test
+./bin/obsx doctor                       # Health check (Obsidian connectivity)
 ```
 
 ## Rules
@@ -47,6 +52,17 @@ bash scripts/mcp_launch_smoke.sh # MCP server launch test
 3. **When code behavior changes** -- update TOOLS_CONTRACT.md, relevant docs, bump `last_reviewed`
 4. **If docs conflict with code** -- code wins; fix docs immediately
 5. **Always run `make docs-lint`** before submitting changes that touch docs/
+
+## Key modules
+
+- `client.py` -- low-level Obsidian CLI wrapper
+- `platform.py` -- cross-platform path resolution, scheduling, notifications (macOS/Linux/Windows)
+- `errors.py` -- canonical exception hierarchy (ObsidianCLIError base class)
+- `mcp_server.py` -- FastMCP tool definitions (29 tools)
+- `cli.py` -- argparse CLI (29 commands)
+- `workflows.py` -- composed multi-step operations
+- `config.py` -- vault/index configuration (uses platform.py for OS paths)
+- `audit.py` -- mutation audit logging (0o700 directory permissions)
 
 ## Adding new commands
 

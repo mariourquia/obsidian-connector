@@ -495,7 +495,7 @@ def build_note_index(vault_path: str | None = None) -> NoteIndex:
                 continue
 
             full = Path(dirpath) / fname
-            rel = str(full.relative_to(root))
+            rel = full.relative_to(root).as_posix()
             title = fname[:-3]  # strip .md
 
             try:

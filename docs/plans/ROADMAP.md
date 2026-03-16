@@ -38,7 +38,7 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
-| 1 | `limitation` | **Linux support** | Scheduling uses launchd (macOS-only). Add systemd timer support for Linux. CLI and graph tools likely work already -- needs testing and CI validation. | Open |
+| 1 | `limitation` | **Linux support** | Scheduling uses launchd (macOS-only). Add systemd timer support for Linux. CLI and graph tools likely work already -- needs testing and CI validation. | In Progress |
 | 2 | `risk` | **Write conflict protection during sync** | Mutating commands (`log-daily`, `graduate execute`) can conflict with iCloud/Obsidian Sync. Add file-level locking or atomic write-then-rename to prevent partial writes. Current mitigation: atomic appends + audit log. | Open |
 | 3 | `improvement` | **Configurable daily note format** | Hard-codes `YYYY-MM-DD.md` in `daily/` or root. Support arbitrary date formats and paths via `config.json` (e.g., `daily/%Y/%m/%Y-%m-%d.md`). | Open |
 | 4 | `improvement` | **File-watching index updates** | Index lags behind live edits until `rebuild-index` runs. Add `fswatch`/`watchdog` listener to trigger incremental updates on file save. Current mitigation: mtime-based incremental on next query. | Open |
@@ -101,7 +101,13 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 | -- | `infra` | SBOM generation | v0.1.1 |
 | -- | `infra` | pyyaml optional dependency | v0.1.1 |
 | -- | `infra` | `__version__` in package | v0.1.1 |
-| -- | `feature` | Safe two-mode uninstaller (`obsx uninstall`) | v0.1.3 |
+| -- | `feature` | Safe two-mode uninstaller (`obsx uninstall`) | v0.2.0 |
+| -- | `infra` | Cross-platform path resolution (`platform.py`) | v0.2.0 |
+| -- | `risk` | Audit log directory permissions (0o700) | v0.2.0 |
+| -- | `infra` | CI expanded to macOS + Ubuntu, 15 test files | v0.2.0 |
+| -- | `infra` | Circular dependency resolved (`errors.py` canonical) | v0.2.0 |
+| -- | `infra` | Broad `except Exception` replaced in 8 MCP tools | v0.2.0 |
+| -- | `infra` | Installer cross-platform config path resolution | v0.2.0 |
 
 ---
 
