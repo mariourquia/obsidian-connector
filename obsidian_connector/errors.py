@@ -1,12 +1,26 @@
 """Typed exception hierarchy for obsidian-connector.
 
-All exceptions subclass ``ObsidianCLIError`` from ``client.py`` so that
-existing ``except ObsidianCLIError`` handlers continue to work.
+All exceptions live here. ``ObsidianCLIError`` is the base class.
 """
 
 from __future__ import annotations
 
-from obsidian_connector.client import ObsidianCLIError
+
+class ObsidianCLIError(Exception):
+    """Raised when the Obsidian CLI exits with a non-zero code."""
+
+    def __init__(
+        self, command: list[str], returncode: int, stdout: str, stderr: str
+    ) -> None:
+        self.command = command
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        detail = stderr.strip() or stdout.strip()
+        super().__init__(
+            f"obsidian exited {returncode}: {detail!r}\n"
+            f"  command: {command}"
+        )
 
 
 class ObsidianNotFound(ObsidianCLIError):

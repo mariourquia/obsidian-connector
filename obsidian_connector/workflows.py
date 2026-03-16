@@ -19,17 +19,7 @@ from obsidian_connector.client import (
 )
 from obsidian_connector.config import load_config, resolve_vault_path
 from obsidian_connector.graph import extract_links
-
-
-# ---------------------------------------------------------------------------
-# Graph index helper
-# ---------------------------------------------------------------------------
-
-def _load_or_build_index(vault: str | None = None):
-    """Delegate to the canonical shared implementation."""
-    from obsidian_connector.index_store import load_or_build_index
-
-    return load_or_build_index(vault)
+from obsidian_connector.index_store import load_or_build_index
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +234,7 @@ def find_prior_work(
         )
 
     # Graph enrichment: add backlink_count and shared_tags if index available.
-    idx = _load_or_build_index(vault)
+    idx = load_or_build_index(vault)
     if idx is not None:
         for r in results:
             file_path = r["file"]
@@ -397,7 +387,7 @@ def my_world_snapshot(
     }
 
     # Graph enrichment: add vault_summary from index if available.
-    idx = _load_or_build_index(vault)
+    idx = load_or_build_index(vault)
     if idx is not None:
         top_tags = sorted(
             ((tag, len(paths)) for tag, paths in idx.tags.items()),
@@ -928,7 +918,7 @@ def graduate_candidates(
 
     # Try to check NoteIndex for existing standalone notes.
     try:
-        index = _load_or_build_index(vault)
+        index = load_or_build_index(vault)
         if index is not None:
             title_set = {
                 entry.title.lower(): entry.path

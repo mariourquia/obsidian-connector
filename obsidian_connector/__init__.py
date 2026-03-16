@@ -1,11 +1,10 @@
 """obsidian-connector: Python wrapper for the Obsidian CLI."""
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 from obsidian_connector.cache import CLICache
 from obsidian_connector.audit import log_action
 from obsidian_connector.client import (
-    ObsidianCLIError,
     batch_read_notes,
     list_tasks,
     log_to_daily,
@@ -19,6 +18,7 @@ from obsidian_connector.envelope import error_envelope, success_envelope
 from obsidian_connector.errors import (
     CommandTimeout,
     MalformedCLIOutput,
+    ObsidianCLIError,
     ObsidianNotFound,
     ObsidianNotRunning,
     VaultNotFound,
