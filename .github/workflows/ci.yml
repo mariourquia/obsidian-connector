@@ -33,25 +33,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e .
+      - run: pip install -e . coverage
       - name: Unit tests (no Obsidian required)
         shell: bash
         run: |
-          python3 scripts/cache_test.py
-          python3 scripts/audit_test.py
-          python3 scripts/escaping_test.py
-          python3 scripts/graph_test.py
-          python3 scripts/index_test.py
-          python3 scripts/graduate_test.py
-          python3 scripts/thinking_deep_test.py
-          python3 scripts/delegation_test.py
-          python3 scripts/import_cycle_test.py
-          python3 scripts/platform_test.py
-          python3 scripts/audit_permissions_test.py
-          python3 scripts/edge_case_test.py
-          python3 scripts/uninstall_test.py
-          python3 scripts/mcp_tool_contract_test.py
-          python3 scripts/cli_parse_test.py
+          coverage run --append --source=obsidian_connector scripts/cache_test.py
+          coverage run --append --source=obsidian_connector scripts/audit_test.py
+          coverage run --append --source=obsidian_connector scripts/escaping_test.py
+          coverage run --append --source=obsidian_connector scripts/graph_test.py
+          coverage run --append --source=obsidian_connector scripts/index_test.py
+          coverage run --append --source=obsidian_connector scripts/graduate_test.py
+          coverage run --append --source=obsidian_connector scripts/thinking_deep_test.py
+          coverage run --append --source=obsidian_connector scripts/delegation_test.py
+          coverage run --append --source=obsidian_connector scripts/import_cycle_test.py
+          coverage run --append --source=obsidian_connector scripts/platform_test.py
+          coverage run --append --source=obsidian_connector scripts/audit_permissions_test.py
+          coverage run --append --source=obsidian_connector scripts/edge_case_test.py
+          coverage run --append --source=obsidian_connector scripts/uninstall_test.py
+          coverage run --append --source=obsidian_connector scripts/mcp_tool_contract_test.py
+          coverage run --append --source=obsidian_connector scripts/cli_parse_test.py
+      - name: Coverage report
+        if: always()
+        shell: bash
+        run: |
+          coverage report --show-missing
+          coverage report --fail-under=0
+          coverage xml
 
   mcp-launch:
     runs-on: ${{ matrix.os }}
@@ -66,3 +73,14 @@ jobs:
       - run: pip install -e .
       - name: MCP server starts without error
         run: bash scripts/mcp_launch_smoke.sh
+
+  lockfile-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-tools
+      - name: Verify lockfile is in sync with pyproject.toml
+        run: pip-compile --generate-hashes --output-file=requirements-lock.txt pyproject.toml --check
