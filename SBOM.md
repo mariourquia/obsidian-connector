@@ -32,13 +32,13 @@ pip-audit: 0 known vulnerabilities
 | jsonschema | 4.26.0 | MIT |
 | pydantic | 2.12.5 | MIT |
 | pydantic-settings | 2.13.1 | MIT |
-| PyJWT | 2.11.0 | MIT |
+| PyJWT | 2.12.1 | MIT |
 | python-multipart | 0.0.22 | Apache-2.0 |
 | sse-starlette | 3.3.2 | BSD-3-Clause |
 | starlette | 0.52.1 | BSD-3-Clause |
 | typing-inspection | 0.4.2 | MIT |
 | typing_extensions | 4.15.0 | PSF-2.0 |
-| uvicorn | 0.41.0 | BSD-3-Clause |
+| uvicorn | 0.42.0 | BSD-3-Clause |
 
 ## Standard Library Only (no external deps)
 

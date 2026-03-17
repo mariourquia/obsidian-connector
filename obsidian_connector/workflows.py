@@ -433,7 +433,7 @@ def today_brief(vault: str | None = None) -> dict:
         - ``open_loops`` -- list of open loop items from recent notes
         - ``linked_context`` -- excerpts from notes linked in the daily note (graph-enriched)
     """
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
     # Try to read today's daily note
     daily_note: str | None = None
@@ -503,7 +503,7 @@ def close_day_reflection(vault: str | None = None) -> dict:
         - ``reflection_prompts`` -- 3-5 reflection questions
         - ``suggested_actions`` -- action candidates extracted from tasks/notes
     """
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
     # Read today's daily note
     daily_note_summary: str | None = None
@@ -1506,9 +1506,7 @@ def check_in(
     else:
         tz = None
 
-    now = datetime.now(tz or timezone.utc)
-    if tz is None:
-        now = datetime.now()  # naive local time
+    now = datetime.now(tz) if tz else datetime.now()
     hour = now.hour
 
     if hour < 11:

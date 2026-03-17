@@ -72,15 +72,15 @@ def run_obsidian(
 
     if result.returncode != 0:
         combined = (result.stderr + result.stdout).lower()
+        if "not found" in combined and "vault" in combined:
+            raise VaultNotFound(
+                f"vault not found: {result.stderr.strip() or result.stdout.strip()}"
+            )
+        if "not running" in combined or "ipc" in combined.lower() or "connect" in combined.lower():
+            raise ObsidianNotRunning(
+                f"Obsidian not running: {result.stderr.strip() or result.stdout.strip()}"
+            )
         if "not found" in combined or "no such file" in combined:
-            if "vault" in combined:
-                raise VaultNotFound(
-                    f"vault not found: {result.stderr.strip() or result.stdout.strip()}"
-                )
-            if "not running" in combined or "ipc" in combined or "connect" in combined:
-                raise ObsidianNotRunning(
-                    f"Obsidian not running: {result.stderr.strip() or result.stdout.strip()}"
-                )
             raise ObsidianNotFound(
                 f"binary/resource not found: {result.stderr.strip() or result.stdout.strip()}"
             )

@@ -52,10 +52,28 @@ That's it. No terminal, no commands.
 
 ### Option C: Terminal (for developers)
 
+**macOS:**
+
 ```bash
 git clone https://github.com/mariourquia/obsidian-connector.git
 cd obsidian-connector
 ./scripts/install.sh
+```
+
+**Linux:**
+
+```bash
+git clone https://github.com/mariourquia/obsidian-connector.git
+cd obsidian-connector
+bash scripts/install-linux.sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/mariourquia/obsidian-connector.git
+cd obsidian-connector
+.\scripts\Install.ps1
 ```
 
 The install script creates the Python environment, installs the package, and
@@ -175,7 +193,7 @@ Daily workflow, open loop tracking, idea graduation, and delegation management.
 
 | Tool | What it does |
 |---|---|
-| `uninstall` | Safely remove installation artifacts (dry-run by default) |
+| `obsidian_uninstall` | Safely remove installation artifacts (dry-run by default) |
 
 ### HTTP mode (alternative)
 

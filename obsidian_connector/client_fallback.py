@@ -111,5 +111,5 @@ def batch_read_notes(
             try:
                 results[p] = file_read(p, vault_path)
             except FileNotFoundError:
-                continue
+                results[p] = ""
         return results

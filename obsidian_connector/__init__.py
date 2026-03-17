@@ -30,6 +30,7 @@ from obsidian_connector.graph import (
     extract_frontmatter,
     extract_links,
     extract_tags,
+    resolve_note_path,
 )
 from obsidian_connector.index_store import IndexStore, load_or_build_index
 from obsidian_connector.search import enrich_search_results
@@ -97,6 +98,7 @@ __all__ = [
     "log_to_daily",
     "my_world_snapshot",
     "read_note",
+    "resolve_note_path",
     "resolve_vault_path",
     "run_doctor",
     "run_obsidian",

@@ -26,8 +26,12 @@ Artifacts the uninstaller does manage:
 | Python venv | `<repo>/.venv/` | `scripts/install.sh` |
 | Skills | `<repo>/.claude/commands/{morning,evening,idea,weekly}.md` | `scripts/install.sh` (optional) |
 | SessionStart hook | `<repo>/.claude/settings.json` (hooks entry) | `scripts/install.sh` (optional) |
-| launchd plist | `~/Library/LaunchAgents/com.obsidian-connector.daily.plist` | `scripts/install.sh` (optional) |
-| Claude Desktop config entry | `~/Library/Application Support/Claude/claude_desktop_config.json` | `scripts/install.sh` |
+| launchd plist (macOS) | `~/Library/LaunchAgents/com.obsidian-connector.daily.plist` | `scripts/install.sh` (optional) |
+| systemd units (Linux) | `~/.config/systemd/user/obsidian-connector*.{service,timer}` | `scripts/install-linux.sh` (optional) |
+| Task Scheduler entry (Windows) | Task Scheduler (`schtasks /Query /TN obsidian-connector*`) | `scripts\Install.ps1` (optional) |
+| Claude Desktop config (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` | `scripts/install.sh` |
+| Claude Desktop config (Linux) | `~/.config/Claude/claude_desktop_config.json` | `scripts/install-linux.sh` |
+| Claude Desktop config (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` | `scripts\Install.ps1` |
 | Audit logs | `~/.obsidian-connector/logs/` | Runtime |
 | Cache/index | Runtime cache files | Runtime |
 
@@ -94,11 +98,11 @@ been removed while others remain. Follow the steps below to recover.
 
 The uninstaller creates a timestamped backup before modifying the config:
 
-```
-~/Library/Application Support/Claude/claude_desktop_config.json.backup-YYYY-MM-DD-HH-MM-SS
-```
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json.backup-YYYY-MM-DD-HH-MM-SS`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json.backup-YYYY-MM-DD-HH-MM-SS`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json.backup-YYYY-MM-DD-HH-MM-SS`
 
-To restore:
+To restore (macOS example; adjust path for your platform):
 
 ```bash
 # List available backups
@@ -123,7 +127,9 @@ If the dry-run shows remaining artifacts, run the uninstaller again (interactive
 or `--force`) to finish the job. The uninstaller is idempotent -- re-running it
 on already-removed artifacts is safe.
 
-### 2.3 Re-load or Unload launchd Plist Manually
+### 2.3 Re-load or Unload Scheduled Tasks Manually
+
+**macOS (launchd):**
 
 If the plist was partially removed (file deleted but agent still loaded, or
 vice versa):
@@ -140,6 +146,26 @@ To re-load a plist that was unloaded but not deleted:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.obsidian-connector.daily.plist
+```
+
+**Linux (systemd):**
+
+```bash
+# Stop and disable the timer
+systemctl --user stop obsidian-connector-daily.timer 2>/dev/null
+systemctl --user disable obsidian-connector-daily.timer 2>/dev/null
+
+# Remove the unit files
+rm -f ~/.config/systemd/user/obsidian-connector-daily.service
+rm -f ~/.config/systemd/user/obsidian-connector-daily.timer
+systemctl --user daemon-reload
+```
+
+**Windows (Task Scheduler):**
+
+```powershell
+# Remove the scheduled task
+schtasks /Delete /TN "obsidian-connector-daily" /F 2>$null
 ```
 
 ## 3. Manual Cleanup (CLI Is Broken)
@@ -187,16 +213,21 @@ remove the entire `SessionStart` key or the `hooks` key.
 
 ### 3.4 Edit Claude Desktop Config by Hand
 
-Open the config file:
+Open the config file for your platform:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```bash
+# macOS
 open ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
 
-Or edit in a terminal editor:
+# Linux
+nano ~/.config/Claude/claude_desktop_config.json
 
-```bash
-nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
+# Windows (PowerShell)
+# notepad "$env:APPDATA\Claude\claude_desktop_config.json"
 ```
 
 Find the `"obsidian-connector"` key inside `"mcpServers"` and delete the entire
@@ -218,11 +249,29 @@ block:
 Make sure the resulting JSON is valid (no trailing commas). Restart Claude
 Desktop afterward.
 
-### 3.5 Unload and Remove launchd Plist
+### 3.5 Unload and Remove Scheduled Tasks
+
+**macOS:**
 
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.obsidian-connector.daily.plist 2>/dev/null
 rm -f ~/Library/LaunchAgents/com.obsidian-connector.daily.plist
+```
+
+**Linux:**
+
+```bash
+systemctl --user stop obsidian-connector-daily.timer 2>/dev/null
+systemctl --user disable obsidian-connector-daily.timer 2>/dev/null
+rm -f ~/.config/systemd/user/obsidian-connector-daily.service
+rm -f ~/.config/systemd/user/obsidian-connector-daily.timer
+systemctl --user daemon-reload
+```
+
+**Windows (PowerShell):**
+
+```powershell
+schtasks /Delete /TN "obsidian-connector-daily" /F 2>$null
 ```
 
 ### 3.6 Remove Audit Logs and Cache
@@ -238,8 +287,13 @@ To roll back to a previous version while preserving your vault and config:
 ```bash
 cd /path/to/obsidian-connector
 
-# 1. Unload the launchd agent if running
+# 1. Unload the scheduled task if running
+#    macOS:
 launchctl unload ~/Library/LaunchAgents/com.obsidian-connector.daily.plist 2>/dev/null
+#    Linux:
+#    systemctl --user stop obsidian-connector-daily.timer 2>/dev/null
+#    Windows (PowerShell):
+#    schtasks /Delete /TN "obsidian-connector-daily" /F 2>$null
 
 # 2. Check out the target version
 git fetch --tags
@@ -270,15 +324,23 @@ To remove all traces of obsidian-connector from your system, including the
 repository clone:
 
 ```bash
-# 1. Unload launchd agent
+# 1. Unload scheduled task
+#    macOS:
 launchctl unload ~/Library/LaunchAgents/com.obsidian-connector.daily.plist 2>/dev/null
 rm -f ~/Library/LaunchAgents/com.obsidian-connector.daily.plist
+#    Linux:
+#    systemctl --user stop obsidian-connector-daily.timer 2>/dev/null
+#    systemctl --user disable obsidian-connector-daily.timer 2>/dev/null
+#    rm -f ~/.config/systemd/user/obsidian-connector-daily.{service,timer}
+#    systemctl --user daemon-reload
+#    Windows (PowerShell):
+#    schtasks /Delete /TN "obsidian-connector-daily" /F 2>$null
 
 # 2. Remove audit logs and cache
 rm -rf ~/.obsidian-connector/
 
 # 3. Remove the obsidian-connector entry from Claude Desktop config
-#    (edit the file manually -- see Section 3.4)
+#    (edit the file manually -- see Section 3.4 for platform-specific paths)
 
 # 4. Delete the entire repository clone
 rm -rf /path/to/obsidian-connector
@@ -286,7 +348,7 @@ rm -rf /path/to/obsidian-connector
 
 This removes skills, the hook, the venv, and all code in one step since they
 all live inside the repo directory. The only artifacts outside the repo are the
-launchd plist, the Claude Desktop config entry, and the `~/.obsidian-connector/`
+scheduled task, the Claude Desktop config entry, and the `~/.obsidian-connector/`
 directory -- handle those first.
 
 Your Obsidian vault is untouched.
