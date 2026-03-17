@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -5,13 +6,26 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# OS
 .DS_Store
+
+# Environment
 .env
 
-# --- Stray logs ---
+# Stray logs
 firebase-debug.log
 
-# --- Harness Engineering ---
+# Claude Code internals
+.claude/worktrees/
+.claude/settings.json
+.claude/settings.local.json
+.claude/commands/
+
+# Development artifacts
+vault-context-drafts/
+
+# Harness Engineering (legacy)
 artifacts/
 lint-*.json
 staleness-report.json

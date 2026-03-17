@@ -32,9 +32,9 @@ persisted to SQLite for fast incremental updates.
 | `obsidian_connector/` | Core Python package (18 modules) |
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
-| `docs/` | Knowledge base (harness engineering, frontmatter-enforced) |
-| `tools/` | Mechanical enforcement (docs linter) |
-| `templates/` | Reusable doc templates (exec-plan, design-doc, product-spec) |
+| `docs/` | User-facing documentation, release artifacts, distribution guides |
+| `skills/` | Claude Code skill definitions (morning, evening, idea, weekly) |
+| `scheduling/` | launchd/cron configs for scheduled automation |
 
 ## Package modules
 
@@ -82,9 +82,8 @@ uninstall.py uses: platform.py, config.py
 
 ## Key entry points
 
-- **Agent starts here:** `AGENTS.md`
-- **Agent tools contract:** `TOOLS_CONTRACT.md`
+- **Tools contract:** `TOOLS_CONTRACT.md`
 - **Docs catalog:** `docs/index.md`
 - **Install:** `scripts/install.sh`
-- **CLI:** `bin/obsx` or `python3 main.py`
+- **CLI:** `bin/obsx`
 - **MCP server:** `python3 -m obsidian_connector.mcp_server`
