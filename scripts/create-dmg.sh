@@ -56,6 +56,7 @@ rsync -a \
     --exclude='.venv' \
     --exclude='.git' \
     --exclude='.claude' \
+    --exclude='.claude-plugin' \
     --exclude='dist' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
@@ -63,6 +64,13 @@ rsync -a \
     --exclude='firebase-debug.log' \
     --exclude='vault-context-drafts' \
     --exclude='*.egg-info' \
+    --exclude='AGENTS.md' \
+    --exclude='Makefile' \
+    --exclude='templates' \
+    --exclude='tools' \
+    --exclude='dev' \
+    --exclude='hooks' \
+    --exclude='main.py' \
     "$REPO_ROOT/" "$STAGING_DIR/$DMG_NAME/"
 
 # ── Create a visible README in the DMG ────────────────────────────────
