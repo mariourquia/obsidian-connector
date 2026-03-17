@@ -32,7 +32,7 @@ last_reviewed: "2026-03-16"
 ## Not Assessed
 
 - **CI supply chain**: GitHub Actions workflows use `actions/checkout@v4`, `actions/setup-python@v5`, `actions/upload-artifact@v4`, `actions/download-artifact@v4`. These are GitHub-maintained actions but are not pinned to SHA.
-- **Transitive dependency code review**: The `mcp` package and its 13 transitive dependencies were audited for known CVEs via pip-audit but their source code was not reviewed line-by-line.
+- **Transitive dependency code review**: The `mcp` package and its 21 transitive dependencies were audited for known CVEs via pip-audit but their source code was not reviewed line-by-line.
 - **Obsidian desktop app security**: The Obsidian CLI binary is invoked as a subprocess. Security of the Obsidian app itself is out of scope.
 - **Vault content as attack vector**: Malicious markdown content designed to exploit the frontmatter parser or regex-based extraction was not systematically tested.
 
@@ -47,13 +47,18 @@ last_reviewed: "2026-03-16"
 
 ### High (Fixed in v0.2.0)
 
+4 HIGH security findings fixed. 17 total blockers resolved across all severity levels.
+
 | ID  | Finding                                   | File            | Fix                                        |
 |-----|-------------------------------------------|-----------------|--------------------------------------------|
 | H1  | CWD config.json hijack                   | config.py       | Package dir checked before CWD             |
 | H2  | Silent exception swallowing (7x)          | workflows.py, thinking.py | Narrowed to specific types (OSError, ValueError, KeyError) |
-| H3  | Doctor false negatives for schedulers     | doctor.py       | Returns True for all 3 backends            |
-| H4  | Inverted destructive defaults             | cli.py          | All prompts default to non-destructive     |
-| H5  | Non-atomic config write in uninstaller    | uninstall.py    | tempfile.mkstemp + os.replace              |
+| H3  | Installer script injection vectors        | install*.sh, Install.ps1 | Input sanitization, quoted variables, no eval |
+| H4  | HTML injection in notification strings    | platform.py     | Escaped before passing to osascript/PowerShell |
+| H5  | Doctor false negatives for schedulers     | doctor.py       | Returns True for all 3 backends            |
+| H6  | Inverted destructive defaults             | cli.py          | All prompts default to non-destructive     |
+| H7  | Non-atomic config write in uninstaller    | uninstall.py    | tempfile.mkstemp + os.replace              |
+| H8  | Lockfile not enforced in CI               | ci.yml          | `pip-compile --generate-hashes` lockfile with CI check job |
 
 ### Medium
 
@@ -72,7 +77,7 @@ last_reviewed: "2026-03-16"
 ## Dependency Summary
 
 - Total direct dependencies: 1 (`mcp`)
-- Total transitive dependencies: 13 (via `mcp`)
+- Total transitive dependencies: 21 (via `mcp`, pinned with hashes in `requirements-lock.txt`)
 - Known vulnerabilities at time of review: 0 (pip-audit)
 - Outdated dependencies: 0
 - Dependencies with no maintenance (>1yr no commits): 0
@@ -86,8 +91,18 @@ last_reviewed: "2026-03-16"
 
 ## Supply Chain
 
-- Lock file present: no
-- Dependency pinning strategy: range (`mcp>=1.0.0,<2.0.0`)
+- Lock file present: yes (`requirements-lock.txt`, generated via `pip-compile --generate-hashes`)
+- Lockfile CI check: `lockfile-check` job verifies lockfile is in sync with `pyproject.toml`
+- Dependency pinning strategy: range in `pyproject.toml` (`mcp>=1.0.0,<2.0.0`), exact versions + SHA256 hashes in lockfile
+- Total pinned packages: 1 direct + 21 transitive (mcp 1.26.0 locked)
 - SBOM available: yes (`SBOM.md` at repo root, manually maintained)
+- Release signing: Sigstore cosign keyless (OIDC via GitHub Actions). Each of 4 artifacts gets `.sig` + `.cert`.
 - Build reproducibility: source archives from `git archive` should be reproducible from the same commit. Not independently verified.
 - Release artifacts built in GitHub Actions (CI) not on maintainer's local machine.
+
+## Remaining Known Gaps
+
+- **Dependabot not configured**: No automated dependency update PRs. Manual `pip-audit` runs are the current process.
+- **Audit log not tamper-resistant**: JSONL audit files have same-user ownership. A local attacker with the user's privileges can modify or delete entries. Append-only or signed logging not implemented.
+- **GitHub Actions not pinned to SHA**: Uses tag-based references (`actions/checkout@v4`) rather than commit SHAs.
+- **No CodeQL or SAST scanning**: Static analysis is manual. CodeQL planned for v0.3.0.
