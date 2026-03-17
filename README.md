@@ -43,14 +43,34 @@ That's it. No terminal, no commands.
 > If macOS says the file can't be opened: right-click `Install.command`,
 > select **Open**, then click **Open** in the dialog.
 
-### Option B: Download ZIP from GitHub
+### Option B: Claude Code Plugin (recommended for Claude Code users)
+
+```bash
+claude --plugin-dir /path/to/obsidian-connector
+```
+
+Or, once accepted into the official marketplace:
+
+```bash
+claude plugin install obsidian-connector
+```
+
+After installing, run the setup script to create the Python environment:
+
+```bash
+bash <plugin-dir>/scripts/setup.sh
+```
+
+This gives you all 29 MCP tools plus the `/obsidian-connector:morning`, `/obsidian-connector:evening`, `/obsidian-connector:idea`, and `/obsidian-connector:weekly` skills, with a SessionStart hook that suggests workflows based on time of day.
+
+### Option C: Download ZIP
 
 1. Click the green **Code** button on this page, then **Download ZIP**
 2. Unzip the folder
 3. Open the folder and double-click **`Install.command`**
 4. Restart Claude Desktop
 
-### Option C: Terminal (for developers)
+### Option D: Terminal (for developers)
 
 **macOS:**
 

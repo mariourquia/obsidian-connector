@@ -250,16 +250,39 @@ dim  "These features turn Claude into a proactive second brain."
 dim  "Each is independent -- install any combination."
 echo ""
 
+# ── Plugin mode detection ────────────────────────────────────────
+PLUGIN_MODE=false
+if [ -f "$REPO_ROOT/.claude-plugin/plugin.json" ] && \
+   [ -f "$REPO_ROOT/hooks/hooks.json" ] && \
+   [ -d "$REPO_ROOT/skills/morning" ]; then
+    bold "Plugin mode available"
+    dim  "Skills and hooks can be loaded via the Claude Code plugin system."
+    dim  "  Plugin install: claude --plugin-dir $REPO_ROOT"
+    dim  "  Or install from marketplace: claude plugin install obsidian-connector"
+    echo ""
+    read -rp "  Use plugin mode (recommended) instead of manual setup? [Y/n] " USE_PLUGIN
+    if [[ "${USE_PLUGIN:-y}" =~ ^[Yy]$ ]] || [ -z "$USE_PLUGIN" ]; then
+        PLUGIN_MODE=true
+        green "  Plugin mode selected. Skills and hooks handled by plugin system."
+    fi
+fi
+
 # ── Skills ──────────────────────────────────────────────────────────
 
+if [ "$PLUGIN_MODE" = false ]; then
 read -rp "  Install Claude Code skills (/morning, /evening, /idea, /weekly)? [y/N] " INSTALL_SKILLS
 if [[ "${INSTALL_SKILLS:-n}" =~ ^[Yy]$ ]]; then
     COMMANDS_DIR="$REPO_ROOT/.claude/commands"
     mkdir -p "$COMMANDS_DIR"
     copied=0
-    for skill in "$REPO_ROOT"/skills/*.md; do
+    for skill in "$REPO_ROOT"/skills/*/SKILL.md "$REPO_ROOT"/skills/*.md; do
         [ -f "$skill" ] || continue
-        cp "$skill" "$COMMANDS_DIR/"
+        skill_name=$(basename "$(dirname "$skill")")
+        if [ "$skill_name" = "skills" ]; then
+            cp "$skill" "$COMMANDS_DIR/"
+        else
+            cp "$skill" "$COMMANDS_DIR/${skill_name}.md"
+        fi
         copied=$((copied + 1))
     done
     if [ "$copied" -gt 0 ]; then
@@ -270,9 +293,11 @@ if [[ "${INSTALL_SKILLS:-n}" =~ ^[Yy]$ ]]; then
 else
     dim "  Skipped skills"
 fi
+fi
 
 # ── SessionStart Hook ──────────────────────────────────────────────
 
+if [ "$PLUGIN_MODE" = false ]; then
 read -rp "  Install SessionStart hook (shows suggestions at session start)? [y/N] " INSTALL_HOOK
 if [[ "${INSTALL_HOOK:-n}" =~ ^[Yy]$ ]]; then
     SETTINGS_FILE="$REPO_ROOT/.claude/settings.json"
@@ -296,11 +321,18 @@ hooks = cfg.setdefault('hooks', {})
 session_hooks = hooks.setdefault('SessionStart', [])
 
 # Check if already installed
-already = any(h.get('command') == hook_cmd for h in session_hooks)
+already = any(
+    hook_entry.get('matcher') == '' and
+    any(h.get('command') == hook_cmd for h in hook_entry.get('hooks', []))
+    for hook_entry in session_hooks
+)
 if not already:
     session_hooks.append({
-        'type': 'command',
-        'command': hook_cmd
+        'matcher': '',
+        'hooks': [{
+            'type': 'command',
+            'command': hook_cmd
+        }]
     })
 
 os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -318,6 +350,7 @@ print('present' if already else 'added')
     fi
 else
     dim "  Skipped hook"
+fi
 fi
 
 # ── Scheduled Automation (systemd) ───────────────────────────────
