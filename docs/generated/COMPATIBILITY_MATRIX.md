@@ -15,8 +15,8 @@ last_reviewed: "2026-03-16"
 | Requirement      | Minimum | Recommended | Tested With         |
 |------------------|---------|-------------|---------------------|
 | Python           | 3.11    | 3.13        | 3.11, 3.12, 3.13   |
-| Obsidian desktop | 1.12    | latest      | 1.12+               |
-| mcp package      | 1.0.0   | latest 1.x  | 1.x                 |
+| Obsidian desktop | 1.4     | latest      | 1.4+ (CLI plugin)   |
+| mcp package      | 1.0.0   | 1.26.0      | 1.26.0 (locked)     |
 
 ## Operating System Support
 
@@ -62,11 +62,11 @@ CI matrix: macOS-latest + ubuntu-latest + windows-latest x Python 3.11, 3.12, 3.
 
 | Dependency  | Required Version   | Type     | License | Purpose                    |
 |-------------|--------------------|----------|---------|----------------------------|
-| mcp         | >=1.0.0, <2.0.0   | Required | MIT     | FastMCP server framework   |
+| mcp         | >=1.0.0, <2.0.0 (locked at 1.26.0) | Required | MIT     | FastMCP server framework   |
 | pyyaml      | >=6.0, <7.0        | Optional | MIT     | Schedule config parsing    |
 | hatchling   | (build-time only)  | Build    | MIT     | PEP 517 build backend      |
 
-All other imports are Python standard library.
+All other imports are Python standard library. A `requirements-lock.txt` pins mcp and all 21 transitive dependencies with SHA256 hashes (generated via `pip-compile --generate-hashes`).
 
 ## Breaking Changes from v0.1.x
 
