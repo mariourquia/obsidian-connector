@@ -22,7 +22,33 @@ Your assistant proactively drives your day:
 
 Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prompt).
 
-## Quick start
+> Obsidian is the operating system for knowledge work; Claude is the reasoning engine. The Obsidian Connector marries them, empowering users to leverage Claude's synthesis, reasoning, and writing strengths directly against their personal knowledge base -- without moving data off their machine.
+
+## Use cases
+
+**Knowledge work** -- Search your vault semantically, feed relevant notes to Claude for synthesis or gap analysis. Researchers extract themes across papers. Professionals ground decisions in historical patterns from their decision logs.
+
+**Thinking partner** -- Post rough thinking notes for feedback before committing. Capture raw ideas, then ask Claude to expand, stress-test, or find counterarguments. Detect circular reasoning across notes.
+
+**Daily operations** -- Morning briefings, weekly reviews, meeting follow-ups, project retrospectives. Claude scans your notes, identifies progress, flags blocked items, suggests next steps.
+
+**Writing pipeline** -- Outline + notes become drafts. Students scaffold theses from research notes. Engineers generate docs from architecture notes. Writers review multiple notes for tone and consistency.
+
+**Career and learning** -- Track learning notes over time; Claude identifies skill gaps. Extract accomplishments into resume framings. Prepare for 1:1s and interviews from your own notes.
+
+**Privacy-first** -- Vault stays local. Claude processes only what you explicitly share. No vendor lock-in, no external services, offline-capable.
+
+## Install
+
+Five surfaces, pick the one that fits:
+
+| Surface | Command | What you get |
+|---------|---------|-------------|
+| **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 29 MCP tools |
+| **Claude Desktop** | `./scripts/install.sh` | 29 MCP tools via `claude_desktop_config.json` |
+| **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer (configures Claude Desktop) |
+| **CLI** | `pip install -e .` then `obsx` | 29 CLI commands |
+| **Python API** | `from obsidian_connector import ...` | Programmatic vault access |
 
 ### Requirements
 
@@ -389,6 +415,33 @@ typed error hierarchy, and full command reference.
 Your assistant drives four workflows through skills, hooks, and scheduled automation.
 See the [Setup Guide](docs/setup-guide.md) for installation and the
 [Operating Manual](docs/daily-optimization.md) for all 18 recipes.
+
+## Claude Code plugin
+
+obsidian-connector is a Claude Code plugin, submitted to Anthropic's official marketplace.
+
+**Install locally:**
+```bash
+claude --plugin-dir /path/to/obsidian-connector
+bash /path/to/obsidian-connector/scripts/setup.sh
+```
+
+**What the plugin provides:**
+- 4 skills: `/obsidian-connector:morning`, `/obsidian-connector:evening`, `/obsidian-connector:idea`, `/obsidian-connector:weekly`
+- SessionStart hook: suggests `/morning` or `/evening` based on time of day
+- 29 MCP tools: full vault access (search, read, write, graph, thinking, workflows)
+- Post-install setup: `scripts/setup.sh` creates the Python venv
+
+**Plugin structure:**
+```
+.claude-plugin/plugin.json    # manifest (name, version, author)
+skills/*/SKILL.md             # 4 skills in plugin format
+hooks/hooks.json              # SessionStart hook config
+.mcp.json                     # MCP server config
+scripts/setup.sh              # post-install venv bootstrap
+```
+
+**Note:** Plugin mode uses Unix venv paths. Windows users should use `scripts/Install.ps1` instead.
 
 ## Roadmap
 
