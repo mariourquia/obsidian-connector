@@ -13,8 +13,8 @@
 
 - **Now runs on macOS, Linux, and Windows.** New `platform.py` centralizes
   path resolution, scheduling, and notifications per OS.
-- **8 security fixes from a 14-expert review panel.** PowerShell injection,
-  osascript escaping, CWD config hijack, non-atomic writes, exception
+- **8 security fixes.** PowerShell injection, osascript escaping, 
+  CWD config hijack, non-atomic writes, exception
   swallowing, and more.
 - **Safe uninstaller.** `obsx uninstall` with interactive prompts, `--force`
   mode, `--dry-run`, and MCP tool (`obsidian_uninstall`). Defaults to keep
