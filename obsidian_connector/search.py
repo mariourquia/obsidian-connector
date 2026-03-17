@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from obsidian_connector.client import ObsidianCLIError, read_note
+from obsidian_connector.client_fallback import ObsidianCLIError, read_note
 
 
 def enrich_search_results(

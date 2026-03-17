@@ -8,13 +8,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from obsidian_connector.audit import log_action
-from obsidian_connector.client import (
+from obsidian_connector.client import run_obsidian
+from obsidian_connector.client_fallback import (
     ObsidianCLIError,
     batch_read_notes,
     list_tasks,
     log_to_daily,
     read_note,
-    run_obsidian,
     search_notes,
 )
 from obsidian_connector.config import load_config, resolve_vault_path
@@ -1501,7 +1501,7 @@ def check_in(
     if timezone_name:
         try:
             tz = ZoneInfo(timezone_name)
-        except (KeyError, Exception):
+        except KeyError:
             tz = None
     else:
         tz = None
