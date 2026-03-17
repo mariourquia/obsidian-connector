@@ -8,7 +8,7 @@ import time
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
-from obsidian_connector.client import (
+from obsidian_connector.client_fallback import (
     ObsidianCLIError,
     list_tasks,
     log_to_daily,
