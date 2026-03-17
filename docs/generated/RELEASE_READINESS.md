@@ -16,7 +16,7 @@ last_reviewed: "2026-03-16"
 ## Verdict
 
 ```
-READY WITH WARNINGS
+READY
 ```
 
 ## Evidence Summary
@@ -31,7 +31,7 @@ READY WITH WARNINGS
 | Version identified          | MEDIUM | PASS   | `0.2.0` in pyproject.toml, `__init__.py`, mcpb.json    |
 | Changelog exists            | MEDIUM | PASS   | `CHANGELOG.md` (Keep a Changelog format)                |
 | Security policy exists      | MEDIUM | PASS   | `SECURITY.md` with reporting process and threat model   |
-| Dependency lockfile exists  | LOW    | FAIL   | No lockfile; `mcp>=1.0.0,<2.0.0` resolved at install   |
+| Dependency lockfile exists  | LOW    | PASS   | `requirements-lock.txt` via pip-compile with hashes      |
 | Release automation exists   | LOW    | PASS   | `.github/workflows/release.yml` (tag-triggered)         |
 | Verification artifacts      | LOW    | PASS   | SHA256 checksums generated in release workflow           |
 
@@ -41,9 +41,8 @@ No blockers identified.
 
 ## Warnings
 
-- **W-NOLOCK**: No dependency lockfile.
-  - Risk: `pip install -e .` resolves `mcp` and its transitive dependencies at install time. A breaking release of a transitive dependency could cause installation failures.
-  - Mitigation: `mcp` is pinned to `>=1.0.0,<2.0.0`. Transitive dependency versions are documented in `SBOM.md`. pip-compile added to v0.3.0 roadmap. Accepted risk for v0.2.0.
+- **W-NOLOCK**: Dependency lockfile added.
+  - Status: Addressed. `requirements-lock.txt` generated via `pip-compile --generate-hashes` pins all transitive dependencies with SHA256 verification.
 
 - **W-COVERAGE**: Coverage measurement added in CI.
   - Status: Addressed. Coverage reporting added to the CI pipeline in this release cycle. Previously unquantified; now measured.
@@ -64,4 +63,4 @@ No blockers identified.
 
 ## Recommendation
 
-Proceed with release. All BLOCK and HIGH criteria pass. Three warnings addressed (coverage, scanning, signing now in CI). One accepted warning remains: no dependency lockfile (pip-compile planned for v0.3.0).
+Proceed with release. All criteria pass. All four warnings addressed: lockfile added (pip-compile with hashes), coverage in CI, security scanning in CI, cosign signing in release workflow.
