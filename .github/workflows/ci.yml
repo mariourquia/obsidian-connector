@@ -52,6 +52,7 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/uninstall_test.py
           coverage run --append --source=obsidian_connector scripts/mcp_tool_contract_test.py
           coverage run --append --source=obsidian_connector scripts/cli_parse_test.py
+          coverage run --append --source=obsidian_connector scripts/file_backend_test.py
       - name: Coverage report
         if: always()
         shell: bash
