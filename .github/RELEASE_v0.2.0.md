@@ -252,15 +252,23 @@ for Desktop-only, CLI-only, or combined setups.
 | `obsidian-connector-v0.2.0.zip` | Source archive | All |
 | `obsidian-connector-v0.2.0.dmg` | macOS installer | macOS |
 | `obsidian-connector-v0.2.0.sha256` | SHA256 checksums | All |
+| `*.sig` | Cosign signatures (Sigstore) | All |
+| `*.cert` | Signing certificates (Sigstore) | All |
 
 ### Verification
 
 ```bash
-# Download checksums
+# 1. Verify checksums
 curl -LO https://github.com/mariourquia/obsidian-connector/releases/download/v0.2.0/obsidian-connector-v0.2.0.sha256
-
-# Verify
 sha256sum -c obsidian-connector-v0.2.0.sha256
+
+# 2. Verify Sigstore signature (requires cosign: brew install cosign)
+cosign verify-blob \
+  --signature obsidian-connector-v0.2.0.tar.gz.sig \
+  --certificate obsidian-connector-v0.2.0.tar.gz.cert \
+  --certificate-identity-regexp "github.com/mariourquia/obsidian-connector" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  obsidian-connector-v0.2.0.tar.gz
 ```
 
 ## Rollback
