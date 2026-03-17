@@ -87,6 +87,7 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 | 21 | `improvement` | **Graceful pyyaml fallback** | Scheduling config currently logs a warning and uses defaults when pyyaml is missing. Surface a one-time install hint to the user instead of silently degrading. | Open |
 | 22 | `improvement` | **Index staleness indicator** | Show age of last index scan in graph tool output. Warn if index is older than a configurable threshold. Current mitigation: `rebuild-index` forces full rescan. | Open |
 | 23 | `risk` | **Scheduled jobs without user presence** | launchd jobs fire regardless of whether the user is at their machine, appending to the daily note silently. Add an optional "active hours" window or skip if no recent user activity. | Open |
+| 24 | `infra` | **Linux/Windows native installers** | AppImage/deb for Linux, MSI/exe for Windows -- equivalent to the macOS .dmg. Currently Linux and Windows use script-based installation. | Open |
 
 ---
 
@@ -108,6 +109,8 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 | -- | `infra` | Circular dependency resolved (`errors.py` canonical) | v0.2.0 |
 | -- | `infra` | Broad `except Exception` replaced in 8 MCP tools | v0.2.0 |
 | -- | `infra` | Installer cross-platform config path resolution | v0.2.0 |
+| -- | `improvement` | `file_backend.py` wired in via `client_fallback.py` adapter | v0.2.0 |
+| -- | `feature` | 4 skills (`/morning`, `/evening`, `/idea`, `/weekly`) and SessionStart hook | v0.2.0 |
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "Safe Installation Guide"
+title: "Safe Installation Guide: v0.2.0"
 status: draft
 # generated, do not edit
 owner: mariourquia
@@ -14,9 +14,9 @@ This guide covers installing obsidian-connector from scratch, verifying each ste
 
 Complete every item before starting installation.
 
-### macOS
+### macOS, Linux, or Windows
 
-Only macOS is supported. Linux and Windows support is planned but not available yet.
+All three platforms are supported as of v0.2.0.
 
 ### Python 3.11+
 

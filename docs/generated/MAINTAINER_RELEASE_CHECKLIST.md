@@ -1,39 +1,44 @@
 ---
-title: "Maintainer Release Checklist"
+title: "Maintainer Release Checklist: v0.2.0"
 status: draft
 # generated, do not edit
 owner: mariourquia
 last_reviewed: "2026-03-16"
 ---
 
-# Maintainer Release Checklist -- v0.1.3
+# Maintainer Release Checklist: obsidian-connector v0.2.0
 
-Release: **obsidian-connector v0.1.3**
-Branch: `feature/uninstaller` -> `main`
-Tag: `v0.1.3`
+Release: **obsidian-connector v0.2.0**
+Branch: `feature/uninstaller` -> `main` (PR #13)
+Tag: `v0.2.0`
+Commits since v0.1.1: 38
+Files changed: 59 (+11,796 / -135 lines)
 
 ---
 
 ## 1. Pre-Release
 
 - [ ] Version string matches in all three locations:
-  - `obsidian_connector/__init__.py` (`__version__ = "0.1.3"`)
-  - `pyproject.toml` (`version = "0.1.3"`)
-  - `CHANGELOG.md` (`## [0.1.3] - YYYY-MM-DD` with correct date)
-- [ ] All tests pass:
+  - `obsidian_connector/__init__.py` (`__version__ = "0.2.0"`)
+  - `pyproject.toml` (`version = "0.2.0"`)
+  - `mcpb.json` (`"version": "0.2.0"`)
+  - `CHANGELOG.md` (`## [0.2.0] - 2026-03-16`)
+- [ ] All CI-safe tests pass locally:
   ```bash
-  python3 scripts/smoke_test.py
-  python3 scripts/cache_test.py
-  bash scripts/mcp_launch_smoke.sh
+  make ci-local
   ```
 - [ ] Docs lint passes:
   ```bash
   make docs-lint
   ```
-- [ ] `CHANGELOG.md` has a complete entry for v0.1.3 with Added, Security sections and a compare link at the bottom (`[0.1.3]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.2...v0.1.3`)
-- [ ] `README.md` updated if any user-facing behavior changed (new commands, new install steps, removed features)
-- [ ] `TOOLS_CONTRACT.md` updated if MCP tool signatures or envelope schema changed
-- [ ] No `TODO`, `FIXME`, or `HACK` comments related to release-blocking items
+- [ ] CHANGELOG.md has complete v0.2.0 entry (Added, Fixed, Changed, Documentation)
+- [ ] README.md updated (29 tools, 29 commands, cross-platform install paths)
+- [ ] TOOLS_CONTRACT.md updated (`obsidian_uninstall` name)
+- [ ] ARCHITECTURE.md updated (platform.py, file_backend.py, uninstall.py in module table)
+- [ ] SECURITY.md updated (v0.2.x supported, v0.1.x security-fixes-only)
+- [ ] SBOM.md updated (v0.2.0, new stdlib-only modules listed)
+- [ ] Release readiness review completed: `docs/generated/RELEASE_READINESS.md`
+- [ ] No hardcoded secrets in codebase
 
 ---
 
@@ -41,118 +46,95 @@ Tag: `v0.1.3`
 
 ### 2a. Merge to main
 
-Do not commit directly to `main`. Use a pull request.
-
 ```bash
-# Push branch if not already pushed
+# Push branch
 git push -u origin feature/uninstaller
 
 # Open PR
 gh pr create \
   --base main \
   --head feature/uninstaller \
-  --title "v0.1.3: Safe uninstaller" \
-  --body "Adds two-mode uninstaller (CLI + MCP tool) with 52 tests. See CHANGELOG.md for details."
+  --title "v0.2.0: Cross-platform support + security hardening" \
+  --body "See .github/RELEASE_v0.2.0.md for full release notes."
 ```
 
-- [ ] PR opened: `feature/uninstaller` -> `main`
-- [ ] CI passes (lint, test matrix Python 3.11-3.13, MCP launch smoke)
-- [ ] PR reviewed and approved
-- [ ] PR merged via GitHub UI (squash or merge commit, per preference)
+- [ ] PR #13 opened: `feature/uninstaller` -> `main`
+- [ ] CI passes (lint + test matrix: 3 OS x 3 Python + MCP launch smoke)
+- [ ] PR reviewed
+- [ ] PR merged
 
 ### 2b. Tag the release
-
-After merge, pull `main` and create a signed tag.
 
 ```bash
 git checkout main
 git pull origin main
-git tag -s v0.1.3 -m "v0.1.3: Safe uninstaller"
-git push origin v0.1.3
+git tag -s v0.2.0 -m "v0.2.0: Cross-platform support + security hardening"
+git push origin v0.2.0
 ```
 
-- [ ] Tag `v0.1.3` created (GPG-signed via 1Password SSH / `op-ssh-sign`)
-- [ ] Tag pushed to origin
+- [ ] Tag `v0.2.0` created (signed via 1Password SSH / `op-ssh-sign`)
+- [ ] Tag pushed to origin (triggers `.github/workflows/release.yml`)
 
-### 2c. Build artifacts
+### 2c. Release workflow builds artifacts
 
-```bash
-# Clean previous builds
-rm -rf dist/
+The release workflow (`.github/workflows/release.yml`) runs automatically on tag push:
 
-# Build sdist and wheel
-python3 -m build
-```
+1. `build-artifacts` (ubuntu-latest): source archives (tar.gz, zip) + checksums
+2. `build-macos-dmg` (macos-latest): macOS .dmg installer
+3. `create-release`: combines artifacts, generates final SHA256 file, creates draft GitHub Release
 
-- [ ] `dist/obsidian_connector-0.1.3.tar.gz` exists (sdist)
-- [ ] `dist/obsidian_connector-0.1.3-py3-none-any.whl` exists (wheel)
+- [ ] Release workflow completes without errors
+- [ ] All 4 artifacts attached to draft release:
+  - `obsidian-connector-v0.2.0.tar.gz`
+  - `obsidian-connector-v0.2.0.zip`
+  - `obsidian-connector-v0.2.0.dmg`
+  - `obsidian-connector-v0.2.0.sha256`
 
-### 2d. Generate checksums
+### 2d. Finalize GitHub Release
 
-```bash
-cd dist
-shasum -a 256 obsidian_connector-0.1.3.tar.gz > obsidian_connector-0.1.3.tar.gz.sha256
-shasum -a 256 obsidian_connector-0.1.3-py3-none-any.whl > obsidian_connector-0.1.3-py3-none-any.whl.sha256
-cd ..
-```
-
-- [ ] SHA-256 checksum files generated for each artifact
-
-### 2e. Create GitHub Release
-
-```bash
-gh release create v0.1.3 \
-  --title "v0.1.3: Safe uninstaller" \
-  --notes-file docs/generated/RELEASE_NOTES_v0.1.3.md \
-  dist/obsidian_connector-0.1.3.tar.gz \
-  dist/obsidian_connector-0.1.3-py3-none-any.whl \
-  dist/obsidian_connector-0.1.3.tar.gz.sha256 \
-  dist/obsidian_connector-0.1.3-py3-none-any.whl.sha256
-```
-
-- [ ] GitHub Release created with tag `v0.1.3`
-- [ ] Release notes attached (from `docs/generated/RELEASE_NOTES_v0.1.3.md`)
-- [ ] sdist, wheel, and sha256 checksum files attached as release assets
+- [ ] Review the draft release on GitHub
+- [ ] Copy release body from `.github/RELEASE_v0.2.0.md`
+- [ ] Verify artifact download links work
+- [ ] Verify checksums: `sha256sum -c obsidian-connector-v0.2.0.sha256`
+- [ ] Publish the release (undraft)
 
 ---
 
 ## 3. Post-Release
 
-- [ ] GitHub Release page renders correctly: https://github.com/mariourquia/obsidian-connector/releases/tag/v0.1.3
-- [ ] Compare link in `CHANGELOG.md` resolves: https://github.com/mariourquia/obsidian-connector/compare/v0.1.2...v0.1.3
-- [ ] `ROADMAP.md` Completed section includes v0.1.3 items
+- [ ] GitHub Release page renders correctly
+- [ ] Compare link resolves: https://github.com/mariourquia/obsidian-connector/compare/v0.1.3...v0.2.0
+- [ ] ROADMAP.md updated with completed v0.2.0 items
 - [ ] Delete the `feature/uninstaller` branch after merge:
   ```bash
   git branch -d feature/uninstaller
   git push origin --delete feature/uninstaller
   ```
-- [ ] Announce release (if applicable): GitHub Discussions, README badge update, etc.
+- [ ] Verify rollback procedure:
+  ```bash
+  git checkout v0.1.1
+  rm -rf .venv && python3 -m venv .venv && .venv/bin/pip install -e .
+  .venv/bin/python3 -c "import obsidian_connector; print('OK')"
+  git checkout main
+  ```
+- [ ] Monitor GitHub Issues for immediate bug reports
 
 ---
 
 ## 4. Future: PyPI Publication
 
-> Not yet active. Tracked as Roadmap item #18.
+> Not yet active. Tracked as Roadmap item.
 
-When PyPI publication is enabled, add these steps after 2e:
+When PyPI publication is enabled, add:
 
 ```bash
-# Upload to TestPyPI first
-python3 -m twine upload --repository testpypi dist/*
-
-# Verify install from TestPyPI
-pip install --index-url https://test.pypi.org/simple/ obsidian-connector==0.1.3
-
-# Upload to PyPI
-python3 -m twine upload dist/*
-
-# Verify install from PyPI
-pip install obsidian-connector==0.1.3
+python3 -m build
+twine upload --repository testpypi dist/*
+pip install --index-url https://test.pypi.org/simple/ obsidian-connector==0.2.0
+twine upload dist/*
 ```
 
-Prerequisites before enabling:
-- [ ] PyPI account created and API token stored securely
-- [ ] `twine` added to dev dependencies
-- [ ] `python3 -m build` added to CI for artifact validation
-- [ ] TestPyPI dry run completed successfully at least once
-- [ ] `pyproject.toml` classifiers and metadata reviewed for PyPI listing
+Prerequisites:
+- [ ] PyPI account and API token
+- [ ] `twine` in dev dependencies
+- [ ] TestPyPI dry run completed
