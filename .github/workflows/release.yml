@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build-artifacts:
@@ -96,6 +97,22 @@ jobs:
                     obsidian-connector-${TAG_NAME}.dmg > obsidian-connector-${TAG_NAME}.sha256
           cat obsidian-connector-${TAG_NAME}.sha256
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign release assets (keyless OIDC)
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          cd final-assets
+          for f in "obsidian-connector-${TAG_NAME}.tar.gz" \
+                   "obsidian-connector-${TAG_NAME}.zip" \
+                   "obsidian-connector-${TAG_NAME}.dmg"; do
+            cosign sign-blob --yes "$f" \
+              --output-signature "${f}.sig" \
+              --output-certificate "${f}.cert"
+          done
+
       - name: Create release and upload assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,6 +123,12 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.zip" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg" \
             "final-assets/obsidian-connector-${TAG_NAME}.sha256" \
+            "final-assets/obsidian-connector-${TAG_NAME}.tar.gz.sig" \
+            "final-assets/obsidian-connector-${TAG_NAME}.tar.gz.cert" \
+            "final-assets/obsidian-connector-${TAG_NAME}.zip.sig" \
+            "final-assets/obsidian-connector-${TAG_NAME}.zip.cert" \
+            "final-assets/obsidian-connector-${TAG_NAME}.dmg.sig" \
+            "final-assets/obsidian-connector-${TAG_NAME}.dmg.cert" \
             --title "$TAG_NAME" \
             --generate-notes \
             --draft
