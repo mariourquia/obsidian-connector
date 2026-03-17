@@ -51,9 +51,8 @@ No blockers identified.
 - **W-NOSCAN**: Security scanning added in CI.
   - Status: Addressed. pip-audit and CodeQL scanning added to the CI pipeline in this release cycle. Previously manual-only.
 
-- **W-NOSIGN**: Release assets are not signed.
-  - Risk: Users cannot cryptographically verify artifact provenance beyond SHA256 checksums.
-  - Mitigation: SHA256 checksums are generated and attached to the GitHub Release. GPG/cosign signing planned for a future release.
+- **W-NOSIGN**: Release asset signing added in CI.
+  - Status: Addressed. Keyless cosign signing via Sigstore OIDC added to release workflow. Each asset (.tar.gz, .zip, .dmg) gets a `.sig` and `.cert` file uploaded to the GitHub Release. Users verify with `cosign verify-blob`.
 
 ## Assumptions
 
@@ -65,4 +64,4 @@ No blockers identified.
 
 ## Recommendation
 
-Proceed with release. All BLOCK and HIGH criteria pass. Four warnings documented: no lockfile (accepted for v0.2.0), coverage now in CI, security scanning now in CI, no asset signing (future). All have mitigations in place.
+Proceed with release. All BLOCK and HIGH criteria pass. Three warnings addressed (coverage, scanning, signing now in CI). One accepted warning remains: no dependency lockfile (pip-compile planned for v0.3.0).
