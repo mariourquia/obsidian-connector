@@ -2,12 +2,13 @@
 # ──────────────────────────────────────────────────────────────────────
 # Build a .dmg installer for obsidian-connector
 #
-# Creates a macOS disk image that non-technical users can download,
-# open, and double-click Install.command to set everything up.
+# Creates a macOS disk image with a clean installer UX:
+# the user opens the DMG and sees only Install.command and a README.
+# All project files are tucked into a hidden .content/ directory.
 #
 # Usage:
 #   ./scripts/create-dmg.sh                # builds dist/obsidian-connector.dmg
-#   ./scripts/create-dmg.sh --version 0.2  # custom version in filename
+#   ./scripts/create-dmg.sh v0.2.0         # custom version in filename
 # ──────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -22,7 +23,6 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            # Treat a bare positional argument as the version value.
             VERSION="$1"
             shift
             ;;
@@ -30,7 +30,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$VERSION" ]; then
-    # Read from pyproject.toml
     VERSION=$(python3 -c "
 import re
 with open('pyproject.toml') as f:
@@ -48,9 +47,9 @@ echo "Building $DMG_NAME.dmg..."
 # ── Clean ─────────────────────────────────────────────────────────────
 
 rm -rf "$STAGING_DIR"
-mkdir -p "$STAGING_DIR/$DMG_NAME" "$DIST_DIR"
+mkdir -p "$STAGING_DIR/$DMG_NAME/.content" "$DIST_DIR"
 
-# ── Copy project files (exclude dev artifacts) ────────────────────────
+# ── Copy project files into hidden .content/ ──────────────────────────
 
 rsync -a \
     --exclude='.venv' \
@@ -71,30 +70,65 @@ rsync -a \
     --exclude='dev' \
     --exclude='hooks' \
     --exclude='main.py' \
-    "$REPO_ROOT/" "$STAGING_DIR/$DMG_NAME/"
+    "$REPO_ROOT/" "$STAGING_DIR/$DMG_NAME/.content/"
 
-# ── Create a visible README in the DMG ────────────────────────────────
+# ── Create the top-level Install.command wrapper ──────────────────────
+# This is the ONLY executable the user sees. It delegates to the real
+# installer inside .content/.
 
-cat > "$STAGING_DIR/$DMG_NAME/START HERE.txt" << 'README'
-obsidian-connector
-==================
+cat > "$STAGING_DIR/$DMG_NAME/Install.command" << 'INSTALLER'
+#!/usr/bin/env bash
+# ──────────────────────────────────────────────────────────────────────
+# obsidian-connector installer
+# Double-click this file to install.
+# ──────────────────────────────────────────────────────────────────────
+set -euo pipefail
 
-Double-click "Install.command" to set everything up.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTENT_DIR="$SCRIPT_DIR/.content"
 
-It will:
-  1. Set up the Python environment
-  2. Configure Claude Desktop automatically
-  3. Give Claude access to your Obsidian vault
+if [ ! -d "$CONTENT_DIR" ]; then
+    echo "Error: .content directory not found."
+    echo "Please run this from the mounted DMG, not a copied file."
+    exit 1
+fi
 
-Requirements:
-  - Python 3.11+ (https://python.org/downloads)
-  - Obsidian desktop app (https://obsidian.md)
-  - Claude Desktop
+# Hand off to the real installer
+exec bash "$CONTENT_DIR/Install.command"
+INSTALLER
+chmod +x "$STAGING_DIR/$DMG_NAME/Install.command"
 
-If macOS says the file can't be opened because it's from an
-unidentified developer: right-click Install.command, select
-"Open", then click "Open" in the dialog.
+# ── Create the visible README ─────────────────────────────────────────
+
+cat > "$STAGING_DIR/$DMG_NAME/README.txt" << 'README'
+┌─────────────────────────────────────────────┐
+│         obsidian-connector installer         │
+├─────────────────────────────────────────────┤
+│                                             │
+│  Double-click "Install.command" to start.   │
+│                                             │
+│  It will:                                   │
+│    1. Set up a Python environment           │
+│    2. Configure Claude Desktop              │
+│    3. Connect Claude to your Obsidian vault │
+│                                             │
+│  Requirements:                              │
+│    • Python 3.11+  (python.org/downloads)   │
+│    • Obsidian      (obsidian.md)            │
+│    • Claude Desktop                         │
+│                                             │
+│  If macOS blocks the file:                  │
+│    Right-click → Open → click "Open"        │
+│                                             │
+└─────────────────────────────────────────────┘
 README
+
+# ── Hide .content/ from Finder ────────────────────────────────────────
+# SetFile -a V makes a file/folder invisible in Finder but still
+# accessible to scripts. chflags hidden is the modern equivalent.
+
+chflags hidden "$STAGING_DIR/$DMG_NAME/.content" 2>/dev/null || true
+# Also set the dot-prefix hides it on most systems by convention
 
 # ── Build DMG ─────────────────────────────────────────────────────────
 
@@ -115,4 +149,7 @@ echo "Created: $DIST_DIR/$DMG_NAME.dmg"
 SIZE=$(du -h "$DIST_DIR/$DMG_NAME.dmg" | cut -f1 | tr -d ' ')
 echo "Size: $SIZE"
 echo ""
-echo "Upload this to GitHub Releases for distribution."
+echo "DMG contents visible to user:"
+echo "  Install.command   (double-click to install)"
+echo "  README.txt        (instructions)"
+echo "  .content/         (hidden -- project files)"
