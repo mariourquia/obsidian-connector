@@ -69,25 +69,25 @@
 |                                                   |
 |  macOS (easiest):                                 |
 |    Download .dmg from Releases                    |
-|    Open DMG, double-click Install.command          |
-|    Restart Claude Desktop                          |
+|    Open DMG, double-click Install.command         |
+|    Restart Claude Desktop                         |
 |                                                   |
-|  Linux:                                            |
-|    git clone ...obsidian-connector.git             |
-|    cd obsidian-connector                           |
-|    bash scripts/install-linux.sh                   |
+|  Linux:                                           |
+|    git clone ...obsidian-connector.git            |
+|    cd obsidian-connector                          |
+|    bash scripts/install-linux.sh                  |
 |                                                   |
-|  Windows (PowerShell):                             |
-|    git clone ...obsidian-connector.git             |
-|    cd obsidian-connector                           |
-|    .\scripts\Install.ps1                           |
+|  Windows (PowerShell):                            |
+|    git clone ...obsidian-connector.git            |
+|    cd obsidian-connector                          |
+|    .\scripts\Install.ps1                          |
 |                                                   |
-|  Manual (any platform):                            |
-|    git clone ...obsidian-connector.git             |
-|    cd obsidian-connector                           |
-|    python3 -m venv .venv                           |
-|    .venv/bin/pip install -e .                      |
-|    ./bin/obsx doctor                               |
+|  Manual (any platform):                           |
+|    git clone ...obsidian-connector.git            |
+|    cd obsidian-connector                          |
+|    python3 -m venv .venv                          |
+|    .venv/bin/pip install -e .                     |
+|    ./bin/obsx doctor                              |
 |                                                   |
 +---------------------------------------------------+
 ```
@@ -171,7 +171,7 @@ for Desktop-only, CLI-only, or combined setups.
 | scripts/escaping_test.py      | varies      | PASS   |
 | scripts/cache_test.py         | varies      | PASS   |
 +-------------------------------+-------------+--------+
-| CI matrix: macOS + Ubuntu + Windows          |        |
+| CI matrix: macOS + Ubuntu + Windows         |        |
 | Python versions: 3.11, 3.12, 3.13           |        |
 +-------------------------------+-------------+--------+
 ```
@@ -236,7 +236,7 @@ for Desktop-only, CLI-only, or combined setups.
 |                                    | workflows.py (1,594 LOC)          | v0.3.0                      |
 +------------------------------------+-----------------------------------+-----------------------------+
 | Open loop detection                | Custom OL: marker convention      | Consider task-style         |
-|                                    | with no Obsidian plugin support   | - [ ] OL: in future        |
+|                                    | with no Obsidian plugin support   | - [ ] OL: in future         |
 +------------------------------------+-----------------------------------+-----------------------------+
 | Drift analysis regex-based         | Intention extraction uses regex   | Semantic matching planned   |
 |                                    | not semantic matching             |                             |
