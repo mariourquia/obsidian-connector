@@ -34,6 +34,8 @@ READY
 | Dependency lockfile exists  | LOW    | PASS   | `requirements-lock.txt` via pip-compile with hashes      |
 | Release automation exists   | LOW    | PASS   | `.github/workflows/release.yml` (tag-triggered)         |
 | Verification artifacts      | LOW    | PASS   | SHA256 checksums generated in release workflow           |
+| Skills installed to .claude/commands/ | LOW | PASS | 4 skills: morning, evening, idea, weekly               |
+| SessionStart hook configured | LOW   | PASS   | hooks/session_start.sh registered in .claude/settings.json |
 
 ## Blockers
 

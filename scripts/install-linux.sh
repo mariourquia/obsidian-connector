@@ -67,7 +67,8 @@ else
 fi
 
 "$REPO_ROOT/.venv/bin/pip" install --quiet --upgrade pip
-"$REPO_ROOT/.venv/bin/pip" install --quiet -e "$REPO_ROOT"
+"$REPO_ROOT/.venv/bin/pip" install --quiet -r "$REPO_ROOT/requirements-lock.txt"
+"$REPO_ROOT/.venv/bin/pip" install --quiet --no-deps -e "$REPO_ROOT"
 
 green "  Installed obsidian-connector"
 
@@ -112,32 +113,43 @@ CONF
     fi
 
     # Config exists -- update or add obsidian-connector entry
-    if "$REPO_ROOT/.venv/bin/python3" -c "
-import json, sys
-with open('$CLAUDE_CONFIG') as f:
+    # Pass paths via environment variables to prevent shell injection
+    if VENV_PYTHON="$VENV_PYTHON" REPO_ROOT="$REPO_ROOT" CLAUDE_CONFIG="$CLAUDE_CONFIG" \
+    "$REPO_ROOT/.venv/bin/python3" -c "
+import json, os
+venv_python = os.environ['VENV_PYTHON']
+repo_root = os.environ['REPO_ROOT']
+config_path = os.environ['CLAUDE_CONFIG']
+with open(config_path) as f:
     cfg = json.load(f)
 servers = cfg.get('mcpServers', {})
 if 'obsidian-connector' in servers:
-    servers['obsidian-connector']['command'] = '$VENV_PYTHON'
+    servers['obsidian-connector']['command'] = venv_python
     servers['obsidian-connector']['args'] = ['-u', '-m', 'obsidian_connector.mcp_server']
-    servers['obsidian-connector']['cwd'] = '$REPO_ROOT'
-    servers['obsidian-connector']['env'] = {'PYTHONPATH': '$REPO_ROOT'}
-    with open('$CLAUDE_CONFIG', 'w') as f:
+    servers['obsidian-connector']['cwd'] = repo_root
+    servers['obsidian-connector']['env'] = {'PYTHONPATH': repo_root}
+    with open(config_path, 'w') as f:
         json.dump(cfg, f, indent=2)
         f.write('\n')
     print('updated')
 else:
-    servers['obsidian-connector'] = json.loads('''$server_json''')
+    servers['obsidian-connector'] = {
+        'command': venv_python,
+        'args': ['-u', '-m', 'obsidian_connector.mcp_server'],
+        'cwd': repo_root,
+        'env': {'PYTHONPATH': repo_root}
+    }
     cfg['mcpServers'] = servers
-    with open('$CLAUDE_CONFIG', 'w') as f:
+    with open(config_path, 'w') as f:
         json.dump(cfg, f, indent=2)
         f.write('\n')
     print('added')
 " 2>/dev/null; then
         local result
-        result=$("$REPO_ROOT/.venv/bin/python3" -c "
-import json
-with open('$CLAUDE_CONFIG') as f:
+        result=$(CLAUDE_CONFIG="$CLAUDE_CONFIG" "$REPO_ROOT/.venv/bin/python3" -c "
+import json, os
+config_path = os.environ['CLAUDE_CONFIG']
+with open(config_path) as f:
     cfg = json.load(f)
 print('present' if 'obsidian-connector' in cfg.get('mcpServers', {}) else 'missing')
 " 2>/dev/null)
@@ -266,11 +278,13 @@ if [[ "${INSTALL_HOOK:-n}" =~ ^[Yy]$ ]]; then
     SETTINGS_FILE="$REPO_ROOT/.claude/settings.json"
     HOOK_CMD="bash $REPO_ROOT/hooks/session_start.sh"
 
+    # Pass paths via environment variables to prevent shell injection
+    SETTINGS_FILE="$SETTINGS_FILE" HOOK_CMD="$HOOK_CMD" \
     "$REPO_ROOT/.venv/bin/python3" -c "
 import json, os, sys
 
-path = '$SETTINGS_FILE'
-hook_cmd = '$HOOK_CMD'
+path = os.environ['SETTINGS_FILE']
+hook_cmd = os.environ['HOOK_CMD']
 
 # Load existing or start fresh
 cfg = {}

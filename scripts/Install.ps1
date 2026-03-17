@@ -79,7 +79,8 @@ else {
 
 try {
     & $VenvPip install --quiet --upgrade pip
-    & $VenvPip install --quiet -e $RepoRoot
+    & $VenvPip install --quiet -r (Join-Path $RepoRoot "requirements-lock.txt")
+    & $VenvPip install --quiet --no-deps -e $RepoRoot
     Write-Success "  Installed obsidian-connector"
 }
 catch {
