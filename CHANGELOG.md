@@ -4,6 +4,50 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-16
+
+### Added
+- **Cross-platform support**: New `platform.py` module with `PlatformPaths` dataclass resolving Obsidian, Claude Desktop, and scheduling paths for macOS, Linux, and Windows. Includes scheduling abstraction (`install_schedule`, `uninstall_schedule`), notification dispatch, and Obsidian binary candidates per OS.
+- **MCP tool contract tests**: Verifies tool count, error envelope format, typed error mapping, and narrowed exception behavior.
+- **CLI argument parsing tests**: `--help` on all subcommands, `--json` flag acceptance, unknown command rejection.
+- **Audit log permission tests**: Validates 0o700 directory mode for both new and pre-existing audit log directories.
+- **Import cycle regression tests**: Ensures `errors.py` and `client.py` import cleanly with no circular dependency.
+- **Platform detection tests**: Covers macOS, Linux, and Windows path resolution, scheduling config, and binary candidates.
+- Ubuntu added to CI test matrix (15 test files, up from 8).
+
+### Fixed
+- **Version sync**: All version sources (`pyproject.toml`, `__init__.py`, `plugin.json`) now read `0.2.0`.
+- **Audit log security**: Directory created with `0o700` (owner-only). Explicit `chmod` hardens pre-existing directories on upgrade.
+- **Circular dependency**: `ObsidianCLIError` moved to `errors.py` as canonical location. `client.py` no longer defines exceptions or uses late imports.
+- **Error handling**: Uninstall MCP tool and 7 graph/thinking tools tightened from `except Exception` to specific types (`OSError`, `ValueError`, `KeyError`, `TypeError`, `json.JSONDecodeError`). Unexpected exceptions now propagate instead of being silently swallowed.
+- **README accuracy**: MCP tool count (29) and CLI command count (29) corrected. Uninstall tool and command documented. Requirements updated for cross-platform.
+- **Installer**: `scripts/install.sh` now resolves Claude Desktop config path per OS instead of hardcoding macOS path.
+
+### Changed
+- `_load_or_build_index()` deduplicated: removed from `mcp_server.py`, `thinking.py`, `workflows.py`; all use `index_store.load_or_build_index` directly.
+- `config.py` and `uninstall.py` use `platform.py` for path resolution instead of hardcoded macOS paths.
+- CI matrix expanded from macOS-only to macOS + Ubuntu, 8 to 15 test files.
+
+### Documentation
+- Tech debt tracker populated with deferred v0.2.0 review findings.
+- ROADMAP updated with completed items.
+- README cross-platform manual setup paths.
+
+## [0.1.3] - 2026-03-16
+
+### Added
+
+- **Uninstaller** (`obsx uninstall`): Two-mode safe uninstaller that cleanly removes core installation artifacts created by the installer (CLI entrypoint, launchd plist, and Claude Desktop MCP config). Interactive CLI mode with per-artifact confirmation, and non-interactive `--force` mode for MCP/scripted contexts. Includes `--dry-run` preview, timestamped config backups, JSON validation after config edits, and idempotent operation.
+- **Uninstall MCP tool**: `uninstall` tool with `ToolAnnotations` (`destructiveHint=true`) for Claude Desktop. Defaults to dry-run for safety; explicit flags required for each supported artifact type.
+- **Comprehensive test suite**: 52 tests covering unit (Tasks 1-6), integration (Task 9), and edge cases (Task 11) for the uninstaller module.
+
+### Security
+
+- Config file backups created before any modification (`claude_desktop_config.json.backup-TIMESTAMP`)
+- JSON validation after config edits prevents writing corrupted config
+- Launchd plist properly unloaded before removal
+- Interactive CLI uninstall actions logged to audit trail
+
 ## [0.1.2] - 2026-03-06
 
 ### Fixed
@@ -57,6 +101,8 @@ First public release.
 - No secrets stored, transmitted, or hardcoded
 - No network calls (100% local)
 
+[0.2.0]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.3...v0.2.0
+[0.1.3]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/mariourquia/obsidian-connector/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/mariourquia/obsidian-connector/releases/tag/v0.1.0

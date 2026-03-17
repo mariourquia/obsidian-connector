@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from obsidian_connector.client import (
+from obsidian_connector.client_fallback import (
     ObsidianCLIError,
     list_tasks,
     log_to_daily,
@@ -1466,7 +1466,8 @@ def main(argv: list[str] | None = None) -> int:
             # Resolve paths
             repo_root = Path(__file__).parent.parent
             venv_path = repo_root / ".venv"
-            claude_config_path = Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+            from obsidian_connector.platform import get_platform_paths
+            claude_config_path = get_platform_paths().claude_config_dir / "claude_desktop_config.json"
 
             # Detect what's installed
             plan = detect_installed_artifacts(
@@ -1507,13 +1508,13 @@ def main(argv: list[str] | None = None) -> int:
                     affected_path="system-config",
                 )
 
-                # Ask about each artifact type (inverted logic: keep = default)
-                plan.remove_venv = input("Keep .venv directory? [y/N] ").lower() not in ["y", "yes"]
-                plan.remove_skills = input("Keep Claude Code skills? [y/N] ").lower() not in ["y", "yes"]
-                plan.remove_hook = input("Keep SessionStart hook? [y/N] ").lower() not in ["y", "yes"]
+                # Ask about each artifact type (safe default: keep)
+                plan.remove_venv = input("Remove .venv directory? [y/N] ").lower() in ["y", "yes"]
+                plan.remove_skills = input("Remove Claude Code skills? [y/N] ").lower() in ["y", "yes"]
+                plan.remove_hook = input("Remove SessionStart hook? [y/N] ").lower() in ["y", "yes"]
 
                 # Add explicit prompt for Claude config entry
-                keep_claude_config = input("Keep Claude config entry? [y/N] ").lower() in ["y", "yes"]
+                keep_claude_config = input("Keep Claude config entry? [Y/n] ").lower() not in ["n", "no"]
                 if not keep_claude_config and plan.config_changes:
                     # Mark to remove config entry
                     pass
@@ -1521,9 +1522,9 @@ def main(argv: list[str] | None = None) -> int:
                     # Don't remove config entry
                     plan.config_changes = {}
 
-                plan.remove_plist = input("Keep launchd plist? [y/N] ").lower() not in ["y", "yes"]
-                plan.remove_logs = input("Keep logs? [y/N] ").lower() not in ["y", "yes"]
-                plan.remove_cache = input("Keep cache/index files? [y/N] ").lower() not in ["y", "yes"]
+                plan.remove_plist = input("Remove launchd/systemd schedule? [y/N] ").lower() in ["y", "yes"]
+                plan.remove_logs = input("Remove logs? [y/N] ").lower() in ["y", "yes"]
+                plan.remove_cache = input("Remove cache/index files? [y/N] ").lower() in ["y", "yes"]
 
                 # Show plan
                 print("\n" + "=" * 40)

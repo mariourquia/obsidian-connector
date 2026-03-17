@@ -8,7 +8,7 @@ import time
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
-from obsidian_connector.client import (
+from obsidian_connector.client_fallback import (
     ObsidianCLIError,
     list_tasks,
     log_to_daily,
@@ -23,7 +23,7 @@ from obsidian_connector.errors import (
     ObsidianNotRunning,
     VaultNotFound,
 )
-from obsidian_connector.graph import NoteIndex
+from obsidian_connector.graph import NoteIndex, resolve_note_path
 from obsidian_connector.thinking import (
     deep_ideas,
     drift_analysis,
@@ -31,7 +31,8 @@ from obsidian_connector.thinking import (
     trace_idea,
 )
 from obsidian_connector.config import resolve_vault_path
-from obsidian_connector.index_store import IndexStore
+from obsidian_connector.index_store import IndexStore, load_or_build_index
+from obsidian_connector.audit import log_action
 from obsidian_connector.uninstall import (
     detect_installed_artifacts,
     dry_run_uninstall,
@@ -75,13 +76,6 @@ def _error_envelope(exc: ObsidianCLIError) -> str:
     return json.dumps(
         {"ok": False, "error": {"type": error_type, "message": str(exc)}}
     )
-
-
-def _load_or_build_index(vault: str | None = None) -> NoteIndex | None:
-    """Delegate to the canonical shared implementation."""
-    from obsidian_connector.index_store import load_or_build_index
-
-    return load_or_build_index(vault)
 
 
 def _read_vault_file(rel_path: str, vault: str | None = None) -> str:
@@ -539,25 +533,13 @@ def obsidian_neighborhood(
         vault: Target vault name (uses default if omitted).
     """
     try:
-        idx = _load_or_build_index(vault)
+        idx = load_or_build_index(vault)
         if idx is None:
             return json.dumps(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
             )
 
-        # Resolve the note path: try exact match, then by title, then with .md suffix.
-        resolved = None
-        if note_path in idx.notes:
-            resolved = note_path
-        else:
-            for path, entry in idx.notes.items():
-                if entry.title.lower() == note_path.lower():
-                    resolved = path
-                    break
-            if resolved is None and not note_path.endswith(".md"):
-                candidate = note_path + ".md"
-                if candidate in idx.notes:
-                    resolved = candidate
+        resolved = resolve_note_path(idx, note_path)
 
         if resolved is None:
             return json.dumps(
@@ -579,7 +561,7 @@ def obsidian_neighborhood(
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -601,7 +583,7 @@ def obsidian_vault_structure(vault: str | None = None) -> str:
         vault: Target vault name (uses default if omitted).
     """
     try:
-        idx = _load_or_build_index(vault)
+        idx = load_or_build_index(vault)
         if idx is None:
             return json.dumps(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
@@ -655,7 +637,7 @@ def obsidian_vault_structure(vault: str | None = None) -> str:
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -678,25 +660,13 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
         vault: Target vault name (uses default if omitted).
     """
     try:
-        idx = _load_or_build_index(vault)
+        idx = load_or_build_index(vault)
         if idx is None:
             return json.dumps(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
             )
 
-        # Resolve the note path.
-        resolved = None
-        if note_path in idx.notes:
-            resolved = note_path
-        else:
-            for path, entry in idx.notes.items():
-                if entry.title.lower() == note_path.lower():
-                    resolved = path
-                    break
-            if resolved is None and not note_path.endswith(".md"):
-                candidate = note_path + ".md"
-                if candidate in idx.notes:
-                    resolved = candidate
+        resolved = resolve_note_path(idx, note_path)
 
         if resolved is None:
             return json.dumps(
@@ -732,7 +702,7 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
         return json.dumps(results, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -874,7 +844,7 @@ def obsidian_ghost(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -909,7 +879,7 @@ def obsidian_drift(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -945,7 +915,7 @@ def obsidian_trace(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -980,7 +950,7 @@ def obsidian_ideas(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
@@ -1114,7 +1084,7 @@ def obsidian_check_in(
         openWorldHint=False,
     ),
 )
-def uninstall(
+def obsidian_uninstall(
     dry_run: bool = True,
     remove_venv: bool = False,
     remove_skills: bool = False,
@@ -1148,13 +1118,8 @@ def uninstall(
         # Resolve paths
         repo_root = Path(__file__).parent.parent
         venv_path = repo_root / ".venv"
-        claude_config_path = (
-            Path.home()
-            / "Library"
-            / "Application Support"
-            / "Claude"
-            / "claude_desktop_config.json"
-        )
+        from obsidian_connector.platform import claude_desktop_config_path
+        claude_config_path = claude_desktop_config_path()
 
         # Detect what's installed
         plan = detect_installed_artifacts(
@@ -1165,6 +1130,22 @@ def uninstall(
 
         if dry_run:
             # Preview mode: show what would be removed
+            log_action(
+                "uninstall",
+                {
+                    "mode": "mcp",
+                    "dry_run": True,
+                    "remove_venv": remove_venv,
+                    "remove_skills": remove_skills,
+                    "remove_hook": remove_hook,
+                    "remove_plist": remove_plist,
+                    "remove_logs": remove_logs,
+                    "remove_cache": remove_cache,
+                },
+                vault=None,
+                dry_run=True,
+                affected_path="system-config",
+            )
             result = dry_run_uninstall(plan)
         else:
             # Execution mode: remove artifacts
@@ -1175,10 +1156,26 @@ def uninstall(
             plan.remove_logs = remove_logs
             plan.remove_cache = remove_cache
 
+            log_action(
+                "uninstall",
+                {
+                    "mode": "mcp",
+                    "dry_run": False,
+                    "remove_venv": remove_venv,
+                    "remove_skills": remove_skills,
+                    "remove_hook": remove_hook,
+                    "remove_plist": remove_plist,
+                    "remove_logs": remove_logs,
+                    "remove_cache": remove_cache,
+                },
+                vault=None,
+                dry_run=False,
+                affected_path="system-config",
+            )
             result = execute_uninstall(plan, config_path=claude_config_path)
 
         return json.dumps(result, indent=2)
-    except Exception as exc:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
