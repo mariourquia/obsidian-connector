@@ -63,6 +63,9 @@ bash <plugin-dir>/scripts/setup.sh
 
 This gives you all 29 MCP tools plus the `/obsidian-connector:morning`, `/obsidian-connector:evening`, `/obsidian-connector:idea`, and `/obsidian-connector:weekly` skills, with a SessionStart hook that suggests workflows based on time of day.
 
+> **Note:** Plugin mode (`.mcp.json`) currently uses Unix paths for the Python venv.
+> On Windows, use the terminal installer (`scripts/Install.ps1`) instead of plugin mode.
+
 ### Option C: Download ZIP
 
 1. Click the green **Code** button on this page, then **Download ZIP**
