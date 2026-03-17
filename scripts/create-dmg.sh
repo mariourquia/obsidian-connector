@@ -132,25 +132,38 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
 </plist>
 PLIST
 
-# The executable -- opens Terminal and runs the real installer
+# The executable -- copies project to writable location, then installs
 cat > "$APP_DIR/Contents/MacOS/install" << 'LAUNCHER'
 #!/usr/bin/env bash
-# Launcher: opens Terminal.app and runs the installer script.
-# This lets the user see progress output in a real terminal window.
+# Launcher: copies project files to ~/obsidian-connector, then
+# opens Terminal and runs the installer from the writable copy.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 CONTENT_DIR="$SCRIPT_DIR/.content"
+INSTALL_DIR="$HOME/obsidian-connector"
 
 if [ ! -d "$CONTENT_DIR" ]; then
     osascript -e 'display alert "Installation Error" message "Could not find installer files. Please run from the mounted disk image." as critical'
     exit 1
 fi
 
-# Open Terminal and run the installer
+# Copy to writable location (~/obsidian-connector)
+if [ -d "$INSTALL_DIR" ]; then
+    # Ask before overwriting
+    response=$(osascript -e 'display dialog "obsidian-connector is already installed at ~/obsidian-connector. Overwrite and reinstall?" buttons {"Cancel", "Reinstall"} default button "Reinstall" with icon caution' 2>/dev/null | grep "Reinstall" || true)
+    if [ -z "$response" ]; then
+        exit 0
+    fi
+    rm -rf "$INSTALL_DIR"
+fi
+
+cp -R "$CONTENT_DIR" "$INSTALL_DIR"
+
+# Open Terminal and run the installer from the writable copy
 osascript << EOF
 tell application "Terminal"
     activate
-    do script "clear && bash '${CONTENT_DIR}/Install.command'"
+    do script "clear && bash '$INSTALL_DIR/Install.command'"
 end tell
 EOF
 LAUNCHER
