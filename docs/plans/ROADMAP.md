@@ -32,25 +32,24 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 
 ---
 
-## v0.2.0 -- Cross-Platform & Resilience
+## v0.2.1 -- Resilience & Configuration
 
 ### P0 -- Must have
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
-| 1 | `limitation` | **Linux support** | Scheduling uses launchd (macOS-only). Add systemd timer support for Linux. CLI and graph tools likely work already -- needs testing and CI validation. | In Progress |
 | 2 | `risk` | **Write conflict protection during sync** | Mutating commands (`log-daily`, `graduate execute`) can conflict with iCloud/Obsidian Sync. Add file-level locking or atomic write-then-rename to prevent partial writes. Current mitigation: atomic appends + audit log. | Open |
 | 3 | `improvement` | **Configurable daily note format** | Hard-codes `YYYY-MM-DD.md` in `daily/` or root. Support arbitrary date formats and paths via `config.json` (e.g., `daily/%Y/%m/%Y-%m-%d.md`). | Open |
-| 4 | `improvement` | **File-watching index updates** | Index lags behind live edits until `rebuild-index` runs. Add `fswatch`/`watchdog` listener to trigger incremental updates on file save. Current mitigation: mtime-based incremental on next query. | Open |
 
 ### P1 -- Should have
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
+| 4 | `improvement` | **File-watching index updates** | Index lags behind live edits until `rebuild-index` runs. Add `fswatch`/`watchdog` listener to trigger incremental updates on file save. Current mitigation: mtime-based incremental on next query. | Open |
 | 5 | `feature` | **Multi-vault workflows** | Cross-vault search, unified graph queries, vault-switching in CLI/MCP. Currently requires `--vault` flag or `OBSIDIAN_VAULT` env var per command. | Open |
-| 6 | `improvement` | **Reduce Obsidian IPC dependency** | 7 core tools require Obsidian to be running. Migrate read-only operations (search, read, tasks) to direct file access like graph tools already do. | Open |
 | 7 | `improvement` | **Scheduled automation expansion** | Only morning briefing has a launchd job. Add configurable jobs for evening close and weekly review with per-workflow time/day settings. | Open |
 | 8 | `risk` | **Agent draft lifecycle management** | Drafts accumulate in `Inbox/Agent Drafts/` without cleanup. Add `draft-review` command to list, approve, reject, or archive drafts. `check_in` already counts them. | Open |
+| 15 | `improvement` | **Configurable sentinel headings** | Ritual detection uses hardcoded sentinels (`## Morning Briefing`, `## Day Close`). Make configurable via `config.json`. | Open |
 
 ---
 
@@ -69,9 +68,7 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
-| 13 | `feature` | **Windows support** | Obsidian CLI is not available on Windows. Investigate Obsidian's Local REST API plugin or direct vault file access as alternative backend. Scheduling via Task Scheduler. | Open |
 | 14 | `feature` | **Export and reporting** | Generate weekly/monthly reports as standalone Markdown or PDF. Combine drift analysis, graduation history, and vault health into a single artifact. | Open |
-| 15 | `improvement` | **Configurable sentinel headings** | Ritual detection uses hardcoded sentinels (`## Morning Briefing`, `## Day Close`). Make configurable via `config.json`. | Open |
 
 ---
 
@@ -111,6 +108,12 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 | -- | `infra` | Installer cross-platform config path resolution | v0.2.0 |
 | -- | `improvement` | `file_backend.py` wired in via `client_fallback.py` adapter | v0.2.0 |
 | -- | `feature` | 4 skills (`/morning`, `/evening`, `/idea`, `/weekly`) and SessionStart hook | v0.2.0 |
+| 1 | `limitation` | Linux support (systemd timers, XDG paths, CI validation) | v0.2.0 |
+| 6 | `improvement` | Reduce IPC dependency (`file_backend.py` + `client_fallback.py` adapter) | v0.2.0 |
+| 13 | `feature` | Windows support (Task Scheduler, `%APPDATA%` paths, PowerShell installer) | v0.2.0 |
+| -- | `infra` | Sigstore cosign signing on release assets | v0.2.0 |
+| -- | `infra` | Hash-pinned lockfile (`requirements-lock.txt` with pip-compile) | v0.2.0 |
+| -- | `infra` | 14-expert panel security review + 17 blocker remediation | v0.2.0 |
 
 ---
 
