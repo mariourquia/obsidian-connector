@@ -7,6 +7,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.2.1] - 2026-03-17
 
 ### Added
+- **Smart DMG upgrades**: Auto-Installer detects installed version vs DMG version, shows "Upgrade v0.2.0 -> v0.2.1" dialog, preserves `.venv` and `.claude/` config during upgrade (rsync with excludes instead of rm+cp).
 - **Claude Code plugin structure**: Full plugin-compliant directory layout for official marketplace submission. Skills restructured to `skills/<name>/SKILL.md` format, `hooks/hooks.json` for plugin hook registration, updated `.mcp.json` with `cwd` and `PYTHONPATH`.
 - **Plugin setup script**: `scripts/setup.sh` for post-install Python venv bootstrap when installed via `claude plugin install`.
 - **Plugin mode in installer**: Both `install.sh` and `install-linux.sh` detect plugin structure and offer plugin mode instead of manual skill/hook setup.
