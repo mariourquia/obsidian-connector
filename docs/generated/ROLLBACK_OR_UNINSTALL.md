@@ -1,5 +1,5 @@
 ---
-title: "Rollback and Recovery Guide"
+title: "Rollback and Recovery Guide: v0.2.0"
 status: draft
 # generated, do not edit
 owner: mariourquia

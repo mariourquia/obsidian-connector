@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault.
 
-29 MCP tools. 29 CLI commands. Full Python API. Runs 100% locally.
+29 MCP tools. 29 CLI commands. 4 skills. Scheduled automation. Full Python API. Runs 100% locally.
 
 ## What it does
 
