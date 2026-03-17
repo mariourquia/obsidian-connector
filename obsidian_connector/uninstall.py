@@ -1,18 +1,19 @@
 import json
+import os
 import shutil
-import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 
 @dataclass
 class UninstallPlan:
     """Tracks artifacts to remove during uninstall."""
     venv_path: Path
-    files_to_remove: List[Path] = field(default_factory=list)
-    config_changes: Dict[str, Any] = field(default_factory=dict)
+    files_to_remove: list[Path] = field(default_factory=list)
+    config_changes: dict[str, Any] = field(default_factory=dict)
     plist_path: Path | None = None
     remove_plist: bool = False
     remove_venv: bool = False
@@ -59,14 +60,21 @@ def detect_installed_artifacts(
         except (json.JSONDecodeError, IOError, TypeError):
             pass
 
-    # Check plist
-    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.obsidian-connector.daily.plist"
+    from obsidian_connector.platform import get_platform_paths
+    paths = get_platform_paths()
+
+    # Check scheduler artifact (launchd plist on macOS, systemd unit on Linux, None on Windows)
+    plist_path: Path | None = None
+    if paths.scheduler_dir is not None:
+        candidate = paths.scheduler_dir / "com.obsidian-connector.daily.plist"
+        if candidate.exists():
+            plist_path = candidate
 
     return UninstallPlan(
         venv_path=venv_path,
         files_to_remove=files_to_remove,
         config_changes=config_changes,
-        plist_path=plist_path if plist_path.exists() else None
+        plist_path=plist_path,
     )
 
 
@@ -89,7 +97,7 @@ def validate_json(content: str) -> bool:
         return False
 
 
-def remove_from_json_config(config_path: Path, key_path: List[str]) -> bool:
+def remove_from_json_config(config_path: Path, key_path: list[str]) -> bool:
     """Remove a key from JSON config file. Validates JSON after change."""
     try:
         with open(config_path) as f:
@@ -103,12 +111,24 @@ def remove_from_json_config(config_path: Path, key_path: List[str]) -> bool:
         # Remove target key
         del obj[key_path[-1]]
 
-        # Validate and write back
+        # Validate before writing
         content = json.dumps(cfg, indent=2) + "\n"
         if not validate_json(content):
             return False
 
-        config_path.write_text(content)
+        # Write to temp file in same directory, then atomic rename
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(config_path.parent),
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(cfg, f, indent=2)
+                f.write("\n")
+            os.replace(tmp_path, str(config_path))
+        except BaseException:
+            os.unlink(tmp_path)
+            raise
         return True
     except (KeyError, TypeError, json.JSONDecodeError, IOError):
         return False
@@ -130,22 +150,27 @@ def remove_file_safely(file_path: Path) -> bool:
         return False
 
 
+def uninstall_scheduled_job(job_name_or_path: Path | str) -> bool:
+    """Unload and remove a scheduled job (platform-aware).
+
+    Delegates to platform.uninstall_schedule() which handles launchd
+    on macOS, systemd on Linux, and Task Scheduler on Windows.
+    """
+    from obsidian_connector.platform import uninstall_schedule
+    return uninstall_schedule(str(job_name_or_path))
+
+
 def unload_launchd_plist(plist_path: Path) -> bool:
-    """Unload and remove launchd plist."""
-    try:
-        if plist_path.exists():
-            subprocess.run(
-                ["launchctl", "unload", str(plist_path)],
-                capture_output=True,
-                check=False
-            )
-            plist_path.unlink()
-        return True
-    except (IOError, OSError):
-        return False
+    """Unload and remove launchd plist.
+
+    .. deprecated:: 0.2.0
+        Use :func:`uninstall_scheduled_job` instead, which is
+        platform-aware.
+    """
+    return uninstall_scheduled_job(plist_path)
 
 
-def dry_run_uninstall(plan: UninstallPlan) -> Dict[str, Any]:
+def dry_run_uninstall(plan: UninstallPlan) -> dict[str, Any]:
     """Preview-only uninstall (no actual removal). Returns JSON."""
     return {
         "status": "ok",
@@ -159,7 +184,7 @@ def dry_run_uninstall(plan: UninstallPlan) -> Dict[str, Any]:
     }
 
 
-def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
+def execute_uninstall(plan: UninstallPlan, config_path: Path) -> dict[str, Any]:
     """Execute uninstall plan. Creates backups, removes artifacts."""
     removed = []
     errors = []
@@ -183,12 +208,30 @@ def execute_uninstall(plan: UninstallPlan, config_path: Path) -> Dict[str, Any]:
             else:
                 errors.append(f"Failed to update {config_file}")
 
-    # Unload plist
+    # Unload scheduled job (platform-aware)
     if plan.remove_plist and plan.plist_path:
-        if unload_launchd_plist(plan.plist_path):
+        if uninstall_scheduled_job(plan.plist_path):
             removed.append(str(plan.plist_path))
         else:
-            errors.append(f"Failed to unload plist: {plan.plist_path}")
+            errors.append(f"Failed to unload scheduled job: {plan.plist_path}")
+
+    # Remove audit logs
+    if plan.remove_logs:
+        logs_dir = Path.home() / ".obsidian-connector" / "logs"
+        if logs_dir.exists():
+            if remove_file_safely(logs_dir):
+                removed.append(str(logs_dir))
+            else:
+                errors.append(f"Failed to remove: {logs_dir}")
+
+    # Remove cache/index files
+    if plan.remove_cache:
+        index_db = Path.home() / ".obsidian-connector" / "index.sqlite"
+        if index_db.exists():
+            if remove_file_safely(index_db):
+                removed.append(str(index_db))
+            else:
+                errors.append(f"Failed to remove: {index_db}")
 
     return {
         "status": "ok" if not errors else "warning",

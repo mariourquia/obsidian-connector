@@ -2,7 +2,7 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-03-06"
+last_reviewed: "2026-03-16"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
@@ -29,7 +29,7 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (14 modules) |
+| `obsidian_connector/` | Core Python package (18 modules) |
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | Knowledge base (harness engineering, frontmatter-enforced) |
@@ -41,8 +41,10 @@ persisted to SQLite for fast incremental updates.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
-| `cli.py` | CLI entry point (`obsx`): 26 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
-| `mcp_server.py` | MCP server (FastMCP): 27 tools for Claude Desktop (stdio + HTTP transports) |
+| `cli.py` | CLI entry point (`obsx`): 29 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `mcp_server.py` | MCP server (FastMCP): 29 tools for Claude Desktop (stdio + HTTP transports) |
+| `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
+| `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
 | `workflows.py` | Higher-level workflows: daily ops, open loops, graduate pipeline, delegation detection, context loader |
 | `thinking.py` | Thinking tools: ghost (voice), drift (intention vs behavior), trace (idea evolution), ideas (graph analysis) |
 | `graph.py` | Graph-aware vault indexing: parse links, tags, frontmatter from `.md` files, build `NoteIndex` |
@@ -53,23 +55,29 @@ persisted to SQLite for fast incremental updates.
 | `doctor.py` | Health-check diagnostics (binary, version, vault, reachability) |
 | `envelope.py` | Canonical JSON envelope builder for `--json` output |
 | `errors.py` | Typed exception hierarchy (ObsidianNotFound, VaultNotFound, etc.) |
+| `client_fallback.py` | Adapter layer: wraps client.py with automatic file_backend fallback when Obsidian CLI is unavailable |
+| `file_backend.py` | CLI-less vault access via direct file reads (search, read, tasks, daily log, note creation with path traversal protection) |
 | `search.py` | Search result enrichment and deduplication |
 
 ## Dependency flow
 
 ```
 bin/obsx ──> cli.py ──> client.py ──> subprocess (obsidian CLI) ──> Obsidian app (IPC)
-                    ──> workflows.py ──> client.py + graph.py
-                    ──> thinking.py ──> client.py + graph.py + index_store.py
+                    ──> workflows.py ──> client_fallback.py + graph.py
+                    ──> thinking.py ──> client_fallback.py + graph.py + index_store.py
                     ──> envelope.py, audit.py
 
-bin/obsx-mcp ──> mcp_server.py ──> client.py + workflows.py + thinking.py + graph.py + doctor.py
+bin/obsx-mcp ──> mcp_server.py ──> client_fallback.py + workflows.py + thinking.py + graph.py + doctor.py
 
 client.py uses: config.py, cache.py, errors.py
+client_fallback.py uses: client.py, file_backend.py, config.py, errors.py
 graph.py uses: config.py (vault path resolution)
 index_store.py uses: graph.py, config.py
-workflows.py uses: client.py, graph.py, index_store.py, config.py, audit.py
-thinking.py uses: client.py, graph.py, index_store.py, config.py
+workflows.py uses: client_fallback.py, graph.py, index_store.py, config.py, audit.py
+thinking.py uses: client_fallback.py, graph.py, index_store.py, config.py
+platform.py uses: (no internal deps -- foundation layer)
+file_backend.py uses: (no internal deps -- standalone file access)
+uninstall.py uses: platform.py, config.py
 ```
 
 ## Key entry points

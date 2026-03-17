@@ -284,6 +284,39 @@ class NoteEntry:
     size: int  # file size in bytes
 
 
+def resolve_note_path(idx: "NoteIndex", note_path: str) -> str | None:
+    """Resolve a user-supplied note path against the index.
+
+    Tries: exact match, then title match, then with .md suffix.
+
+    Parameters
+    ----------
+    idx:
+        A populated :class:`NoteIndex`.
+    note_path:
+        Vault-relative path or note name (e.g. ``"Home"`` or
+        ``"Cards/Home.md"``).
+
+    Returns
+    -------
+    str | None
+        The resolved vault-relative path, or ``None`` if the note is not
+        in the index.
+    """
+    if note_path in idx.notes:
+        return note_path
+    # Title match (case-insensitive).
+    for path, entry in idx.notes.items():
+        if entry.title.lower() == note_path.lower():
+            return path
+    # .md suffix fallback.
+    if not note_path.endswith(".md"):
+        candidate = note_path + ".md"
+        if candidate in idx.notes:
+            return candidate
+    return None
+
+
 class NoteIndex:
     """In-memory graph index of vault notes.
 
@@ -495,7 +528,7 @@ def build_note_index(vault_path: str | None = None) -> NoteIndex:
                 continue
 
             full = Path(dirpath) / fname
-            rel = str(full.relative_to(root))
+            rel = full.relative_to(root).as_posix()
             title = fname[:-3]  # strip .md
 
             try:

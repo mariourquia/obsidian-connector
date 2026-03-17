@@ -8,13 +8,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from obsidian_connector.audit import log_action
-from obsidian_connector.client import (
+from obsidian_connector.client import run_obsidian
+from obsidian_connector.client_fallback import (
     ObsidianCLIError,
     batch_read_notes,
     list_tasks,
     log_to_daily,
     read_note,
-    run_obsidian,
     search_notes,
 )
 from obsidian_connector.config import load_config, resolve_vault_path
@@ -433,7 +433,7 @@ def today_brief(vault: str | None = None) -> dict:
         - ``open_loops`` -- list of open loop items from recent notes
         - ``linked_context`` -- excerpts from notes linked in the daily note (graph-enriched)
     """
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
     # Try to read today's daily note
     daily_note: str | None = None
@@ -466,9 +466,9 @@ def today_brief(vault: str | None = None) -> dict:
                         "heading": heading,
                         "excerpt": excerpt[:300],
                     })
-                except (ObsidianCLIError, Exception):
+                except (ObsidianCLIError, ValueError):
                     continue
-        except Exception:
+        except (ObsidianCLIError, ValueError):
             pass
 
     return {
@@ -503,7 +503,7 @@ def close_day_reflection(vault: str | None = None) -> dict:
         - ``reflection_prompts`` -- 3-5 reflection questions
         - ``suggested_actions`` -- action candidates extracted from tasks/notes
     """
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
     # Read today's daily note
     daily_note_summary: str | None = None
@@ -936,7 +936,7 @@ def graduate_candidates(
             }
         else:
             title_set = {}
-    except Exception:
+    except (OSError, KeyError, ValueError):
         title_set = {}
 
     for cand in candidates:
@@ -1501,14 +1501,12 @@ def check_in(
     if timezone_name:
         try:
             tz = ZoneInfo(timezone_name)
-        except (KeyError, Exception):
+        except KeyError:
             tz = None
     else:
         tz = None
 
-    now = datetime.now(tz or timezone.utc)
-    if tz is None:
-        now = datetime.now()  # naive local time
+    now = datetime.now(tz) if tz else datetime.now()
     hour = now.hour
 
     if hour < 11:
@@ -1567,7 +1565,7 @@ def check_in(
                     f for f in os.listdir(drafts_dir)
                     if f.endswith(".md")
                 ])
-    except Exception:
+    except OSError:
         pass
 
     # -- Build suggestion -----------------------------------------------------

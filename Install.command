@@ -111,7 +111,9 @@ venv_python = '$VENV_PYTHON'
 
 server_entry = {
     'command': venv_python,
-    'args': ['-m', 'obsidian_connector.mcp_server']
+    'args': ['-u', '-m', 'obsidian_connector.mcp_server'],
+    'cwd': '$SCRIPT_DIR',
+    'env': {'PYTHONPATH': '$SCRIPT_DIR'}
 }
 
 try:
@@ -159,7 +161,7 @@ echo "    1. Make sure Obsidian is open"
 echo "    2. Quit and reopen Claude Desktop"
 echo "    3. Claude now has access to your vault"
 echo ""
-dim "  (27 tools for search, read, graph analysis,"
+dim "  (29 tools for search, read, graph analysis,"
 dim "   idea surfacing, daily workflows, and more)"
 echo ""
 

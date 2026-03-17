@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,11 @@ def log_action(
         Absolute path to the JSONL log file that was written to.
     """
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    # Harden dirs on Unix (chmod is a no-op on Windows).
+    if sys.platform != "win32":
+        AUDIT_DIR.chmod(0o700)
+        if AUDIT_DIR.parent.exists():
+            AUDIT_DIR.parent.chmod(0o700)
 
     content_hash: str | None = None
     if content is not None:

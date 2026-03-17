@@ -13,6 +13,6 @@
   },
   "requirements": ["python3.11+", "obsidian-desktop-1.12+"],
   "categories": ["productivity", "notes", "knowledge-management"],
-  "tools_count": 16,
+  "tools_count": 29,
   "privacy_policy": "PRIVACY.md"
 }

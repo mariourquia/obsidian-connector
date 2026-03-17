@@ -13,7 +13,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from obsidian_connector.client import ObsidianCLIError, read_note, search_notes
+from obsidian_connector.client_fallback import ObsidianCLIError, read_note, search_notes
 from obsidian_connector.graph import NoteIndex
 
 
@@ -491,7 +491,7 @@ def trace_idea(
                 full = root / file_path
                 if full.is_file():
                     mtime = full.stat().st_mtime
-            except Exception:
+            except OSError:
                 pass
 
         date_str = (

@@ -1,11 +1,10 @@
 """obsidian-connector: Python wrapper for the Obsidian CLI."""
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 from obsidian_connector.cache import CLICache
 from obsidian_connector.audit import log_action
 from obsidian_connector.client import (
-    ObsidianCLIError,
     batch_read_notes,
     list_tasks,
     log_to_daily,
@@ -19,6 +18,7 @@ from obsidian_connector.envelope import error_envelope, success_envelope
 from obsidian_connector.errors import (
     CommandTimeout,
     MalformedCLIOutput,
+    ObsidianCLIError,
     ObsidianNotFound,
     ObsidianNotRunning,
     VaultNotFound,
@@ -30,6 +30,7 @@ from obsidian_connector.graph import (
     extract_frontmatter,
     extract_links,
     extract_tags,
+    resolve_note_path,
 )
 from obsidian_connector.index_store import IndexStore, load_or_build_index
 from obsidian_connector.search import enrich_search_results
@@ -97,6 +98,7 @@ __all__ = [
     "log_to_daily",
     "my_world_snapshot",
     "read_note",
+    "resolve_note_path",
     "resolve_vault_path",
     "run_doctor",
     "run_obsidian",
