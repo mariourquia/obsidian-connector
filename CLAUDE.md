@@ -2,10 +2,12 @@
 
 ## Quick orientation
 
-Python wrapper for the Obsidian desktop app CLI. Provides:
+Python wrapper for the Obsidian desktop app CLI. Five distribution surfaces:
 - **Python API** -- `from obsidian_connector import search_notes, read_note, ...`
 - **CLI** -- `obsx search "query"` or `./bin/obsx search "query"`
 - **MCP server** -- 29 tools for Claude Desktop via stdio or HTTP
+- **Claude Code plugin** -- `claude --plugin-dir .` or `claude plugin install obsidian-connector`
+- **macOS DMG** -- Double-click installer for non-technical users
 
 ## Golden rule
 

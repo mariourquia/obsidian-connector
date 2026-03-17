@@ -4,6 +4,22 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-03-17
+
+### Added
+- **Claude Code plugin structure**: Full plugin-compliant directory layout for official marketplace submission. Skills restructured to `skills/<name>/SKILL.md` format, `hooks/hooks.json` for plugin hook registration, updated `.mcp.json` with `cwd` and `PYTHONPATH`.
+- **Plugin setup script**: `scripts/setup.sh` for post-install Python venv bootstrap when installed via `claude plugin install`.
+- **Plugin mode in installer**: Both `install.sh` and `install-linux.sh` detect plugin structure and offer plugin mode instead of manual skill/hook setup.
+
+### Fixed
+- Duplicate SessionStart hook in `.claude/settings.json` (removed absolute-path duplicate).
+- Installer skill glob updated to support both flat (`skills/*.md`) and nested (`skills/*/SKILL.md`) layouts.
+
+### Changed
+- Skills moved from `skills/morning.md` to `skills/morning/SKILL.md` (plugin directory convention).
+- Duplicate skill files removed from `.claude/commands/` (plugin namespace handles routing).
+- `hooks/session_start.sh` comment updated to reflect dual-mode operation (plugin + standalone).
+
 ## [0.2.0] - 2026-03-16
 
 ### Added
