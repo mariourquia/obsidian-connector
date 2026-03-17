@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Obsidian vault access for Claude via MCP",
-    "version": "1.0.0"
+    "schemaVersion": "1.0.0"
   },
   "plugins": [
     {
