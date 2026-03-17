@@ -35,7 +35,8 @@ turn Claude into a proactive second brain assistant.
 | `skills/` | 4 Claude Code plugin skills (morning, evening, idea, weekly) in `<name>/SKILL.md` format |
 | `hooks/` | SessionStart hook (`session_start.sh`) + plugin config (`hooks.json`) |
 | `.mcp.json` | Plugin MCP server config (points to venv python) |
-| `.claude-plugin/` | Plugin manifest (`plugin.json`) + marketplace metadata |
+| `.claude-plugin/` | Plugin manifest (`plugin.json`) |
+| `marketplace.json` | Self-hosted marketplace metadata (at repo root) |
 | `scheduling/` | launchd automation + headless runner |
 | `templates/` | Claude Desktop system prompt, exec-plan templates |
 
