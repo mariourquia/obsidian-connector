@@ -120,6 +120,9 @@ The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 
 ## Canonical JSON envelope
 
+> **Note:** MCP tools return raw JSON payloads, not wrapped in the canonical
+> envelope. The envelope schema applies to CLI `--json` output only.
+
 Every command supports `--json` (global flag, before the subcommand).
 The response is always wrapped in a canonical envelope:
 

@@ -17,7 +17,7 @@
 
 Python wrapper for the Obsidian desktop app. Exposes vault operations
 (search, read, write, graph analysis, thinking tools, workflow management)
-as a Python API, CLI (`obsx` -- 27 commands), and MCP server (28 tools)
+as a Python API, CLI (`obsx` -- 29 commands), and MCP server (29 tools)
 for Claude Desktop. Includes skills, hooks, and scheduled automation that
 turn Claude into a proactive second brain assistant.
 
@@ -26,8 +26,8 @@ turn Claude into a proactive second brain assistant.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper, batch reads |
-| `cli.py` | 27 CLI subcommands |
-| `mcp_server.py` | 28 MCP tools (FastMCP) |
+| `cli.py` | 29 CLI subcommands |
+| `mcp_server.py` | 29 MCP tools (FastMCP) |
 | `workflows.py` | Daily ops, loops, graduate, delegations, context |
 | `thinking.py` | Ghost, drift, trace, ideas |
 | `graph.py` | Vault graph indexing (links, tags, backlinks) |

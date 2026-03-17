@@ -144,7 +144,6 @@ for Desktop-only, CLI-only, or combined setups.
 
 ### Known Gaps (Not Fixed)
 
-- No GPG/cosign signing on release assets -- planned.
 - No dependabot for automated dependency updates.
 - Frontmatter parser does not handle all YAML edge cases (flow sequences,
   multi-line).

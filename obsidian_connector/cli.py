@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from obsidian_connector.client import (
+from obsidian_connector.client_fallback import (
     ObsidianCLIError,
     list_tasks,
     log_to_daily,

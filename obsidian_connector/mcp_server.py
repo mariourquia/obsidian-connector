@@ -23,7 +23,7 @@ from obsidian_connector.errors import (
     ObsidianNotRunning,
     VaultNotFound,
 )
-from obsidian_connector.graph import NoteIndex
+from obsidian_connector.graph import NoteIndex, resolve_note_path
 from obsidian_connector.thinking import (
     deep_ideas,
     drift_analysis,
@@ -539,19 +539,7 @@ def obsidian_neighborhood(
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
             )
 
-        # Resolve the note path: try exact match, then by title, then with .md suffix.
-        resolved = None
-        if note_path in idx.notes:
-            resolved = note_path
-        else:
-            for path, entry in idx.notes.items():
-                if entry.title.lower() == note_path.lower():
-                    resolved = path
-                    break
-            if resolved is None and not note_path.endswith(".md"):
-                candidate = note_path + ".md"
-                if candidate in idx.notes:
-                    resolved = candidate
+        resolved = resolve_note_path(idx, note_path)
 
         if resolved is None:
             return json.dumps(
@@ -678,19 +666,7 @@ def obsidian_backlinks(note_path: str, vault: str | None = None) -> str:
                 {"ok": False, "error": {"type": "IndexError", "message": "Could not build note index"}}
             )
 
-        # Resolve the note path.
-        resolved = None
-        if note_path in idx.notes:
-            resolved = note_path
-        else:
-            for path, entry in idx.notes.items():
-                if entry.title.lower() == note_path.lower():
-                    resolved = path
-                    break
-            if resolved is None and not note_path.endswith(".md"):
-                candidate = note_path + ".md"
-                if candidate in idx.notes:
-                    resolved = candidate
+        resolved = resolve_note_path(idx, note_path)
 
         if resolved is None:
             return json.dumps(

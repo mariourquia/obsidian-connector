@@ -107,7 +107,8 @@ jobs:
           cd final-assets
           for f in "obsidian-connector-${TAG_NAME}.tar.gz" \
                    "obsidian-connector-${TAG_NAME}.zip" \
-                   "obsidian-connector-${TAG_NAME}.dmg"; do
+                   "obsidian-connector-${TAG_NAME}.dmg" \
+                   "obsidian-connector-${TAG_NAME}.sha256"; do
             cosign sign-blob --yes "$f" \
               --output-signature "${f}.sig" \
               --output-certificate "${f}.cert"
@@ -129,6 +130,8 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.zip.cert" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg.cert" \
+            "final-assets/obsidian-connector-${TAG_NAME}.sha256.sig" \
+            "final-assets/obsidian-connector-${TAG_NAME}.sha256.cert" \
             --title "$TAG_NAME" \
             --generate-notes \
             --draft

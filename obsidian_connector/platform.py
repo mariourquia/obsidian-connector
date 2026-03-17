@@ -7,11 +7,17 @@ of hardcoding ~/Library/... or %APPDATA%\\... paths.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def _strip_html(text: str) -> str:
+    """Remove HTML tags to prevent markup injection in notification bodies."""
+    return re.sub(r'<[^>]+>', '', text)
 
 
 @dataclass(frozen=True)
@@ -385,7 +391,7 @@ def send_notification(title: str, message: str) -> bool:
             return result.returncode == 0
         elif os_name == "linux":
             result = subprocess.run(
-                ["notify-send", title, message],
+                ["notify-send", _strip_html(title), _strip_html(message)],
                 capture_output=True,
                 timeout=5,
             )
