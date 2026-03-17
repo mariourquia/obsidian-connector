@@ -15,8 +15,13 @@ if [ ! -x "$OBSX" ]; then
     exit 0
 fi
 
-# Get check-in data as JSON
-CHECKIN=$("$OBSX" --json check-in 2>/dev/null) || exit 0
+# Get check-in data as JSON (10s timeout prevents blocking session start
+# if Obsidian IPC hangs; the CLI's own 30s timeout is too long for a hook)
+if command -v timeout &>/dev/null; then
+    CHECKIN=$(timeout 10 "$OBSX" --json check-in 2>/dev/null) || exit 0
+else
+    CHECKIN=$("$OBSX" --json check-in 2>/dev/null) || exit 0
+fi
 
 # Parse with python (available since we need python for the connector anyway)
 python3 -c "
