@@ -15,7 +15,7 @@ last_reviewed: "2026-03-16"
 
 | Test Type        | Files | Runner          | Notes                                       |
 |------------------|-------|-----------------|---------------------------------------------|
-| Unit             | 15    | Python unittest | Run in CI (no Obsidian required)             |
+| Unit             | 16    | Python unittest | Run in CI (no Obsidian required)             |
 | Integration      | 3     | Python unittest | `integration_test`, `workflow_test`, `workflow_os_test` |
 | Smoke            | 1     | Python script   | `smoke_test.py` (requires Obsidian)          |
 | MCP launch       | 1     | Bash script     | `mcp_launch_smoke.sh` (CI: macOS + Ubuntu)   |
@@ -27,22 +27,25 @@ last_reviewed: "2026-03-16"
 
 ## Coverage
 
-- Line coverage: not measured
-- Branch coverage: not measured
-- Coverage tool: none configured
-- Coverage report: not available
+- Coverage tool: `coverage` (installed in CI via `pip install coverage`)
+- Collection: `coverage run --append --source=obsidian_connector` wraps each test script
+- Report: `coverage report --show-missing` runs after all tests (even if some fail, via `if: always()`)
+- Enforcement: `--fail-under=0` -- coverage is collected and reported but not enforced as a gate
+- Output: `coverage xml` artifact generated per matrix cell
+- Line coverage: collected per CI run (varies by OS due to platform-specific branches)
+- Branch coverage: not measured (no `--branch` flag)
 
 ## CI Matrix
 
 | OS             | Python 3.11 | Python 3.12 | Python 3.13 |
 |----------------|-------------|-------------|-------------|
-| macOS-latest   | 15 files    | 15 files    | 15 files    |
-| ubuntu-latest  | 15 files    | 15 files    | 15 files    |
-| windows-latest | 15 files    | 15 files    | 15 files    |
+| macOS-latest   | 16 files    | 16 files    | 16 files    |
+| ubuntu-latest  | 16 files    | 16 files    | 16 files    |
+| windows-latest | 16 files    | 16 files    | 16 files    |
 
 Total CI configurations: 9 (3 OS x 3 Python).
 
-## 15 Tests Run in CI (No Obsidian Required)
+## 16 Tests Run in CI (No Obsidian Required)
 
 1. `audit_test.py` -- Audit log JSONL format, directory creation, permissions
 2. `audit_permissions_test.py` -- 0o700 directory mode for new and pre-existing log dirs
@@ -59,6 +62,7 @@ Total CI configurations: 9 (3 OS x 3 Python).
 13. `platform_test.py` -- macOS/Linux/Windows path resolution, scheduling, binary candidates (57 tests)
 14. `thinking_deep_test.py` -- Thinking tools (ghost, drift, trace, ideas)
 15. `uninstall_test.py` -- Uninstall plan detection, execution, dry-run, atomic writes (52 tests)
+16. `file_backend_test.py` -- Direct file access backend: read, search, list, frontmatter parsing
 
 ## What Was NOT Tested
 
@@ -70,7 +74,7 @@ Total CI configurations: 9 (3 OS x 3 Python).
 - **Large vault performance**: No stress tests with >10,000 notes.
 - **Custom daily note formats**: Only `YYYY-MM-DD.md` is tested.
 - **YAML edge cases**: Frontmatter parser does not handle flow sequences or multi-line values.
-- **Coverage**: No line or branch coverage measurement.
+- **Branch coverage**: `coverage run` collects line coverage but `--branch` is not enabled, so branch coverage is not measured.
 
 ## Pre-Existing Test Failures (Not Regressions)
 

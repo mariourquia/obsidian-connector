@@ -24,11 +24,11 @@ All three platforms are supported as of v0.2.0.
 python3 --version
 ```
 
-Expected output: `Python 3.11.x` or higher (3.12, 3.13, 3.14 all work).
+Expected output: `Python 3.11.x` or higher (3.12, 3.13 all work). Python 3.14 is not tested.
 
 If Python is missing or too old, download from <https://www.python.org/downloads/>. The installer adds `python3` to your PATH automatically. After installing, close and reopen your terminal, then re-run the version check.
 
-### Obsidian desktop app (v1.12+) with CLI enabled
+### Obsidian desktop app (v1.4+) with CLI plugin
 
 1. Confirm Obsidian is installed and running.
 2. Verify the CLI is available:
@@ -37,9 +37,9 @@ If Python is missing or too old, download from <https://www.python.org/downloads
 obsidian version
 ```
 
-Expected output: a version string like `1.12.0` or higher.
+Expected output: a version string like `1.4.0` or higher.
 
-If the `obsidian` command is not found, open Obsidian, go to **Settings > General**, and enable **"Allow CLI commands"** (available in v1.12+). You may need to restart your terminal after enabling it.
+If the `obsidian` command is not found, open Obsidian, go to **Settings > General**, and enable **"Allow CLI commands"** (available in v1.4+). You may need to restart your terminal after enabling it.
 
 ### Git (for Option C only)
 
@@ -72,7 +72,11 @@ Download from <https://claude.ai/download> if not already installed.
 | Editable install (`-e`) | No | No | Yes |
 | Best for | Fastest first install | Quick install from browser | Full control, contributing |
 
-All three methods run the same `install.sh` script under the hood.
+All three methods run the same installer logic under the hood. Platform-specific installers:
+
+- **macOS**: `scripts/install.sh` (or `Install.command` in DMG)
+- **Linux**: `scripts/install-linux.sh` (creates venv, configures XDG Claude Desktop path, optionally installs systemd timers)
+- **Windows**: `scripts/Install.ps1` (creates venv, configures `%APPDATA%\Claude\` path)
 
 ---
 
@@ -175,7 +179,11 @@ pip install -e .
 pip install -e ".[scheduling]"
 ```
 
-Then manually add the MCP server entry to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Then manually add the MCP server entry to the Claude Desktop config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json` (XDG)
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -284,7 +292,7 @@ If you previously configured Claude Desktop with `bin/obsx-mcp` as the command, 
 
 **Fix**:
 1. Open Obsidian desktop app.
-2. Go to **Settings > General** and enable CLI access (requires v1.12+).
+2. Go to **Settings > General** and enable CLI access (requires v1.4+).
 3. Close and reopen your terminal.
 4. Run `obsidian version` to confirm.
 
@@ -300,16 +308,21 @@ Or add `"obsidian_bin": "/path/to/obsidian"` to `config.json` in the repo root.
 
 **Symptom**: Install script exits with `Python 3.11+ is required but not found`.
 
-**Fix**: Install Python 3.11+ from <https://www.python.org/downloads/>. The installer searches for `python3.14`, `python3.13`, `python3.12`, `python3.11`, and `python3` in order, picking the first one that meets the version requirement.
+**Fix**: Install Python 3.11+ from <https://www.python.org/downloads/>. The installer searches for `python3.13`, `python3.12`, `python3.11`, and `python3` in order, picking the first one that meets the version requirement.
 
 ### Claude Desktop config parse error
 
 **Symptom**: Claude Desktop fails to load MCP servers after install.
 
-**Fix**: Validate the JSON:
+**Fix**: Validate the JSON (adjust path for your OS):
 
 ```bash
+# macOS
 python3 -c "import json; json.load(open('$HOME/Library/Application Support/Claude/claude_desktop_config.json'))"
+# Linux
+python3 -c "import json; json.load(open('$HOME/.config/Claude/claude_desktop_config.json'))"
+# Windows (PowerShell)
+python -c "import json; json.load(open(r'%APPDATA%\Claude\claude_desktop_config.json'))"
 ```
 
 If this raises a `JSONDecodeError`, the file has a syntax error (often a missing comma or trailing comma). Fix the JSON manually or delete the file and re-run the installer.
@@ -322,13 +335,13 @@ If this raises a `JSONDecodeError`, the file has a syntax error (often a missing
 
 The install script (`scripts/install.sh`) performs these actions:
 
-1. **Scans for Python binaries** on your PATH. It does not download or install Python. It checks `python3.14`, `python3.13`, `python3.12`, `python3.11`, and `python3` in that order, selecting the first that is version 3.11+.
+1. **Scans for Python binaries** on your PATH. It does not download or install Python. It checks `python3.13`, `python3.12`, `python3.11`, and `python3` in that order, selecting the first that is version 3.11+.
 
 2. **Creates a virtual environment** at `.venv/` inside the repo directory. This is an isolated Python environment that does not modify your system Python.
 
 3. **Installs the package** using `pip install -e .` (editable mode). Dependencies are defined in `pyproject.toml` -- the only required dependency is `mcp>=1.0.0,<2.0.0` (the MCP protocol library).
 
-4. **Reads and writes `claude_desktop_config.json`** at `~/Library/Application Support/Claude/`. If the file exists, the script parses it as JSON, adds or updates the `obsidian-connector` entry under `mcpServers`, and writes it back. It does not delete other MCP server entries. If the file does not exist, it creates it with only the `obsidian-connector` entry.
+4. **Reads and writes `claude_desktop_config.json`** at the platform-appropriate location (`~/Library/Application Support/Claude/` on macOS, `~/.config/Claude/` on Linux, `%APPDATA%\Claude\` on Windows). If the file exists, the script parses it as JSON, adds or updates the `obsidian-connector` entry under `mcpServers`, and writes it back. It does not delete other MCP server entries. If the file does not exist, it creates it with only the `obsidian-connector` entry.
 
 5. **Verifies the install** by importing `obsidian_connector` in Python.
 
@@ -337,8 +350,8 @@ The install script (`scripts/install.sh`) performs these actions:
 ### What permissions it needs
 
 - **Read/write to the repo directory**: creating `.venv/`, installing packages, writing `.claude/` config files.
-- **Read/write to `~/Library/Application Support/Claude/`**: Claude Desktop configuration.
-- **Read/write to `~/Library/LaunchAgents/`**: only if you opt in to scheduled automation.
+- **Read/write to Claude Desktop config directory**: `~/Library/Application Support/Claude/` (macOS), `~/.config/Claude/` (Linux), `%APPDATA%\Claude\` (Windows).
+- **Read/write to scheduling directory**: `~/Library/LaunchAgents/` (macOS launchd), `~/.config/systemd/user/` (Linux systemd), or Task Scheduler (Windows). Only if you opt in to scheduled automation.
 - **No network calls at runtime**: the connector runs entirely locally via IPC with Obsidian. The only network access is during `pip install`, which downloads the `mcp` package from PyPI.
 - **No elevated privileges**: the script never uses `sudo`. If it asks for a password, something is wrong -- cancel and investigate.
 
@@ -447,7 +460,7 @@ results = search_notes("project status", vault="Work")
 
 ### Configuring Claude Desktop for a specific vault
 
-Add the `OBSIDIAN_VAULT` environment variable to the MCP server config in `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add the `OBSIDIAN_VAULT` environment variable to the MCP server config in your Claude Desktop config file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `~/.config/Claude/claude_desktop_config.json` on Linux, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {

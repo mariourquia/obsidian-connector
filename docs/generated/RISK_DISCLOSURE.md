@@ -19,9 +19,12 @@ last_reviewed: "2026-03-16"
 | Modifies Claude Desktop config JSON            | M        | Mitigated | Atomic writes (tempfile + os.replace), timestamped backups, JSON validation before write. |
 | osascript string interpolation (macOS)         | M        | Mitigated | Full metacharacter escaping (backslash, quotes, newline, CR, tab). |
 | PowerShell notification dispatch (Windows)     | M        | Mitigated | Values passed via environment variables, no string interpolation. `-NoProfile` flag. |
+| `file_backend.py` wired via `client_fallback.py` adapter | M | Mitigated | Fallback reads vault files directly when Obsidian CLI unavailable. Path traversal protection via `.resolve()` + `.relative_to()`. |
+| `mcp` dependency includes httpx/uvicorn (HTTP stack) | M | Accepted | `--http` mode binds to a network port. Default is stdio (no network). Users must opt in to HTTP transport. |
+| Audit log is not tamper-resistant               | M        | Accepted  | Audit JSONL files are owned by the same user who runs the tool. A local attacker with same-user access can modify or delete audit entries. |
 | No authentication on MCP stdio transport       | L        | Accepted  | Standard for local MCP servers. Only local processes can connect. |
 | No dependency scanning in CI                   | L        | Accepted  | Manual pip-audit (0 vulns). CodeQL planned for v0.3.0.       |
-| No signing on release assets                   | L        | Accepted  | SHA256 checksums provided. GPG signing planned for future.    |
+| Release assets signed via Sigstore cosign      | L        | Mitigated | Keyless OIDC signing in CI. `.sig` and `.cert` files attached to each release artifact. |
 
 ## Operational Risks
 
