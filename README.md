@@ -220,7 +220,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx read "Project Alpha"
 ./bin/obsx tasks --status todo
 ./bin/obsx log-daily "Meeting notes: discussed Q3 roadmap"
-./bin/obsx log-decision --project "AMOS" --summary "Switched to event-driven" --details "200ms latency."
+./bin/obsx log-decision --project "MyProject" --summary "Switched to event-driven" --details "200ms latency."
 ./bin/obsx create-research-note --title "CMBS Analysis" --template "Template, Note"
 ./bin/obsx doctor
 
@@ -289,7 +289,7 @@ tasks = list_tasks(filter={"todo": True, "limit": 10})
 
 # Write
 log_to_daily("Finished deploy at 14:32")
-log_decision("AMOS", "Switched to event-driven", "Reduces latency to 200ms.")
+log_decision("MyProject", "Switched to event-driven", "Reduces latency to 200ms.")
 
 # Graph
 index = load_or_build_index()
@@ -364,8 +364,7 @@ typed error hierarchy, and full command reference.
 ## Second brain assistant
 
 Your assistant drives four workflows through skills, hooks, and scheduled automation.
-See the [Second Brain Overview](docs/second-brain-overview.md) for the architecture,
-[Setup Guide](docs/setup-guide.md) for installation, and the
+See the [Setup Guide](docs/setup-guide.md) for installation and the
 [Operating Manual](docs/daily-optimization.md) for all 18 recipes.
 
 ## Roadmap

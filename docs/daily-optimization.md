@@ -184,14 +184,14 @@ career, personal.
 Your assistant calls `obsidian_log_decision`.
 
 **Say**:
-> "Log a decision: project AMOS, summary 'Switched from REST to event-driven
+> "Log a decision: project MyProject, summary 'Switched from REST to event-driven
 > architecture', details 'Reduces P95 latency from 800ms to 200ms. Trade-off:
 > more complex debugging. Revisit in 90 days.'"
 
 **CLI**:
 ```bash
 ./bin/obsx log-decision \
-  --project "AMOS" \
+  --project "MyProject" \
   --summary "Switched from REST to event-driven" \
   --details "Reduces P95 latency to 200ms. Trade-off: debugging complexity."
 ```

@@ -17,8 +17,7 @@ pip install -e .
 1. Create a branch from `main`: `git checkout -b feature/your-feature`
 2. Make your changes
 3. Run tests: see [Testing](#testing)
-4. Run docs lint: `make docs-lint`
-5. Open a pull request against `main`
+4. Open a pull request against `main`
 
 ## Testing
 
@@ -43,9 +42,6 @@ python3 scripts/checkin_test.py
 
 # MCP server launch
 bash scripts/mcp_launch_smoke.sh
-
-# Docs structure
-make docs-lint
 ```
 
 ## Adding a new tool
@@ -59,21 +55,6 @@ Follow the checklist in `CLAUDE.md` under "Adding new commands":
 5. If mutating: add `--dry-run` and audit logging
 6. Add a test in `scripts/`
 7. Update `TOOLS_CONTRACT.md`
-
-## Documentation
-
-Every file in `docs/` requires frontmatter:
-
-```yaml
----
-title: "Title"
-status: draft | verified | deprecated
-owner: "team-slug"
-last_reviewed: "YYYY-MM-DD"
----
-```
-
-Run `make docs-lint` before submitting docs changes.
 
 ## Code style
 
