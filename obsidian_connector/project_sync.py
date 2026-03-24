@@ -180,6 +180,8 @@ def default_repos() -> list[RepoEntry]:
                    ["engineering", "python", "docs-as-code", "framework"]),
         RepoEntry("obsidian-connector", "Obsidian Connector", "CLAUDE.md", "active", "standalone",
                    ["obsidian", "mcp", "claude-code", "plugin", "knowledge-management"]),
+        RepoEntry("skills-creation-agent", "Skill Factory", "README.md", "active", "standalone",
+                   ["skill-factory", "agent-skills", "python", "cli", "registry", "automation"]),
         RepoEntry("rag-fin-midterm-1", "Course RAG Engine", "README.md", "active", "research",
                    ["rag", "finance", "education", "python", "llm-evaluation", "retrieval", "nyu-stern"]),
     ]
