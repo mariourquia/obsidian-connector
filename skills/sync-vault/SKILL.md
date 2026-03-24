@@ -62,8 +62,11 @@ obsidian_log_session(
 
 Call `obsidian_running_todo` to surface the current open items.
 
-If any items from the running TODO were completed during this session,
-mention them so the user knows the list is being maintained.
+Report the `total_open` count and mention any items in the
+`recent_completed` field so the user knows the list is being maintained.
+
+If the tool returns an error (e.g., vault not found), tell the user
+and suggest running `/init-vault` first.
 
 ### 5. Report
 

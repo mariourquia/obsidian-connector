@@ -13,11 +13,11 @@ from typing import Any
 
 from obsidian_connector.audit import log_action
 from obsidian_connector.project_sync import (
+    SYNC_CONFIG_FILENAME,
     RepoEntry,
     SyncConfig,
-    _SYNC_CONFIG_FILENAME,
-    _default_repos,
-    _group_display,
+    default_repos,
+    group_display,
 )
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ _SCAFFOLD_DIRS = [
 
 def _render_group_file(group: str, members: list[RepoEntry]) -> str:
     """Render a group MOC (Map of Content) file."""
-    display = _group_display(group)
+    display = group_display(group)
     member_links = "\n".join(f"- [[{m.dir_name}|{m.display_name}]]" for m in members)
 
     return (
@@ -67,7 +67,7 @@ def _render_initial_dashboard(repos: list[RepoEntry]) -> str:
 
     group_lines = []
     for group, members in sorted(groups.items()):
-        display = _group_display(group)
+        display = group_display(group)
         member_links = " + ".join(f"[[{m}]]" for m in members)
         group_lines.append(f"- [[{display}]] -- {member_links}")
 
@@ -184,7 +184,7 @@ def init_vault(
     if repos is not None:
         tracked_repos = repos
     elif use_defaults:
-        tracked_repos = _default_repos()
+        tracked_repos = default_repos()
     else:
         tracked_repos = discover_repos(gh_root)
 
@@ -228,7 +228,7 @@ def init_vault(
         groups.setdefault(r.group, []).append(r)
 
     for group, members in groups.items():
-        group_file = vault / "groups" / f"{_group_display(group)}.md"
+        group_file = vault / "groups" / f"{group_display(group)}.md"
         if not group_file.exists():
             group_file.write_text(
                 _render_group_file(group, members), encoding="utf-8"
@@ -236,7 +236,7 @@ def init_vault(
             created_files.append(str(group_file))
 
     # Sync config
-    config_file = vault / _SYNC_CONFIG_FILENAME
+    config_file = vault / SYNC_CONFIG_FILENAME
     config_data = {
         "github_root": str(gh_root),
         "vault_subdir": "",
@@ -308,7 +308,7 @@ def interactive_init(
     # 3. Repo selection
     gh_path = Path(github_root).expanduser()
     discovered = discover_repos(gh_path)
-    defaults = _default_repos()
+    defaults = default_repos()
 
     print()
     if discovered:

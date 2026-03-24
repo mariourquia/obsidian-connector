@@ -73,9 +73,6 @@ try:
     from obsidian_connector.vault_init import (
         discover_repos,
         init_vault,
-        _render_group_file,
-        _render_initial_dashboard,
-        _render_initial_todo,
     )
     _check("import vault_init", True)
 except ImportError as e:
@@ -83,6 +80,7 @@ except ImportError as e:
 
 try:
     from obsidian_connector import (
+        RepoEntry as RE,
         SessionEntry as SE,
         SyncConfig as SC,
         sync_projects,
@@ -156,7 +154,9 @@ assert_in("missing project has title", "Gone", md)
 # Project file for valid repo
 valid_state = RepoState(
     dir_name="valid", display_name="Valid Repo", group="amos", status="active",
+    repo_path="/tmp/fake/valid",
     branch="feature/test", last_commit_msg="Add tests", uncommitted_count=2,
+    uncommitted_short=" M src/main.py\n?? new_file.py",
     recent_commits=["abc123 Add tests", "def456 Fix bug"],
     modified_files=["src/main.py"],
     tags=["project", "amos", "python"],
