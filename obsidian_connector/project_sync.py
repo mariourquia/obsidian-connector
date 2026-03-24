@@ -351,7 +351,7 @@ def _render_project_file(state: RepoState) -> str:
         f"",
         f"| Field | Value |",
         f"|-------|-------|",
-        f"| Path | `~/Documents/GitHub/{state.dir_name}` |",
+        f"| Path | `{state.repo_path}` |",
         f"| Branch | `{state.branch}` |",
         f"| Last commit | {state.last_commit_msg} |",
         f"| Last commit date | {state.last_commit_date} |",
