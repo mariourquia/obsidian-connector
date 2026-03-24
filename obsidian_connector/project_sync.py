@@ -986,14 +986,17 @@ def log_session(
     config = load_sync_config(vault)
 
     # Containment check for vault_subdir
+    vault_root = vault_path.resolve()
     if config.vault_subdir:
-        out_root = (vault_path / config.vault_subdir).resolve()
-        if not str(out_root).startswith(str(vault_path.resolve())):
+        out_root = (vault_root / config.vault_subdir).resolve()
+        try:
+            out_root.relative_to(vault_root)
+        except ValueError:
             raise ObsidianCLIError(
                 f"vault_subdir escapes vault root: {config.vault_subdir}"
             )
     else:
-        out_root = vault_path
+        out_root = vault_root
 
     sessions_dir = out_root / "sessions"
     sessions_dir.mkdir(parents=True, exist_ok=True)
