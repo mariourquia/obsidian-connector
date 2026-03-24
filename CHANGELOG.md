@@ -4,6 +4,39 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-23
+
+### Added
+- **Project sync engine** (`project_sync.py`, 530 LOC): Syncs git repository state into the vault. Generates per-project Markdown files, Dashboard, Active Threads, and Running TODO. Replaces the standalone `sync-creation-vault` bash script with cross-platform Python.
+- **Vault initialization wizard** (`vault_init.py`, 280 LOC): Interactive `obsx init` command walks users through vault creation, repo discovery, and scaffold setup. Also available as `obsidian_init_vault` MCP tool.
+- **Structured session logging**: `obsidian_log_session` writes YAML frontmatter with `projects_touched`, `work_type` tags, and `files_changed` counts per project. Queryable via Obsidian Bases for time-series analysis.
+- **Running TODO**: `Running TODO.md` aggregates all open `- [ ]` items across the vault with source attribution. Completed items tracked with timestamps. Updated on each sync.
+- **6 new MCP tools** (35 total): `obsidian_sync_projects`, `obsidian_project_status`, `obsidian_active_threads`, `obsidian_log_session`, `obsidian_running_todo`, `obsidian_init_vault`.
+- **6 new CLI commands** (35 total): `sync-projects`, `project-status`, `active-threads`, `log-session`, `running-todo`, `init`.
+- **2 new skills** (9 total): `/sync-vault` (end-of-session sync with session logging), `/init-vault` (guided vault creation).
+- **Auto-discovery**: `discover_repos()` finds all git repos in a directory. Fallback when no `sync_config.json` exists.
+- **56 new test assertions** in `scripts/project_sync_test.py` covering data classes, rendering, vault init, repo discovery, and live git operations.
+
+### Fixed
+- **Path traversal**: Containment checks for `vault_subdir` and `dir_name` from `sync_config.json`.
+- **Session log integrity**: Each session writes a separate file (prevents frontmatter corruption on same-day multi-session writes).
+- **Render I/O**: Removed git subprocess calls from `_render_project_file` and `_render_active_threads`. All git state is now captured in `_extract_repo_state` and stored on `RepoState`.
+- **TODO detection**: `_DONE_RE` now accepts uppercase `[X]` for Obsidian compatibility.
+- **mcpb.json version**: Updated from 0.2.0 to 0.3.0 (was out of sync since v0.2.1).
+
+### Changed
+- Shared symbols made public: `GROUP_DISPLAY`, `group_display()`, `default_repos()`, `SYNC_CONFIG_FILENAME`. Eliminates cross-module use of `_`-prefixed names.
+- `RepoEntry` exported from `__init__.py` (part of public API for `init_vault(repos=[...])`).
+- Completed execution plan archived to `docs/exec-plans/completed/`.
+- 5 completed plan docs archived to `docs/plans/archived/`.
+- Finder-created duplicate files removed.
+
+### Security
+- Path containment: `vault_subdir` resolved and verified to stay within vault root.
+- Directory name validation: `dir_name` values with `/`, `..`, or null bytes rejected during config parsing.
+- Glob caps: `_scan_vault_todos` limited to 100 files per non-daily folder.
+- Multi-agent security review: 5 parallel agents (security, architecture, testing, tech debt, feature/UX) reviewed all new code. All blocking findings resolved.
+
 ## [0.2.1] - 2026-03-17
 
 ### Added
