@@ -1181,6 +1181,227 @@ def obsidian_uninstall(
         )
 
 
+# ---------------------------------------------------------------------------
+# Project Sync tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Sync Projects to Vault",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_sync_projects(
+    vault: str | None = None,
+    github_root: str | None = None,
+    update_todo: bool = True,
+) -> str:
+    """Sync all tracked git repositories into the Obsidian vault.
+
+    Generates per-project Markdown files with git state, a Dashboard with
+    project table, Active Threads for repos with uncommitted work, and
+    optionally updates the Running TODO list.
+
+    This replaces the standalone sync-creation-vault bash script with a
+    cross-platform, vault-integrated alternative.
+    """
+    from obsidian_connector.project_sync import sync_projects
+
+    try:
+        result = sync_projects(
+            vault=vault,
+            github_root=github_root,
+            update_todo=update_todo,
+        )
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Get Project Status",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_project_status(
+    project: str,
+    vault: str | None = None,
+    github_root: str | None = None,
+) -> str:
+    """Get current git status for a single tracked project.
+
+    Returns branch, last commit, uncommitted file count, modified files,
+    recent commits, and activity classification.
+    """
+    from obsidian_connector.project_sync import get_project_status
+
+    try:
+        result = get_project_status(
+            project=project,
+            vault=vault,
+            github_root=github_root,
+        )
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Get Active Threads",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_active_threads(
+    vault: str | None = None,
+    github_root: str | None = None,
+) -> str:
+    """List projects with active work -- non-main branches or uncommitted changes.
+
+    Returns a list of active project threads with branch, uncommitted count,
+    and last commit info.
+    """
+    from obsidian_connector.project_sync import get_active_threads
+
+    try:
+        result = get_active_threads(vault=vault, github_root=github_root)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Log Session to Vault",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_log_session(
+    projects: str,
+    work_types: str = "",
+    completed: str = "",
+    next_steps: str = "",
+    decisions: str = "",
+    session_context: str = "",
+    vault: str | None = None,
+) -> str:
+    """Write a structured session log entry to the vault.
+
+    Session logs have YAML frontmatter with project tags, work types,
+    and file counts -- enabling time-series analysis via Obsidian Bases.
+
+    Parameters use pipe-separated values for multiple items:
+    - projects: "obsidian-connector|site"
+    - work_types: "feature-dev|integration"
+    - completed: "Built sync module|Added MCP tools"
+    - next_steps: "Write tests|Update docs"
+    """
+    from obsidian_connector.project_sync import SessionEntry, log_session
+
+    try:
+        project_list = [p.strip() for p in projects.split("|") if p.strip()]
+        wt_list = [w.strip() for w in work_types.split("|") if w.strip()] if work_types else []
+        completed_list = [c.strip() for c in completed.split("|") if c.strip()] if completed else []
+        next_list = [n.strip() for n in next_steps.split("|") if n.strip()] if next_steps else []
+        decision_list = [d.strip() for d in decisions.split("|") if d.strip()] if decisions else []
+
+        entries = []
+        for proj in project_list:
+            entries.append(SessionEntry(
+                project=proj,
+                work_types=wt_list,
+                completed=completed_list,
+                next_steps=next_list,
+                decisions=decision_list,
+            ))
+
+        result = log_session(
+            entries=entries,
+            session_context=session_context,
+            vault=vault,
+        )
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Get Running TODO",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_running_todo(vault: str | None = None) -> str:
+    """Get the current running TODO state -- all open items across the vault.
+
+    Returns open item count, items grouped by source note, and recent
+    completions. Use obsidian_sync_projects to refresh the Running TODO
+    note in the vault.
+    """
+    from obsidian_connector.project_sync import get_running_todo
+
+    try:
+        result = get_running_todo(vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Initialize Vault for Project Sync",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_init_vault(
+    vault_path: str,
+    github_root: str = "",
+    use_defaults: bool = False,
+) -> str:
+    """Initialize a new vault for project tracking.
+
+    Creates the directory structure (projects, sessions, context, groups),
+    scaffold files (Dashboard, Running TODO, group MOCs), and a
+    sync_config.json with the repo registry.
+
+    Use use_defaults=True to pre-populate with the standard repo list,
+    or leave False to auto-discover repos from github_root.
+    """
+    from obsidian_connector.vault_init import init_vault
+
+    try:
+        result = init_vault(
+            vault_path=vault_path,
+            github_root=github_root if github_root else None,
+            use_defaults=use_defaults,
+        )
+        return json.dumps(result, indent=2)
+    except (ObsidianCLIError, OSError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
 def main() -> None:
     """Run the MCP server.
 
