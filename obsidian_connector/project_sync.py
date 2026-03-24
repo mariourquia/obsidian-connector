@@ -427,11 +427,13 @@ def _render_dashboard(states: list[RepoState]) -> str:
 
     for s in states:
         if not s.exists or not s.is_git:
-            lines.append(f"| [[{s.dir_name}]] | -- | {s.activity_label} | -- | {s.group} |")
+            lines.append(
+                f"| [[{s.dir_name}]] | -- | {s.activity_label} | -- | [[{group_display(s.group)}]] |"
+            )
         else:
             lines.append(
                 f"| [[{s.dir_name}]] | `{s.branch}` | {s.activity_label} "
-                f"| {s.uncommitted_count} | {s.group} |"
+                f"| {s.uncommitted_count} | [[{group_display(s.group)}]] |"
             )
 
     # Collect unique groups for the quick links
