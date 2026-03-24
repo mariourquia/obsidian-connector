@@ -5,7 +5,7 @@
 Python wrapper for the Obsidian desktop app CLI. Five distribution surfaces:
 - **Python API** -- `from obsidian_connector import search_notes, read_note, ...`
 - **CLI** -- `obsx search "query"` or `./bin/obsx search "query"`
-- **MCP server** -- 29 tools for Claude Desktop via stdio or HTTP
+- **MCP server** -- 35 tools for Claude Desktop via stdio or HTTP
 - **Claude Code plugin** -- `claude --plugin-dir .` or `claude plugin install obsidian-connector`
 - **macOS DMG** -- Double-click installer for non-technical users
 
@@ -33,6 +33,7 @@ python3 scripts/mcp_tool_contract_test.py # MCP tool contract tests
 python3 scripts/cli_parse_test.py       # CLI argument parsing tests
 python3 scripts/audit_permissions_test.py # Audit dir permissions
 bash scripts/mcp_launch_smoke.sh        # MCP server launch test
+python3 scripts/project_sync_test.py   # Project sync + vault init tests (56 assertions)
 ./bin/obsx doctor                       # Health check (Obsidian connectivity)
 ```
 
@@ -46,8 +47,10 @@ bash scripts/mcp_launch_smoke.sh        # MCP server launch test
 - `client.py` -- low-level Obsidian CLI wrapper
 - `platform.py` -- cross-platform path resolution, scheduling, notifications (macOS/Linux/Windows)
 - `errors.py` -- canonical exception hierarchy (ObsidianCLIError base class)
-- `mcp_server.py` -- FastMCP tool definitions (29 tools)
-- `cli.py` -- argparse CLI (29 commands)
+- `mcp_server.py` -- FastMCP tool definitions (35 tools)
+- `cli.py` -- argparse CLI (35 commands)
+- `project_sync.py` -- project sync engine (git state, dashboard, TODO, sessions)
+- `vault_init.py` -- vault initialization wizard
 - `workflows.py` -- composed multi-step operations
 - `config.py` -- vault/index configuration (uses platform.py for OS paths)
 - `audit.py` -- mutation audit logging (0o700 directory permissions)

@@ -1,6 +1,6 @@
 """obsidian-connector: Python wrapper for the Obsidian CLI."""
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 from obsidian_connector.cache import CLICache
 from obsidian_connector.audit import log_action
@@ -39,6 +39,20 @@ from obsidian_connector.thinking import (
     drift_analysis,
     ghost_voice_profile,
     trace_idea,
+)
+from obsidian_connector.project_sync import (
+    RepoEntry,
+    SessionEntry,
+    SyncConfig,
+    get_active_threads,
+    get_project_status,
+    get_running_todo,
+    log_session,
+    sync_projects,
+)
+from obsidian_connector.vault_init import (
+    discover_repos,
+    init_vault,
 )
 from obsidian_connector.workflows import (
     challenge_belief,
@@ -106,4 +120,16 @@ __all__ = [
     "success_envelope",
     "today_brief",
     "trace_idea",
+    # project_sync
+    "RepoEntry",
+    "SessionEntry",
+    "SyncConfig",
+    "get_active_threads",
+    "get_project_status",
+    "get_running_todo",
+    "log_session",
+    "sync_projects",
+    # vault_init
+    "discover_repos",
+    "init_vault",
 ]
