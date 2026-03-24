@@ -69,8 +69,31 @@ jobs:
           name: macos-artifacts
           path: dist/obsidian-connector-*.dmg
 
+  build-windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+        shell: cmd
+
+      - name: Build Windows installer
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          $env:PATH = "C:\Program Files (x86)\Inno Setup 6;$env:PATH"
+          .\scripts\build-windows-installer.ps1 -Version $env:TAG_NAME
+        shell: pwsh
+
+      - name: Upload .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist/obsidian-connector-*-setup.exe
+
   create-release:
-    needs: [build-artifacts, build-macos-dmg]
+    needs: [build-artifacts, build-macos-dmg, build-windows-exe]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,16 +108,26 @@ jobs:
           mkdir -p final-assets
           cp release-assets/linux-artifacts/* final-assets/
           cp release-assets/macos-artifacts/* final-assets/
+          cp release-assets/windows-artifacts/* final-assets/
           ls -lah final-assets/
+
+      - name: Normalize Windows installer filename
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          CLEAN_VERSION="${TAG_NAME#v}"
+          # Inno Setup outputs obsidian-connector-{version}-setup.exe
+          # Rename to match release naming convention with tag prefix
+          mv "final-assets/obsidian-connector-${CLEAN_VERSION}-setup.exe" \
+             "final-assets/obsidian-connector-${TAG_NAME}-setup.exe"
 
       - name: Create full checksums
         run: |
           TAG_NAME="${GITHUB_REF_NAME}"
           cd final-assets
-          # Recalculate checksums including the .dmg
           sha256sum obsidian-connector-${TAG_NAME}.tar.gz \
                     obsidian-connector-${TAG_NAME}.zip \
-                    obsidian-connector-${TAG_NAME}.dmg > obsidian-connector-${TAG_NAME}.sha256
+                    obsidian-connector-${TAG_NAME}.dmg \
+                    obsidian-connector-${TAG_NAME}-setup.exe > obsidian-connector-${TAG_NAME}.sha256
           cat obsidian-connector-${TAG_NAME}.sha256
 
       - name: Install cosign
@@ -108,6 +141,7 @@ jobs:
           for f in "obsidian-connector-${TAG_NAME}.tar.gz" \
                    "obsidian-connector-${TAG_NAME}.zip" \
                    "obsidian-connector-${TAG_NAME}.dmg" \
+                   "obsidian-connector-${TAG_NAME}-setup.exe" \
                    "obsidian-connector-${TAG_NAME}.sha256"; do
             cosign sign-blob --yes "$f" \
               --output-signature "${f}.sig" \
@@ -123,6 +157,7 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.tar.gz" \
             "final-assets/obsidian-connector-${TAG_NAME}.zip" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg" \
+            "final-assets/obsidian-connector-${TAG_NAME}-setup.exe" \
             "final-assets/obsidian-connector-${TAG_NAME}.sha256" \
             "final-assets/obsidian-connector-${TAG_NAME}.tar.gz.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.tar.gz.cert" \
@@ -130,6 +165,8 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.zip.cert" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg.cert" \
+            "final-assets/obsidian-connector-${TAG_NAME}-setup.exe.sig" \
+            "final-assets/obsidian-connector-${TAG_NAME}-setup.exe.cert" \
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.cert" \
             --title "$TAG_NAME" \

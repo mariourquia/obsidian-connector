@@ -5,9 +5,16 @@
 # and configures Claude Desktop to use the MCP server.
 #
 # Usage:
-#   .\scripts\Install.ps1              # from repo root
+#   .\scripts\Install.ps1              # from repo root (interactive)
 #   powershell -File scripts\Install.ps1
+#   .\scripts\Install.ps1 -NonInteractive -InstallSkills  # silent mode
 # -----------------------------------------------------------------------
+
+param(
+    [switch]$NonInteractive,
+    [switch]$InstallSchedule,
+    [switch]$InstallSkills
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -210,8 +217,10 @@ Write-Bold "Optional: Scheduled Task"
 Write-Dim "Set up a daily scheduled task to run workflows automatically."
 Write-Host ""
 
-$InstallSchedule = Read-Host "  Install scheduled daily briefing (Windows Task Scheduler)? [y/N]"
-if ($InstallSchedule -match "^[Yy]$") {
+if (-not $NonInteractive) {
+    $InstallSchedule = (Read-Host "  Install scheduled daily briefing (Windows Task Scheduler)? [y/N]") -match "^[Yy]$"
+}
+if ($InstallSchedule) {
     try {
         $TaskName = "obsidian-connector-morning"
         $ScriptPath = Join-Path $RepoRoot "scheduling" "run_scheduled.py"
@@ -239,8 +248,10 @@ else {
 # -- Optional: Skills ---------------------------------------------------
 
 Write-Host ""
-$InstallSkills = Read-Host "  Install Claude Code skills (/morning, /evening, /idea, /weekly)? [y/N]"
-if ($InstallSkills -match "^[Yy]$") {
+if (-not $NonInteractive) {
+    $InstallSkills = (Read-Host "  Install Claude Code skills (/morning, /evening, /idea, /weekly)? [y/N]") -match "^[Yy]$"
+}
+if ($InstallSkills) {
     $CommandsDir = Join-Path $RepoRoot ".claude" "commands"
     if (-not (Test-Path $CommandsDir)) {
         New-Item -ItemType Directory -Path $CommandsDir -Force | Out-Null
