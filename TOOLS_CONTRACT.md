@@ -12,7 +12,7 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-29 tools are available to Claude and other MCP clients.  All `vault`
+35 tools are available to Claude and other MCP clients.  All `vault`
 parameters are optional -- when omitted, the configured default vault is used.
 
 ### Core vault operations
@@ -70,6 +70,17 @@ These tools read vault `.md` files directly and work without Obsidian running.
 | `obsidian_context_load` | `vault?` | JSON full context bundle for agent session start |
 | `obsidian_check_in` | `vault?`, `timezone?` | JSON `{time_of_day, daily_note_exists, completed_rituals[], pending_rituals[], pending_delegations, unreviewed_drafts, open_loop_count, suggestion}` |
 
+### Project sync
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_sync_projects` | `vault?`, `github_root?`, `update_todo?` | JSON `{synced, active_threads, projects_dir, dashboard, timestamp, todo_updated}` |
+| `obsidian_project_status` | `project`, `vault?`, `github_root?` | JSON `{project, branch, last_commit, uncommitted, activity, modified_files[], ...}` |
+| `obsidian_active_threads` | `vault?`, `github_root?` | JSON array of `{project, branch, uncommitted, last_commit, modified_files[]}` |
+| `obsidian_log_session` | `projects`, `work_types?`, `completed?`, `next_steps?`, `decisions?`, `session_context?`, `vault?` | JSON `{session_file, date, projects[], appended}` |
+| `obsidian_running_todo` | `vault?` | JSON `{total_open, total_completed, by_source{}, recent_completed[]}` |
+| `obsidian_init_vault` | `vault_path`, `github_root?`, `use_defaults?` | JSON `{vault_path, repos_tracked, dirs_created[], files_created[], config_file, next_step}` |
+
 ### System administration
 
 | MCP Tool | Parameters | Returns |
@@ -84,7 +95,7 @@ shell out to `obsidian` or `python main.py` from within an MCP-connected session
 The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 `obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
 
-### Commands (29 total)
+### Commands (35 total)
 
 | Command | Description | Mutating |
 |---|---|---|
@@ -117,6 +128,12 @@ The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 | `rebuild-index` | Force-rebuild the vault graph index | no |
 | `doctor` | Health check on CLI and vault | no |
 | `uninstall` | Safely remove installation artifacts (two-mode: dry-run or force) | yes |
+| `sync-projects` | Sync all tracked repos into the vault | yes |
+| `project-status` | Get git status for a single project | no |
+| `active-threads` | List projects with active work | no |
+| `log-session` | Write a structured session log entry | yes |
+| `running-todo` | Show the running TODO state | no |
+| `init` | Initialize a new vault for project tracking | yes |
 
 ## Canonical JSON envelope
 

@@ -776,6 +776,109 @@ def _format_uninstall_result(data: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_sync_projects(data: dict) -> str:
+    """Human-readable sync output."""
+    lines = [
+        f"Synced {data.get('synced', 0)} projects.",
+        f"Active threads: {data.get('active_threads', 0)}",
+        f"Dashboard: {data.get('dashboard', '?')}",
+    ]
+    if data.get("todo_updated"):
+        lines.append("Running TODO updated.")
+    lines.append(f"Timestamp: {data.get('timestamp', '?')}")
+    return "\n".join(lines)
+
+
+def _fmt_project_status(data: dict) -> str:
+    """Human-readable single project status."""
+    if not data.get("exists"):
+        return f"{data.get('project', '?')}: directory not found"
+    if not data.get("is_git"):
+        return f"{data.get('project', '?')}: not a git repo"
+
+    lines = [
+        f"{data.get('display_name', data.get('project', '?'))}",
+        f"  Branch: {data.get('branch', '?')}",
+        f"  Last commit: {data.get('last_commit', '?')}",
+        f"  Activity: {data.get('activity', '?')}",
+        f"  Uncommitted: {data.get('uncommitted', 0)}",
+        f"  Staged: {data.get('staged', 0)}",
+    ]
+
+    modified = data.get("modified_files", [])
+    if modified:
+        lines.append(f"  Modified files ({len(modified)}):")
+        for f in modified[:10]:
+            lines.append(f"    - {f}")
+
+    recent = data.get("recent_commits", [])
+    if recent:
+        lines.append(f"  Recent commits ({len(recent)}):")
+        for c in recent[:5]:
+            lines.append(f"    - {c}")
+
+    return "\n".join(lines)
+
+
+def _fmt_active_threads(data: list) -> str:
+    """Human-readable active threads."""
+    if not data:
+        return "All projects are on main with clean working trees."
+
+    lines = [f"{len(data)} active thread(s):", ""]
+    for t in data:
+        lines.append(f"  {t.get('display_name', t.get('project', '?'))}")
+        if t.get("branch") not in ("main", "master"):
+            lines.append(f"    Branch: {t.get('branch')}")
+        if t.get("uncommitted", 0) > 0:
+            lines.append(f"    Uncommitted: {t['uncommitted']} files")
+        lines.append(f"    Last: {t.get('last_commit', '?')}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _fmt_log_session(data: dict) -> str:
+    """Human-readable session log confirmation."""
+    projects = ", ".join(data.get("projects", []))
+    return (
+        f"Session logged for: {projects}\n"
+        f"File: {data.get('session_file', '?')}"
+    )
+
+
+def _fmt_running_todo(data: dict) -> str:
+    """Human-readable running TODO summary."""
+    lines = [
+        f"Open items: {data.get('total_open', 0)}",
+        f"Completed: {data.get('total_completed', 0)}",
+    ]
+
+    by_source = data.get("by_source", {})
+    if by_source:
+        lines.append("")
+        for source, items in sorted(by_source.items()):
+            lines.append(f"  {source}:")
+            for item in items[:5]:
+                lines.append(f"    - [ ] {item}")
+            if len(items) > 5:
+                lines.append(f"    ... and {len(items) - 5} more")
+
+    return "\n".join(lines)
+
+
+def _fmt_init_vault(data: dict) -> str:
+    """Human-readable vault init result."""
+    if data.get("cancelled"):
+        return "Vault initialization cancelled."
+    return (
+        f"Vault initialized at: {data.get('vault_path', '?')}\n"
+        f"Tracking {data.get('repos_tracked', 0)} repos\n"
+        f"Created {len(data.get('files_created', []))} files\n"
+        f"\nNext: {data.get('next_step', 'run obsx sync-projects')}"
+    )
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -1001,6 +1104,44 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Remove cache/index files (use with --force)."
     )
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- sync-projects -----------------------------------------------------
+    p = sub.add_parser("sync-projects", help="Sync all tracked repos into the vault.")
+    p.add_argument("--github-root", default=None, help="Path to directory containing git repos.")
+    p.add_argument("--no-todo", action="store_true", help="Skip Running TODO update.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- project-status ----------------------------------------------------
+    p = sub.add_parser("project-status", help="Get git status for a single project.")
+    p.add_argument("project", help="Directory name of the project.")
+    p.add_argument("--github-root", default=None, help="Path to directory containing git repos.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- active-threads ----------------------------------------------------
+    p = sub.add_parser("active-threads", help="List projects with active work.")
+    p.add_argument("--github-root", default=None, help="Path to directory containing git repos.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- log-session -------------------------------------------------------
+    p = sub.add_parser("log-session", help="Write a session log entry to the vault.")
+    p.add_argument("--projects", required=True, help="Pipe-separated project names.")
+    p.add_argument("--work-types", default="", help="Pipe-separated work types.")
+    p.add_argument("--completed", default="", help="Pipe-separated completed items.")
+    p.add_argument("--next-steps", default="", help="Pipe-separated next step items.")
+    p.add_argument("--decisions", default="", help="Pipe-separated decision notes.")
+    p.add_argument("--context", default="", help="Free-text session context.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- running-todo ------------------------------------------------------
+    p = sub.add_parser("running-todo", help="Show the running TODO state.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- init --------------------------------------------------------------
+    p = sub.add_parser("init", help="Initialize a new vault for project tracking.")
+    p.add_argument("--vault-path", default=None, help="Path for the new vault.")
+    p.add_argument("--github-root", default=None, help="Path to directory containing git repos.")
+    p.add_argument("--use-defaults", action="store_true", help="Use built-in default repo list.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     return parser
@@ -1566,6 +1707,92 @@ def main(argv: list[str] | None = None) -> int:
             checks = run_doctor(vault=args.vault)
             data = checks
             human = _fmt_doctor(checks)
+
+        elif args.command == "sync-projects":
+            from obsidian_connector.project_sync import sync_projects
+            result = sync_projects(
+                vault=vault,
+                github_root=args.github_root,
+                update_todo=not args.no_todo,
+            )
+            data = result
+            human = _fmt_sync_projects(result)
+
+        elif args.command == "project-status":
+            from obsidian_connector.project_sync import get_project_status
+            result = get_project_status(
+                project=args.project,
+                vault=vault,
+                github_root=args.github_root,
+            )
+            data = result
+            human = _fmt_project_status(result)
+
+        elif args.command == "active-threads":
+            from obsidian_connector.project_sync import get_active_threads
+            result = get_active_threads(
+                vault=vault,
+                github_root=args.github_root,
+            )
+            data = result
+            human = _fmt_active_threads(result)
+
+        elif args.command == "log-session":
+            from obsidian_connector.project_sync import SessionEntry, log_session
+            project_list = [p.strip() for p in args.projects.split("|") if p.strip()]
+            wt_list = [w.strip() for w in args.work_types.split("|") if w.strip()] if args.work_types else []
+            completed_list = [c.strip() for c in args.completed.split("|") if c.strip()] if args.completed else []
+            next_list = [n.strip() for n in args.next_steps.split("|") if n.strip()] if args.next_steps else []
+            decision_list = [d.strip() for d in args.decisions.split("|") if d.strip()] if args.decisions else []
+            entries = [
+                SessionEntry(
+                    project=proj,
+                    work_types=wt_list,
+                    completed=completed_list,
+                    next_steps=next_list,
+                    decisions=decision_list,
+                )
+                for proj in project_list
+            ]
+            result = log_session(
+                entries=entries,
+                session_context=args.context,
+                vault=vault,
+            )
+            data = result
+            human = _fmt_log_session(result)
+
+        elif args.command == "running-todo":
+            from obsidian_connector.project_sync import get_running_todo
+            result = get_running_todo(vault=vault)
+            data = result
+            human = _fmt_running_todo(result)
+
+        elif args.command == "init":
+            from obsidian_connector.vault_init import init_vault, interactive_init
+            if args.vault_path:
+                # Programmatic mode with explicit vault path
+                result = init_vault(
+                    vault_path=args.vault_path,
+                    github_root=args.github_root,
+                    use_defaults=args.use_defaults,
+                )
+                data = result
+                human = _fmt_init_vault(result)
+            elif use_json:
+                # Avoid surprising writes to the current directory when using --json
+                raise ObsidianCLIError(
+                    "When using --json with 'init', you must also specify --vault-path "
+                    "to avoid initializing the current directory by accident."
+                )
+            else:
+                # Interactive wizard
+                result = interactive_init(
+                    default_vault_path=args.vault_path,
+                    default_github_root=args.github_root,
+                )
+                data = result
+                human = _fmt_init_vault(result)
 
         duration_ms = int((time.monotonic() - t0) * 1000)
 
