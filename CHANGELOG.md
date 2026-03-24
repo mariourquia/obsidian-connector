@@ -20,7 +20,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - **Path traversal**: Containment checks for `vault_subdir` and `dir_name` from `sync_config.json`.
 - **Session log integrity**: Each session writes a separate file (prevents frontmatter corruption on same-day multi-session writes).
+- **Active threads sort order**: Active threads now sorted by most recent commit first (ascending `days_since_commit`, then descending uncommitted count as tiebreaker). Both Python engine and bash script updated.
 - **Render I/O**: Removed git subprocess calls from `_render_project_file` and `_render_active_threads`. All git state is now captured in `_extract_repo_state` and stored on `RepoState`.
+- **plugin.json version**: Bumped from 0.2.1 to 0.3.0 (was out of sync with pyproject.toml and marketplace.json).
 - **TODO detection**: `_DONE_RE` now accepts uppercase `[X]` for Obsidian compatibility.
 - **mcpb.json version**: Updated from 0.2.0 to 0.3.0 (was out of sync since v0.2.1).
 
