@@ -41,6 +41,7 @@ from obsidian_connector.thinking import (
     trace_idea,
 )
 from obsidian_connector.project_sync import (
+    RepoEntry,
     SessionEntry,
     SyncConfig,
     get_active_threads,
@@ -120,6 +121,7 @@ __all__ = [
     "today_brief",
     "trace_idea",
     # project_sync
+    "RepoEntry",
     "SessionEntry",
     "SyncConfig",
     "get_active_threads",

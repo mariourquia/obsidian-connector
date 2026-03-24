@@ -54,9 +54,10 @@ Tell the user:
 ### 5. Suggest next steps
 
 - Open the vault in Obsidian
-- Try `/morning` for a morning briefing
-- Try `/idea` to capture a quick thought
+- If the morning/evening/idea/weekly skills are installed, mention them
+  as available workflows
 - Edit `sync_config.json` in the vault to customize tracked repos
+- Re-run `/sync-vault` any time to refresh project data
 
 ## When to use
 

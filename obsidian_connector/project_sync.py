@@ -33,7 +33,7 @@ _GIT_TIMEOUT = 10  # seconds per git command
 
 _DEFAULT_GITHUB_ROOT = Path.home() / "Documents" / "GitHub"
 
-_SYNC_CONFIG_FILENAME = "sync_config.json"
+SYNC_CONFIG_FILENAME = "sync_config.json"
 
 # Work type tags for session classification
 WORK_TYPES = frozenset({
@@ -74,6 +74,7 @@ class RepoState:
     display_name: str
     group: str
     status: str
+    repo_path: str = ""  # absolute path to the repo directory
     branch: str = "main"
     last_commit_date: str = "unknown"
     last_commit_msg: str = "no commits"
@@ -84,6 +85,7 @@ class RepoState:
     active_branches: list[str] = field(default_factory=list)
     modified_files: list[str] = field(default_factory=list)
     untracked_files: list[str] = field(default_factory=list)
+    uncommitted_short: str = ""  # git status --short output
     days_since_commit: int = 0
     activity_label: str = "active"
     exists: bool = True
@@ -127,7 +129,7 @@ class SyncConfig:
 # Group display names
 # ---------------------------------------------------------------------------
 
-_GROUP_DISPLAY: dict[str, str] = {
+GROUP_DISPLAY: dict[str, str] = {
     "amos": "AMOS",
     "keiki": "Keiki",
     "mcmc": "MCMC",
@@ -137,15 +139,15 @@ _GROUP_DISPLAY: dict[str, str] = {
 }
 
 
-def _group_display(group: str) -> str:
-    return _GROUP_DISPLAY.get(group, group)
+def group_display(group: str) -> str:
+    return GROUP_DISPLAY.get(group, group)
 
 
 # ---------------------------------------------------------------------------
 # Default repo registry (matches the user's existing setup)
 # ---------------------------------------------------------------------------
 
-def _default_repos() -> list[RepoEntry]:
+def default_repos() -> list[RepoEntry]:
     """Return the default repo registry."""
     return [
         RepoEntry("site", "mariourquia.com (Portfolio OS)", "claude.md", "active", "standalone",
@@ -211,6 +213,7 @@ def _extract_repo_state(entry: RepoEntry, github_root: Path) -> RepoState:
         display_name=entry.display_name,
         group=entry.group,
         status=entry.status,
+        repo_path=str(repo_path),
         tags=["project", entry.group] + entry.tags,
     )
 
@@ -235,9 +238,11 @@ def _extract_repo_state(entry: RepoEntry, github_root: Path) -> RepoState:
     state.last_commit_msg = _run_git(["log", "-1", "--format=%s"], repo_path) or "no commits"
     state.last_commit_author = _run_git(["log", "-1", "--format=%an"], repo_path) or "unknown"
 
-    # Counts
+    # Counts and short status
     porcelain = _run_git(["status", "--porcelain"], repo_path)
     state.uncommitted_count = len(porcelain.splitlines()) if porcelain else 0
+    short_status = _run_git(["status", "--short"], repo_path)
+    state.uncommitted_short = short_status[:2000] if short_status else ""
 
     cached = _run_git(["diff", "--cached", "--name-only"], repo_path)
     state.staged_count = len(cached.splitlines()) if cached else 0
@@ -302,7 +307,7 @@ def _render_project_file(state: RepoState) -> str:
             f"tags:\n{tags_yaml}\n  - missing\n"
             f"---\n\n"
             f"# {state.display_name}\n\n"
-            f"> Part of [[{_group_display(state.group)}]] project group\n\n"
+            f"> Part of [[{group_display(state.group)}]] project group\n\n"
             f"> [!warning] Directory not found\n"
         )
 
@@ -317,9 +322,10 @@ def _render_project_file(state: RepoState) -> str:
             f"tags:\n{tags_yaml}\n  - no-git\n"
             f"---\n\n"
             f"# {state.display_name}\n\n"
-            f"> Part of [[{_group_display(state.group)}]] project group\n\n"
+            f"> Part of [[{group_display(state.group)}]] project group\n\n"
             f"| Field | Value |\n"
             f"|-------|-------|\n"
+            f"| Path | `{state.repo_path}` |\n"
             f"| Git | not initialized |\n"
             f"| Activity | directory exists, no version control |\n"
         )
@@ -341,7 +347,7 @@ def _render_project_file(state: RepoState) -> str:
         f"",
         f"# {state.display_name}",
         f"",
-        f"> Part of [[{_group_display(state.group)}]] project group",
+        f"> Part of [[{group_display(state.group)}]] project group",
         f"",
         f"| Field | Value |",
         f"|-------|-------|",
@@ -365,15 +371,11 @@ def _render_project_file(state: RepoState) -> str:
         ]
 
     if state.uncommitted_count > 0:
-        porcelain = _run_git(
-            ["status", "--short"],
-            Path.home() / "Documents" / "GitHub" / state.dir_name,
-        )
         lines += [
             f"## Uncommitted Changes",
             f"",
             f"```",
-            porcelain[:2000] if porcelain else "(could not read)",
+            state.uncommitted_short if state.uncommitted_short else "(could not read)",
             f"```",
             f"",
         ]
@@ -450,7 +452,7 @@ def _render_dashboard(states: list[RepoState]) -> str:
     ]
 
     for group, members in sorted(groups.items()):
-        display = _group_display(group)
+        display = group_display(group)
         member_links = " + ".join(f"[[{m}]]" for m in members)
         lines.append(f"- [[{display}]] -- {member_links}")
 
@@ -493,12 +495,8 @@ def _render_active_threads(states: list[RepoState]) -> str:
 
         if has_uncommitted:
             lines.append(f"- **Uncommitted**: {s.uncommitted_count} files")
-            porcelain = _run_git(
-                ["status", "--short"],
-                Path.home() / "Documents" / "GitHub" / s.dir_name,
-            )
-            if porcelain:
-                for line in porcelain.splitlines()[:5]:
+            if s.uncommitted_short:
+                for line in s.uncommitted_short.splitlines()[:5]:
                     lines.append(f"  - `{line.strip()}`")
                 remaining = s.uncommitted_count - 5
                 if remaining > 0:
@@ -518,7 +516,7 @@ def _render_active_threads(states: list[RepoState]) -> str:
 # ---------------------------------------------------------------------------
 
 _TODO_RE = re.compile(r"^- \[ \] (.+)$", re.MULTILINE)
-_DONE_RE = re.compile(r"^- \[x\] (.+)$", re.MULTILINE)
+_DONE_RE = re.compile(r"^- \[[xX]\] (.+)$", re.MULTILINE)
 
 
 def _scan_vault_todos(vault_path: Path) -> tuple[list[TodoItem], list[TodoItem]]:
@@ -538,11 +536,11 @@ def _scan_vault_todos(vault_path: Path) -> tuple[list[TodoItem], list[TodoItem]]
         if d.is_dir():
             scan_paths.extend(sorted(d.glob("*.md"), reverse=True)[:30])
 
-    # Also scan Inbox and project-related folders
+    # Also scan Inbox and project-related folders (capped for performance)
     for folder_name in ("Inbox", "projects", "Projects"):
         folder = vault_path / folder_name
         if folder.is_dir():
-            scan_paths.extend(folder.glob("*.md"))
+            scan_paths.extend(list(folder.glob("*.md"))[:100])
 
     for note_path in scan_paths:
         try:
@@ -694,7 +692,11 @@ def render_session_entry(
             projects_yaml_lines.append(f"    files_changed: {e.files_changed}")
     projects_yaml = "\n".join(projects_yaml_lines)
 
-    work_type_tags = ", ".join(sorted(all_work_types)) if all_work_types else "general"
+    # Filter to canonical work types; pass through unknown ones but warn
+    validated_types = {wt for wt in all_work_types if wt in WORK_TYPES}
+    extra_types = all_work_types - WORK_TYPES
+    all_tags = validated_types | extra_types  # keep unknowns, don't silently drop
+    work_type_tags = ", ".join(sorted(all_tags)) if all_tags else "general"
 
     lines = [
         f"---",
@@ -755,14 +757,14 @@ def load_sync_config(vault: str | None = None) -> SyncConfig:
     """
     import json
 
-    config = SyncConfig(repos=_default_repos())
+    config = SyncConfig()
 
     try:
         vault_path = resolve_vault_path(vault)
     except VaultNotFound:
         return config
 
-    config_file = vault_path / _SYNC_CONFIG_FILENAME
+    config_file = vault_path / SYNC_CONFIG_FILENAME
     if config_file.is_file():
         try:
             with open(config_file) as f:
@@ -782,9 +784,22 @@ def load_sync_config(vault: str | None = None) -> SyncConfig:
                         tags=r.get("tags", []),
                     )
                     for r in raw["repos"]
+                    # Reject dir_name with path separators or traversal
+                    if "/" not in r.get("dir_name", "")
+                    and ".." not in r.get("dir_name", "")
+                    and "\x00" not in r.get("dir_name", "")
                 ]
         except (json.JSONDecodeError, KeyError, TypeError):
-            pass  # Use defaults on parse error
+            import sys
+            print(
+                f"warning: could not parse {config_file}, using defaults",
+                file=sys.stderr,
+            )
+
+    # If no repos from config, auto-discover from github_root
+    if not config.repos:
+        from obsidian_connector.vault_init import discover_repos
+        config.repos = discover_repos(config.github_root)
 
     return config
 
@@ -807,8 +822,15 @@ def sync_projects(
     if github_root:
         config.github_root = Path(github_root).expanduser()
 
-    # Determine output root within the vault
-    out_root = vault_path / config.vault_subdir if config.vault_subdir else vault_path
+    # Determine output root within the vault (with containment check)
+    if config.vault_subdir:
+        out_root = (vault_path / config.vault_subdir).resolve()
+        if not str(out_root).startswith(str(vault_path.resolve())):
+            raise ObsidianCLIError(
+                f"vault_subdir escapes vault root: {config.vault_subdir}"
+            )
+    else:
+        out_root = vault_path
     projects_dir = out_root / "projects"
     context_dir = out_root / "context"
     sessions_dir = out_root / "sessions"
@@ -958,28 +980,37 @@ def log_session(
     """
     vault_path = resolve_vault_path(vault)
     config = load_sync_config(vault)
-    out_root = vault_path / config.vault_subdir if config.vault_subdir else vault_path
+
+    # Containment check for vault_subdir
+    if config.vault_subdir:
+        out_root = (vault_path / config.vault_subdir).resolve()
+        if not str(out_root).startswith(str(vault_path.resolve())):
+            raise ObsidianCLIError(
+                f"vault_subdir escapes vault root: {config.vault_subdir}"
+            )
+    else:
+        out_root = vault_path
+
     sessions_dir = out_root / "sessions"
     sessions_dir.mkdir(parents=True, exist_ok=True)
 
+    # Use unique file per session to preserve frontmatter integrity.
+    # Each session gets its own file so Obsidian Bases can query
+    # per-session tags and project metadata accurately.
     date_slug = datetime.now().strftime("%Y-%m-%d")
-    session_file = sessions_dir / f"{date_slug}-session.md"
+    base_name = f"{date_slug}-session"
+    session_file = sessions_dir / f"{base_name}.md"
+
+    # Find next available filename if one already exists
+    counter = 1
+    was_appended = False
+    while session_file.is_file():
+        counter += 1
+        session_file = sessions_dir / f"{base_name}-{counter}.md"
+        was_appended = True
 
     content = render_session_entry(entries, session_context)
-
-    # Append if file already exists (multiple sessions per day)
-    if session_file.is_file():
-        existing = session_file.read_text(encoding="utf-8", errors="replace")
-        # Strip frontmatter from new content when appending
-        content_body = content.split("---", 2)
-        if len(content_body) >= 3:
-            append_content = content_body[2].lstrip("\n")
-        else:
-            append_content = content
-        combined = existing.rstrip("\n") + "\n\n" + append_content
-        session_file.write_text(combined, encoding="utf-8")
-    else:
-        session_file.write_text(content, encoding="utf-8")
+    session_file.write_text(content, encoding="utf-8")
 
     # Audit
     projects = [e.project for e in entries]
@@ -995,7 +1026,7 @@ def log_session(
         "session_file": str(session_file),
         "date": date_slug,
         "projects": projects,
-        "appended": session_file.stat().st_size > len(content),
+        "appended": was_appended,
     }
 
 
