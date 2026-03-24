@@ -252,10 +252,11 @@ def init_vault(
             for r in tracked_repos
         ],
     }
-    config_file.write_text(
-        json.dumps(config_data, indent=2), encoding="utf-8"
-    )
-    created_files.append(str(config_file))
+    if not config_file.exists():
+        config_file.write_text(
+            json.dumps(config_data, indent=2), encoding="utf-8"
+        )
+        created_files.append(str(config_file))
 
     # Audit
     log_action(
