@@ -8,9 +8,9 @@
                           Turn Claude into your second brain.
 ```
 
-Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault.
+Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-29 MCP tools. 29 CLI commands. 4 skills. Scheduled automation. Full Python API. Runs 100% locally.
+35 MCP tools. 35 CLI commands. 9 skills. Scheduled automation. Full Python API. Runs 100% locally.
 
 ## What it does
 
@@ -19,6 +19,8 @@ Your assistant proactively drives your day:
 - **Ideas**: Captures thoughts to your vault in two seconds, surfaces related notes
 - **Evening**: Reviews what you accomplished, suggests what to carry forward
 - **Weekly**: Checks drift between intentions and actions, graduates ideas, audits vault health
+- **Sync**: Tracks all your git repos, writes structured session logs with time-series tags, maintains a running TODO list
+- **Init**: Walks you through creating a vault for your projects and personal context
 
 Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prompt).
 
@@ -61,7 +63,7 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you all 29 MCP tools plus the `/obsidian-connector:morning`, `/obsidian-connector:evening`, `/obsidian-connector:idea`, and `/obsidian-connector:weekly` skills, with a SessionStart hook that suggests workflows based on time of day.
+This gives you all 35 MCP tools plus 9 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`), with a SessionStart hook that suggests workflows based on time of day.
 
 > **Note:** Plugin mode (`.mcp.json`) currently uses Unix paths for the Python venv.
 > On Windows, use the terminal installer (`scripts/Install.ps1`) instead of plugin mode.
@@ -212,6 +214,19 @@ Daily workflow, open loop tracking, idea graduation, and delegation management.
 | `obsidian_context_load` | Load full context bundle for agent session start |
 | `obsidian_check_in` | Time-aware check-in: ritual status, open loops, suggestions |
 
+### Project sync
+
+Cross-project state tracking, session logging with time-series tags, and a running TODO list.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_sync_projects` | Sync all tracked git repos into the vault (Dashboard, Active Threads, Running TODO) |
+| `obsidian_project_status` | Get current git status for a single project |
+| `obsidian_active_threads` | List projects with active work (non-main branches or uncommitted changes) |
+| `obsidian_log_session` | Write a structured session log with work type tags for time-series analysis |
+| `obsidian_running_todo` | Aggregated open TODO items across the vault with completion tracking |
+| `obsidian_init_vault` | Initialize a new vault for project tracking (scaffold structure, auto-discover repos) |
+
 ### Management
 
 | Tool | What it does |
@@ -234,7 +249,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 
 ## CLI usage
 
-29 commands available as `./bin/obsx` (works without venv activation) or `obsx`
+35 commands available as `./bin/obsx` (works without venv activation) or `obsx`
 (after `pip install -e .`).
 
 ```bash
@@ -275,6 +290,15 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx delegations --days 7
 ./bin/obsx context-load
 ./bin/obsx check-in                    # time-aware status + suggestion
+
+# ── Project Sync ──
+./bin/obsx init                        # interactive vault setup wizard
+./bin/obsx sync-projects               # sync all repos into the vault
+./bin/obsx project-status site         # single project git status
+./bin/obsx active-threads              # repos with uncommitted work
+./bin/obsx running-todo                # aggregated open TODO items
+./bin/obsx log-session --projects "obsidian-connector" --work-types "feature-dev" \
+  --completed "Built sync module" --next-steps "Write tests"
 
 # ── Management ──
 ./bin/obsx uninstall                   # preview what would be removed (dry-run)
@@ -330,6 +354,11 @@ candidates = graduate_candidates(lookback_days=7)
 
 # Check-in
 status = check_in()  # time_of_day, pending_rituals, suggestion
+
+# Project sync
+from obsidian_connector import sync_projects, log_session, SessionEntry, init_vault
+sync_projects()  # writes Dashboard, Active Threads, Running TODO
+log_session([SessionEntry(project="my-app", work_types=["feature-dev"])])
 ```
 
 ## Configuration
