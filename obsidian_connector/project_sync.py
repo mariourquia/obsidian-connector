@@ -823,14 +823,18 @@ def sync_projects(
         config.github_root = Path(github_root).expanduser()
 
     # Determine output root within the vault (with containment check)
+    vault_root = vault_path.resolve()
     if config.vault_subdir:
-        out_root = (vault_path / config.vault_subdir).resolve()
-        if not str(out_root).startswith(str(vault_path.resolve())):
+        out_root = (vault_root / config.vault_subdir).resolve()
+        try:
+            # Ensure out_root is contained within the vault root
+            out_root.relative_to(vault_root)
+        except ValueError:
             raise ObsidianCLIError(
                 f"vault_subdir escapes vault root: {config.vault_subdir}"
             )
     else:
-        out_root = vault_path
+        out_root = vault_root
     projects_dir = out_root / "projects"
     context_dir = out_root / "context"
     sessions_dir = out_root / "sessions"
