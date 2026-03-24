@@ -1770,15 +1770,21 @@ def main(argv: list[str] | None = None) -> int:
 
         elif args.command == "init":
             from obsidian_connector.vault_init import init_vault, interactive_init
-            if use_json or args.vault_path:
-                # Programmatic mode
+            if args.vault_path:
+                # Programmatic mode with explicit vault path
                 result = init_vault(
-                    vault_path=args.vault_path or ".",
+                    vault_path=args.vault_path,
                     github_root=args.github_root,
                     use_defaults=args.use_defaults,
                 )
                 data = result
                 human = _fmt_init_vault(result)
+            elif use_json:
+                # Avoid surprising writes to the current directory when using --json
+                raise ObsidianCLIError(
+                    "When using --json with 'init', you must also specify --vault-path "
+                    "to avoid initializing the current directory by accident."
+                )
             else:
                 # Interactive wizard
                 result = interactive_init(
