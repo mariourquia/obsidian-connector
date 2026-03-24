@@ -29,7 +29,7 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (18 modules) |
+| `obsidian_connector/` | Core Python package (20 modules) |
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | User-facing documentation, release artifacts, distribution guides |
@@ -41,8 +41,8 @@ persisted to SQLite for fast incremental updates.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
-| `cli.py` | CLI entry point (`obsx`): 29 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
-| `mcp_server.py` | MCP server (FastMCP): 29 tools for Claude Desktop (stdio + HTTP transports) |
+| `cli.py` | CLI entry point (`obsx`): 35 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `mcp_server.py` | MCP server (FastMCP): 35 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
 | `workflows.py` | Higher-level workflows: daily ops, open loops, graduate pipeline, delegation detection, context loader |
@@ -58,6 +58,8 @@ persisted to SQLite for fast incremental updates.
 | `client_fallback.py` | Adapter layer: wraps client.py with automatic file_backend fallback when Obsidian CLI is unavailable |
 | `file_backend.py` | CLI-less vault access via direct file reads (search, read, tasks, daily log, note creation with path traversal protection) |
 | `search.py` | Search result enrichment and deduplication |
+| `project_sync.py` | Project sync engine: git state extraction, dashboard/threads/todo/session rendering, configurable repo registry |
+| `vault_init.py` | Vault initialization wizard: interactive setup, auto-discovery, scaffold generation |
 
 ## Dependency flow
 
@@ -65,6 +67,8 @@ persisted to SQLite for fast incremental updates.
 bin/obsx ──> cli.py ──> client.py ──> subprocess (obsidian CLI) ──> Obsidian app (IPC)
                     ──> workflows.py ──> client_fallback.py + graph.py
                     ──> thinking.py ──> client_fallback.py + graph.py + index_store.py
+                    ──> project_sync.py ──> config.py + audit.py + vault_init.py
+                    ──> vault_init.py ──> project_sync.py (data types) + audit.py
                     ──> envelope.py, audit.py
 
 bin/obsx-mcp ──> mcp_server.py ──> client_fallback.py + workflows.py + thinking.py + graph.py + doctor.py
