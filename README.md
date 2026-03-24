@@ -406,6 +406,17 @@ log_session([SessionEntry(project="my-app", work_types=["feature-dev"])])
 | `OBSIDIAN_TIMEOUT` | `30` | CLI command timeout in seconds |
 | `OBSIDIAN_CACHE_TTL` | `0` (off) | In-memory cache TTL for read-only commands |
 
+## Auto-sync on session end
+
+The plugin includes a `Stop` hook that automatically syncs your vault when a
+Claude Code session ends. Syncs are debounced (at most once every 10 minutes)
+and run in the background so they never block your workflow.
+
+Each sync captures:
+- Git state for all tracked projects (branch, commits, modified files)
+- AI agent attribution (which agents contributed in the last 30 days)
+- Running TODO aggregation (all open `- [ ]` items across the vault)
+
 ## Safety
 
 - **Dry-run mode**: All mutating commands support `--dry-run` to preview without writing.

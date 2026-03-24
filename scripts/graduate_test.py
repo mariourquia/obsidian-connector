@@ -208,7 +208,8 @@ def test_candidates_integration() -> None:
 
     with patch("obsidian_connector.workflows.search_notes", side_effect=mock_search), \
          patch("obsidian_connector.workflows.read_note", side_effect=mock_read), \
-         patch("obsidian_connector.graph.build_note_index", side_effect=Exception("no vault")):
+         patch("obsidian_connector.index_store.resolve_vault_path", return_value=Path("/tmp/fake-vault")), \
+         patch("obsidian_connector.index_store.build_note_index", side_effect=Exception("no vault")):
         result = graduate_candidates(lookback_days=3)
 
     check("result is a list", isinstance(result, list))
