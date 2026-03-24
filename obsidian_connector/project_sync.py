@@ -481,23 +481,22 @@ def _render_active_threads(states: list[RepoState]) -> str:
         f"",
     ]
 
-    active_count = 0
-    for s in states:
-        if not s.is_git:
-            continue
-        has_branch = s.branch not in ("main", "master")
-        has_uncommitted = s.uncommitted_count > 0
-        if not has_branch and not has_uncommitted:
-            continue
+    # Filter to repos with active work, sort by most recently active first
+    active = [
+        s for s in states
+        if s.is_git
+        and (s.branch not in ("main", "master") or s.uncommitted_count > 0)
+    ]
+    active.sort(key=lambda s: (s.days_since_commit, -s.uncommitted_count))
 
-        active_count += 1
+    for s in active:
         lines.append(f"## [[{s.dir_name}|{s.display_name}]]")
         lines.append("")
 
-        if has_branch:
+        if s.branch not in ("main", "master"):
             lines.append(f"- **Branch**: `{s.branch}`")
 
-        if has_uncommitted:
+        if s.uncommitted_count > 0:
             lines.append(f"- **Uncommitted**: {s.uncommitted_count} files")
             if s.uncommitted_short:
                 for line in s.uncommitted_short.splitlines()[:5]:
@@ -509,7 +508,7 @@ def _render_active_threads(states: list[RepoState]) -> str:
         lines.append(f"- **Last commit**: {s.last_commit_msg}")
         lines.append("")
 
-    if active_count == 0:
+    if len(active) == 0:
         lines.append("> All projects are on main with clean working trees.")
 
     return "\n".join(lines)
