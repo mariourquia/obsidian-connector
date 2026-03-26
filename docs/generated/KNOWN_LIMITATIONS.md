@@ -23,7 +23,7 @@ last_reviewed: "2026-03-16"
 
 | Dependency | Constraint | Limitation |
 |---|---|---|
-| Obsidian desktop app | v1.4+ with CLI plugin | Required for 22 of 29 MCP tools. Graph, doctor, and uninstall work offline. |
+| Obsidian desktop app | v1.4+ with CLI plugin | Required for 22 of 35 MCP tools. Graph, doctor, and uninstall work offline. |
 | Python | >=3.11 | Python 3.10 and below not supported. |
 | `mcp` package | >=1.0.0,<2.0.0 | MCP 2.x not tested. Range pinned in pyproject.toml. |
 

@@ -33,7 +33,8 @@ persisted to SQLite for fast incremental updates.
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | User-facing documentation, release artifacts, distribution guides |
-| `skills/` | Claude Code skill definitions (morning, evening, idea, weekly) |
+| `skills/` | Claude Code skill definitions (11 skills: 6 workflow + 5 knowledge) |
+| `portable/` | Portable skills bundle for Codex CLI, OpenCode, Gemini CLI (5 skills) |
 | `scheduling/` | launchd/cron configs for scheduled automation |
 
 ## Package modules

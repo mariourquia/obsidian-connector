@@ -32,7 +32,7 @@ Files changed: 59 (+11,796 / -135 lines)
   make docs-lint
   ```
 - [ ] CHANGELOG.md has complete v0.2.0 entry (Added, Fixed, Changed, Documentation)
-- [ ] README.md updated (29 tools, 29 commands, cross-platform install paths)
+- [ ] README.md updated (35 tools, 35 commands, cross-platform install paths)
 - [ ] TOOLS_CONTRACT.md updated (`obsidian_uninstall` name)
 - [ ] ARCHITECTURE.md updated (platform.py, file_backend.py, uninstall.py in module table)
 - [ ] SECURITY.md updated (v0.2.x supported, v0.1.x security-fixes-only)
