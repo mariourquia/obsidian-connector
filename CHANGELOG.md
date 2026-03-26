@@ -4,6 +4,23 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-25
+
+### Added
+- **obsidian-cli skill**: Obsidian CLI command reference for agents. Covers read, create, search, tasks, tags, backlinks, and plugin development. Parity with kepano/obsidian-skills.
+- **defuddle skill**: Web page to clean markdown extraction via defuddle CLI. Parity with kepano/obsidian-skills.
+- **Portable skills bundle** (`portable/`): 5 Agent Skills-compliant knowledge skills for Codex CLI, OpenCode, Gemini CLI, and any agent supporting the Agent Skills specification.
+- **Build script** (`scripts/build-portable.sh`): Assembles the portable bundle from the skills directory.
+- **Skill compatibility matrix** in README: classifies all 11 skills by type, distribution surface, and runtime requirements.
+- Total skills: 11 (6 workflow + 5 knowledge).
+
+### Fixed
+- 25 stale references across 11 files: skill counts (4->11), tool counts (28/29->35), command counts (28/29->35).
+
+### Changed
+- ARCHITECTURE.md: Added `portable/` to directory map.
+- README: Added "Portable skills" and "Skill compatibility" sections.
+
 ## [0.3.0] - 2026-03-23
 
 ### Added
