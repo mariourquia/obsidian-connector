@@ -230,7 +230,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     assert_type("init result is dict", result, dict)
     assert_eq("init vault_path exists", vault_path.is_dir(), True)
     assert_in("init has repos_tracked", "repos_tracked", result)
-    assert_eq("init has 16 default repos", result["repos_tracked"], 16)
+    assert_eq("init has 17 default repos", result["repos_tracked"], 17)
 
     # Check scaffold
     assert_eq("projects/ exists", (vault_path / "projects").is_dir(), True)
@@ -244,7 +244,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     # Check config is valid JSON
     config_data = json.loads((vault_path / "sync_config.json").read_text())
     assert_type("config repos is list", config_data["repos"], list)
-    assert_eq("config has 16 repos", len(config_data["repos"]), 16)
+    assert_eq("config has 17 repos", len(config_data["repos"]), 17)
 
     # Check group files
     assert_eq("AMOS group exists", (vault_path / "groups" / "AMOS.md").is_file(), True)

@@ -363,8 +363,8 @@ obsidian-connector/
   TOOLS_CONTRACT.md                This file
   obsidian_connector/
     __init__.py                    Public API re-exports (45 symbols)
-    cli.py                         CLI entry point (28 subcommands)
-    mcp_server.py                  MCP server (29 tools for Claude Desktop)
+    cli.py                         CLI entry point (35 subcommands)
+    mcp_server.py                  MCP server (35 tools for Claude Desktop)
     uninstall.py                   Safe two-mode uninstaller (CLI + MCP)
     workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
     thinking.py                    Thinking tools: ghost, drift, trace, ideas

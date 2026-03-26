@@ -56,7 +56,7 @@ CI matrix: macOS-latest + ubuntu-latest + windows-latest x Python 3.11, 3.12, 3.
 | Any MCP host   | stdio     | Yes        | Standard MCP stdio via `obsx-mcp`        |
 | Any MCP host   | HTTP/SSE  | Yes        | Alternate transport supported by FastMCP |
 
-29 MCP tools. Typed JSON envelope responses per `TOOLS_CONTRACT.md`.
+35 MCP tools. Typed JSON envelope responses per `TOOLS_CONTRACT.md`.
 
 ## Dependency Compatibility
 

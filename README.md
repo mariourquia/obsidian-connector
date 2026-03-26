@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-35 MCP tools. 35 CLI commands. 9 skills. Scheduled automation. Full Python API. Runs 100% locally.
+35 MCP tools. 35 CLI commands. 11 skills. Scheduled automation. Full Python API. Runs 100% locally.
 
 ## What it does
 
@@ -46,10 +46,10 @@ Five surfaces, pick the one that fits:
 
 | Surface | Command | What you get |
 |---------|---------|-------------|
-| **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 29 MCP tools |
-| **Claude Desktop** | `./scripts/install.sh` | 29 MCP tools via `claude_desktop_config.json` |
+| **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 35 MCP tools |
+| **Claude Desktop** | `./scripts/install.sh` | 35 MCP tools via `claude_desktop_config.json` |
 | **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer (configures Claude Desktop) |
-| **CLI** | `pip install -e .` then `obsx` | 29 CLI commands |
+| **CLI** | `pip install -e .` then `obsx` | 35 CLI commands |
 | **Python API** | `from obsidian_connector import ...` | Programmatic vault access |
 
 ### Requirements
@@ -89,7 +89,7 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you all 35 MCP tools plus 9 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`), with a SessionStart hook that suggests workflows based on time of day.
+This gives you all 35 MCP tools plus 11 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`), with a SessionStart hook that suggests workflows based on time of day.
 
 > **Note:** Plugin mode (`.mcp.json`) currently uses Unix paths for the Python venv.
 > On Windows, use the terminal installer (`scripts/Install.ps1`) instead of plugin mode.
@@ -467,21 +467,55 @@ bash /path/to/obsidian-connector/scripts/setup.sh
 ```
 
 **What the plugin provides:**
-- 4 skills: `/obsidian-connector:morning`, `/obsidian-connector:evening`, `/obsidian-connector:idea`, `/obsidian-connector:weekly`
+- 11 skills: `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
 - SessionStart hook: suggests `/morning` or `/evening` based on time of day
-- 29 MCP tools: full vault access (search, read, write, graph, thinking, workflows)
+- 35 MCP tools: full vault access (search, read, write, graph, thinking, workflows)
 - Post-install setup: `scripts/setup.sh` creates the Python venv
 
 **Plugin structure:**
 ```
 .claude-plugin/plugin.json    # manifest (name, version, author)
-skills/*/SKILL.md             # 4 skills in plugin format
+skills/*/SKILL.md             # 11 skills (6 workflow + 5 knowledge)
+portable/                     # 5 portable skills for Codex/OpenCode/Gemini
 hooks/hooks.json              # SessionStart hook config
 .mcp.json                     # MCP server config
 scripts/setup.sh              # post-install venv bootstrap
 ```
 
 **Note:** Plugin mode uses Unix venv paths. Windows users should use `scripts/Install.ps1` instead.
+
+## Portable skills (Codex CLI, OpenCode, Gemini CLI)
+
+5 knowledge skills packaged for any agent that supports the [Agent Skills](https://agentskills.io) specification:
+
+```bash
+# Codex CLI
+cp -r portable/skills/* ~/.codex/skills/
+
+# OpenCode
+cp -r portable/skills/* ~/.opencode/skills/
+
+# Universal (works with Codex + OpenCode natively)
+cp -r portable/skills/* ~/.agents/skills/
+```
+
+See [portable/README.md](portable/README.md) for all install paths.
+
+## Skill compatibility
+
+| Skill | Type | Plugin | Portable | Requires MCP | Requires Binary |
+|-------|------|:------:|:--------:|:------------:|:---------------:|
+| /morning | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /evening | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /idea | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /weekly | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /sync-vault | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /init-vault | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /obsidian-markdown | Knowledge | Yes | Yes | -- | -- |
+| /obsidian-bases | Knowledge | Yes | Yes | -- | -- |
+| /json-canvas | Knowledge | Yes | Yes | -- | -- |
+| /obsidian-cli | Knowledge | Yes | Yes | -- | Obsidian 1.12+ |
+| /defuddle | Knowledge | Yes | Yes | -- | Node.js 18+ |
 
 ## Roadmap
 
