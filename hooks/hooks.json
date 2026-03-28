@@ -11,6 +11,17 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "${CLAUDE_PLUGIN_ROOT}/hooks/idea_detect.md"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "",

@@ -879,6 +879,13 @@ def sync_projects(
         todo_md = _render_running_todo(vault_path, existing_todo)
         todo_path.write_text(todo_md, encoding="utf-8")
 
+    # Mark auto-generated files
+    try:
+        from obsidian_connector.vault_guardian import mark_auto_generated
+        mark_auto_generated(vault_path)
+    except Exception:
+        pass  # Non-critical; don't fail sync over callout injection
+
     # Timestamp
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     (out_root / ".last-sync").write_text(now, encoding="utf-8")
