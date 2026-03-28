@@ -118,6 +118,7 @@ def create_vault(
     seed_topics: list[str] | None = None,
     seed_notes: list[dict[str, str]] | None = None,
     vault_root: str = "",
+    preset: str = "",
 ) -> dict[str, Any]:
     """Create a new Obsidian vault for a topic or idea.
 
@@ -152,15 +153,26 @@ def create_vault(
             else:
                 root = Path.home() / "Documents" / "Obsidian"
 
+    # Apply preset if specified
+    preset_data = None
+    if preset:
+        from obsidian_connector.vault_presets import get_preset
+        preset_data = get_preset(preset)
+        if preset_data and not description:
+            description = preset_data.description
+
     slug = _slugify(name)
     vault_path = root / slug
     vault_path.mkdir(parents=True, exist_ok=True)
 
     created_files: list[str] = []
 
-    # Create standard directories
-    for dirname in ("Cards", "Inbox", "Research", "daily", "templates"):
-        (vault_path / dirname).mkdir(exist_ok=True)
+    # Create directories -- preset dirs + standard dirs
+    standard_dirs = ["Cards", "Inbox", "Research", "daily", "templates"]
+    if preset_data:
+        standard_dirs = list(set(standard_dirs + preset_data.directories))
+    for dirname in standard_dirs:
+        (vault_path / dirname).mkdir(parents=True, exist_ok=True)
 
     # Create the home note
     now = datetime.now().strftime("%Y-%m-%d")
@@ -252,10 +264,41 @@ def create_vault(
                 note_file.write_text(note_content, encoding="utf-8")
                 created_files.append(f"Cards/{note_slug}.md")
 
+    # Write preset seed notes
+    if preset_data:
+        for note in preset_data.seed_notes:
+            folder = note.get("folder", ".")
+            title = note.get("title", "Untitled")
+            content = note.get("content", "")
+            note_tags = [t.strip() for t in note.get("tags", "").split(",") if t.strip()]
+
+            note_slug = _slugify(title)
+            if folder == ".":
+                note_file = vault_path / f"{note_slug}.md"
+                rel_path = f"{note_slug}.md"
+            else:
+                target_dir = vault_path / folder
+                target_dir.mkdir(parents=True, exist_ok=True)
+                note_file = target_dir / f"{note_slug}.md"
+                rel_path = f"{folder}/{note_slug}.md"
+
+            if not note_file.exists():
+                note_content = _render_seed_note(title=title, content=content, tags=note_tags or ["seed"])
+                note_file.write_text(note_content, encoding="utf-8")
+                created_files.append(rel_path)
+
+        # Write daily template if provided
+        if preset_data.daily_template:
+            template_file = vault_path / "templates" / "daily-template.md"
+            if not template_file.exists():
+                template_file.write_text(preset_data.daily_template, encoding="utf-8")
+                created_files.append("templates/daily-template.md")
+
     # Audit
     log_action(
         "create-vault",
-        {"name": name, "slug": slug, "seed_topics": len(seed_topics or []),
+        {"name": name, "slug": slug, "preset": preset,
+         "seed_topics": len(seed_topics or []),
          "seed_notes": len(seed_notes or [])},
         None,
         affected_path=str(vault_path),
