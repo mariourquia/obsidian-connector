@@ -1638,17 +1638,21 @@ def obsidian_create_vault(
     description: str = "",
     seed_topics: str = "",
     vault_root: str = "",
+    preset: str = "",
 ) -> str:
     """Create a new Obsidian vault for a topic or idea.
 
     Auto-detects where existing vaults are stored and creates the new one
-    alongside them. Seeds it with research stubs for any topics provided.
+    alongside them. Can use a preset template for common vault types.
 
     Parameters:
-    - name: vault name (e.g., "Aviation Research", "Side Project Ideas")
+    - name: vault name (e.g., "My Journal", "Aviation Research")
     - description: what this vault is for
     - seed_topics: pipe-separated topics to create research stubs for
-      (e.g., "ADS-B tracking|flight data APIs|aircraft performance")
+    - preset: use a curated template (see obsidian_vault_presets for list).
+      Options: journaling, mental-health, business-ideas, research,
+      project-management, second-brain, vacation-planning, life-planning,
+      budgeting, creative-writing, self-expression
     - vault_root: override parent directory (auto-detected if empty)
 
     The vault gets: Home.md, Research/, Cards/, Inbox/, daily/, templates/
@@ -1663,12 +1667,38 @@ def obsidian_create_vault(
             description=description,
             seed_topics=topics,
             vault_root=vault_root,
+            preset=preset,
         )
         return json.dumps(result, indent=2)
     except (OSError, ValueError) as exc:
         return json.dumps(
             {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
         )
+
+
+@mcp.tool(
+    title="List Vault Presets",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_vault_presets() -> str:
+    """List available vault preset templates.
+
+    Presets are curated vault structures for common use cases:
+    journaling, mental health, business ideas, research, project
+    management, second brain, vacation planning, life planning,
+    budgeting, creative writing, and self-expression.
+
+    Pass the preset slug to obsidian_create_vault to use one.
+    """
+    from obsidian_connector.vault_presets import list_presets
+
+    presets = list_presets()
+    return json.dumps({"presets": presets, "count": len(presets)}, indent=2)
 
 
 @mcp.tool(
