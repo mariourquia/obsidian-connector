@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-35 MCP tools. 35 CLI commands. 11 skills. Scheduled automation. Full Python API. Runs 100% locally.
+47 MCP tools. 35 CLI commands. 13 skills. 11 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
 
 ## What it does
 
@@ -483,6 +483,32 @@ scripts/setup.sh              # post-install venv bootstrap
 ```
 
 **Note:** Plugin mode uses Unix venv paths. Windows users should use `scripts/Install.ps1` instead.
+
+## Vault presets
+
+Create a vault for any purpose with curated templates:
+
+```bash
+obsx create-vault --name "My Journal" --preset journaling
+```
+
+| Preset | Description |
+|--------|-------------|
+| `journaling` | Daily journaling with guided prompts and reflection templates |
+| `mental-health` | Thought records, mood tracking, CBT worksheets, coping strategies |
+| `business-ideas` | Idea evaluation, market analysis, pitch drafts, competitive landscape |
+| `research` | Literature notes, reading lists, methodology, synthesis across any domain |
+| `project-management` | Task tracking, sprint planning, retrospectives, decision logs |
+| `second-brain` | Zettelkasten-style: fleeting notes, literature notes, permanent notes, MOCs |
+| `vacation-planning` | Itineraries, budgets, packing lists, bookings, travel research |
+| `life-planning` | Goals, values, quarterly reviews, long-term vision |
+| `budgeting` | Expense tracking, financial goals, savings targets, debt payoff |
+| `creative-writing` | Drafts, worldbuilding, character sheets, plot outlines, prompts |
+| `self-expression` | Free writing, mood boards, manifestos, letters never sent, art journaling |
+
+Vaults are created alongside your existing Obsidian vaults (auto-detected).
+Each comes with starter notes, templates, and directory structure.
+Discard any time with `obsx discard-vault`.
 
 ## Portable skills (Codex CLI, OpenCode, Gemini CLI)
 
