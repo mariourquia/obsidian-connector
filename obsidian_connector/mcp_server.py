@@ -1402,6 +1402,128 @@ def obsidian_init_vault(
         )
 
 
+# ---------------------------------------------------------------------------
+# Idea routing tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Float an Idea to a Project",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_float_idea(
+    idea: str,
+    project: str = "",
+    vault: str | None = None,
+) -> str:
+    """Route an idea to the appropriate project's idea file in the vault.
+
+    If project is specified, routes directly to that project's idea file.
+    If omitted, auto-routes by matching keywords in the idea text against
+    known projects and their tags.
+
+    Ideas accumulate in Inbox/Ideas/{project}.md with timestamps.
+    """
+    from obsidian_connector.idea_router import float_idea
+
+    try:
+        result = float_idea(idea=idea, project=project, vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Incubate a New Project Idea",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_incubate_project(
+    name: str,
+    description: str,
+    why: str = "",
+    tags: str = "",
+    related_projects: str = "",
+    vault: str | None = None,
+) -> str:
+    """Create an inception card for a project that doesn't exist yet.
+
+    Captures tangential ideas worth revisiting -- things that might become
+    repos or products someday but aren't being built now. Cards live in
+    Inbox/Project Ideas/{slug}.md.
+
+    Parameters:
+    - name: project name (e.g., "Flight Tracker Dashboard")
+    - description: what it would do
+    - why: why it matters (optional)
+    - tags: comma-separated tags (optional)
+    - related_projects: comma-separated related project names (optional)
+    """
+    from obsidian_connector.idea_router import incubate_project
+
+    try:
+        result = incubate_project(
+            name=name,
+            description=description,
+            why=why,
+            tags=tags,
+            related_projects=related_projects,
+            vault=vault,
+        )
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="List Incubating Projects",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_incubating(vault: str | None = None) -> str:
+    """List all project inception cards -- ideas for projects not yet started."""
+    from obsidian_connector.idea_router import list_incubating
+
+    try:
+        result = list_incubating(vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="List Idea Files",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_idea_files(vault: str | None = None) -> str:
+    """List all idea routing files with per-project idea counts."""
+    from obsidian_connector.idea_router import list_idea_files
+
+    try:
+        result = list_idea_files(vault=vault)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
 def main() -> None:
     """Run the MCP server.
 
