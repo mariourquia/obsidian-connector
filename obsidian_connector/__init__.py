@@ -56,6 +56,11 @@ from obsidian_connector.idea_router import (
     list_idea_files,
     list_incubating,
 )
+from obsidian_connector.vault_factory import (
+    create_vault,
+    discard_vault,
+    list_existing_vaults,
+)
 from obsidian_connector.vault_guardian import (
     detect_unorganized,
     mark_auto_generated,
@@ -145,6 +150,10 @@ __all__ = [
     "incubate_project",
     "list_idea_files",
     "list_incubating",
+    # vault_factory
+    "create_vault",
+    "discard_vault",
+    "list_existing_vaults",
     # vault_guardian
     "detect_unorganized",
     "mark_auto_generated",
