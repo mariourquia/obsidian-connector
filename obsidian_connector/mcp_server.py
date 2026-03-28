@@ -1378,12 +1378,17 @@ def obsidian_init_vault(
     vault_path: str,
     github_root: str = "",
     use_defaults: bool = False,
+    existing_vault: bool = False,
 ) -> str:
-    """Initialize a new vault for project tracking.
+    """Initialize a vault for project tracking.
 
-    Creates the directory structure (projects, sessions, context, groups),
-    scaffold files (Dashboard, Running TODO, group MOCs), and a
-    sync_config.json with the repo registry.
+    For NEW vaults (existing_vault=False): creates the full directory
+    structure with project tracking in the vault root.
+
+    For EXISTING vaults (existing_vault=True): puts all project-tracking
+    files in a 'Project Tracking' subdirectory so your existing notes
+    are untouched. Auto-detected: if the vault already has .md files or
+    directories, it's treated as existing.
 
     Use use_defaults=True to pre-populate with the standard repo list,
     or leave False to auto-discover repos from github_root.
@@ -1395,6 +1400,7 @@ def obsidian_init_vault(
             vault_path=vault_path,
             github_root=github_root if github_root else None,
             use_defaults=use_defaults,
+            existing_vault=existing_vault,
         )
         return json.dumps(result, indent=2)
     except (ObsidianCLIError, OSError) as exc:

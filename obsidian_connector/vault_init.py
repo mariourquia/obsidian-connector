@@ -153,8 +153,13 @@ def init_vault(
     repos: list[RepoEntry] | None = None,
     vault_name: str = _DEFAULT_VAULT_NAME,
     use_defaults: bool = False,
+    existing_vault: bool = False,
 ) -> dict[str, Any]:
     """Initialize a vault for project sync.
+
+    When existing_vault=True, all sync output goes into a 'Project Tracking'
+    subdirectory to avoid polluting the user's existing notes. When False
+    (creating a fresh vault), sync output goes in the vault root.
 
     Creates the directory structure, scaffold files, and sync config.
 
@@ -175,10 +180,27 @@ def init_vault(
     -------
     dict with created paths and repo count.
     """
+    from obsidian_connector.project_sync import DEFAULT_SYNC_SUBDIR
+
     vault = Path(vault_path).expanduser().resolve()
     vault.mkdir(parents=True, exist_ok=True)
 
     gh_root = Path(github_root).expanduser() if github_root else Path.home() / "Documents" / "GitHub"
+
+    # Auto-detect if this is an existing vault with user content
+    if not existing_vault:
+        existing_md = list(vault.glob("*.md"))
+        existing_dirs = [d for d in vault.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        # If the vault already has .md files or non-hidden directories
+        # that we didn't create, treat it as an existing vault
+        our_files = {"Dashboard.md", "Running TODO.md", "Home.md"}
+        user_files = [f.name for f in existing_md if f.name not in our_files]
+        if user_files or len(existing_dirs) > 0:
+            existing_vault = True
+
+    # Existing vaults get a subdirectory to avoid polluting user content
+    vault_subdir = DEFAULT_SYNC_SUBDIR if existing_vault else ""
+    out_root = vault / vault_subdir if vault_subdir else vault
 
     # Determine repo list
     if repos is not None:
@@ -188,18 +210,29 @@ def init_vault(
     else:
         tracked_repos = discover_repos(gh_root)
 
-    # Create directories
+    # Create directories -- project-tracking dirs go in out_root,
+    # user-content dirs go in vault root
+    _TRACKING_DIRS = ["projects", "context", "sessions"]
+    _USER_DIRS = ["daily", "Inbox", "Inbox/Agent Drafts", "Cards"]
+
     created_dirs = []
-    for dirname in _SCAFFOLD_DIRS:
+    for dirname in _TRACKING_DIRS:
+        d = out_root / dirname
+        d.mkdir(parents=True, exist_ok=True)
+        created_dirs.append(str(d))
+    for dirname in _USER_DIRS:
         d = vault / dirname
         d.mkdir(parents=True, exist_ok=True)
         created_dirs.append(str(d))
+    # Groups go in out_root if namespaced, else vault root
+    (out_root / "groups").mkdir(parents=True, exist_ok=True)
+    created_dirs.append(str(out_root / "groups"))
 
     # Write scaffold files
     created_files = []
 
     # Dashboard
-    dashboard = vault / "Dashboard.md"
+    dashboard = out_root / "Dashboard.md"
     if not dashboard.exists():
         dashboard.write_text(
             _render_initial_dashboard(tracked_repos), encoding="utf-8"
@@ -207,13 +240,13 @@ def init_vault(
         created_files.append(str(dashboard))
 
     # Running TODO
-    todo = vault / "Running TODO.md"
+    todo = out_root / "Running TODO.md"
     if not todo.exists():
         todo.write_text(_render_initial_todo(), encoding="utf-8")
         created_files.append(str(todo))
 
     # Active threads stub
-    threads = vault / "context" / "active-threads.md"
+    threads = out_root / "context" / "active-threads.md"
     if not threads.exists():
         threads.write_text(
             "---\ntitle: Active Threads\ntags: [context, threads]\n---\n\n"
@@ -228,18 +261,18 @@ def init_vault(
         groups.setdefault(r.group, []).append(r)
 
     for group, members in groups.items():
-        group_file = vault / "groups" / f"{group_display(group)}.md"
+        group_file = out_root / "groups" / f"{group_display(group)}.md"
         if not group_file.exists():
             group_file.write_text(
                 _render_group_file(group, members), encoding="utf-8"
             )
             created_files.append(str(group_file))
 
-    # Sync config
+    # Sync config (always stored in vault root for discovery)
     config_file = vault / SYNC_CONFIG_FILENAME
     config_data = {
         "github_root": str(gh_root),
-        "vault_subdir": "",
+        "vault_subdir": vault_subdir,
         "repos": [
             {
                 "dir_name": r.dir_name,

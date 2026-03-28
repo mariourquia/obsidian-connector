@@ -35,6 +35,12 @@ _DEFAULT_GITHUB_ROOT = Path.home() / "Documents" / "GitHub"
 
 SYNC_CONFIG_FILENAME = "sync_config.json"
 
+# Default subdirectory for sync output within the vault.
+# Keeps project tracking isolated from the user's own notes.
+# Set to "" in sync_config.json to use the vault root (only for
+# dedicated project-tracking vaults like "creation").
+DEFAULT_SYNC_SUBDIR = "Project Tracking"
+
 # Work type tags for session classification
 WORK_TYPES = frozenset({
     "feature-dev",
@@ -768,14 +774,20 @@ def load_sync_config(vault: str | None = None) -> SyncConfig:
         return config
 
     config_file = vault_path / SYNC_CONFIG_FILENAME
-    if config_file.is_file():
+    has_config = config_file.is_file()
+
+    if has_config:
         try:
             with open(config_file) as f:
                 raw = json.load(f)
             if "github_root" in raw:
                 config.github_root = Path(raw["github_root"]).expanduser()
+            # vault_subdir: "" means vault root (explicit opt-in for
+            # dedicated project vaults). Absence means use default subdir.
             if "vault_subdir" in raw:
                 config.vault_subdir = raw["vault_subdir"]
+            else:
+                config.vault_subdir = DEFAULT_SYNC_SUBDIR
             if "repos" in raw:
                 config.repos = [
                     RepoEntry(
@@ -798,6 +810,11 @@ def load_sync_config(vault: str | None = None) -> SyncConfig:
                 f"warning: could not parse {config_file}, using defaults",
                 file=sys.stderr,
             )
+
+    # If no config file found, default to safe subdir to avoid
+    # polluting existing vaults with sync output
+    if not has_config:
+        config.vault_subdir = DEFAULT_SYNC_SUBDIR
 
     # If no repos from config, auto-discover from github_root
     if not config.repos:
