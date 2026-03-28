@@ -493,6 +493,274 @@ _register(VaultPreset(
 # Public API
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Poetry
+# ---------------------------------------------------------------------------
+
+_register(VaultPreset(
+    slug="poetry",
+    name="Poetry",
+    description="Draft poems, study craft, explore forms from haiku to free verse, and build toward a chapbook. A space for the music of language.",
+    icon="🪶",
+    directories=[
+        "Drafts", "Finished Poems", "Reading Journal", "Craft Notes",
+        "Craft Notes/Foundations", "Craft Notes/Intermediate", "Craft Notes/Advanced",
+        "Collections", "Submissions", "Prompts", "templates",
+    ],
+    seed_notes=[
+        {
+            "folder": "templates",
+            "title": "Poem Draft Template",
+            "tags": "template, poem, draft",
+            "content": (
+                "## Title (working)\n\n\n\n"
+                "## Form\n\nFree verse / Sonnet / Haiku / Villanelle / Other:\n\n"
+                "## Seed\n\nThe image, phrase, or feeling that started this:\n\n\n\n"
+                "## Draft\n\n\n\n\n\n\n\n"
+                "## Notes to Self\n\n"
+                "- What is this poem trying to do?\n"
+                "- Which lines feel alive? Which feel dead?\n"
+                "- What am I avoiding saying?\n"
+            ),
+        },
+        {
+            "folder": "templates",
+            "title": "Reading Response Template",
+            "tags": "template, reading",
+            "content": (
+                "## Poem Title\n\n\n## Poet\n\n\n## First Impression\n\n\n\n"
+                "## Close Reading\n\n### Structure and Form\n\n\n### Sound\n\n\n"
+                "### Imagery and Figurative Language\n\n\n### Turns and Surprises\n\n\n\n"
+                "## What I Can Steal\n\nTechniques to try in my own work:\n\n- \n\n"
+                "## Favorite Lines\n\n> \n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Foundations",
+            "title": "What Makes a Poem",
+            "tags": "craft, foundations",
+            "content": (
+                "A poem is not prose with line breaks. The line is the fundamental unit "
+                "of meaning. Where a line breaks controls pacing, emphasis, and surprise.\n\n"
+                "## Compression\n\nPoetry says in 14 lines what an essay takes 14 paragraphs "
+                "to explore. This compression comes from imagery, figurative language, sound, "
+                "and white space.\n\n"
+                "## Poetry Does Not Require\n\n"
+                "- Rhyme (free verse is the dominant contemporary mode)\n"
+                "- A narrative\n- Obscurity\n- Elevated language\n\n"
+                "The best poems are clear about their images even when mysterious about their meaning.\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Foundations",
+            "title": "Basic Forms -- Haiku, Sonnet, Free Verse",
+            "tags": "craft, foundations, forms",
+            "content": (
+                "## Haiku\n\n3 lines: 5-7-5 syllables. Captures a single moment. Juxtaposes "
+                "two images. The power is in what is NOT said.\n\n"
+                "## Sonnet\n\n14 lines of iambic pentameter. Shakespearean (ABAB CDCD EFEF GG) "
+                "or Petrarchan (ABBAABBA + sestet). The volta (turn) between octave and sestet "
+                "is where the real poem happens.\n\n"
+                "## Free Verse\n\nNo fixed meter or rhyme. The poet creates internal coherence "
+                "through imagery, line breaks, rhythm, and emotional arc. Arguably harder than "
+                "form because you must invent the structure each time.\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Intermediate",
+            "title": "Meter, Rhythm, and Sound Devices",
+            "tags": "craft, intermediate, meter, sound",
+            "content": (
+                "## Metrical Feet\n\n"
+                "- Iamb (da-DUM): most common in English. \"Shall I comPARE thee TO a SUMmer's DAY?\"\n"
+                "- Trochee (DUM-da): falling, insistent. \"TI-ger, TI-ger, BUR-ning BRIGHT\"\n"
+                "- Anapest (da-da-DUM): galloping. Limericks use this.\n"
+                "- Dactyl (DUM-da-da): rolling, waltz-like.\n\n"
+                "## Sound Devices\n\n"
+                "- Alliteration: repeated initial consonants\n"
+                "- Assonance: repeated vowel sounds within words\n"
+                "- Consonance: repeated consonant sounds at word ends\n"
+                "- Slant rhyme: similar but not identical sounds (moon/bone). Emily Dickinson's signature.\n\n"
+                "The music is in the arrangement, not the vocabulary.\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Advanced",
+            "title": "Experimental Forms and Building a Chapbook",
+            "tags": "craft, advanced, experimental, chapbook",
+            "content": (
+                "## Found Poetry\n\nTake language from non-poetic sources and arrange it into lines.\n\n"
+                "## Erasure Poetry\n\nBlack out most of a printed page, leaving words that form a poem.\n\n"
+                "## Concrete Poetry\n\nThe visual arrangement on the page IS part of the meaning.\n\n"
+                "## Building a Chapbook\n\n"
+                "A chapbook is 20-35 pages of connected poems. The poems need coherence -- "
+                "shared theme, voice, or formal constraint. Order matters: the first poem "
+                "sets the world, the last poem resonates as a closing statement.\n\n"
+                "Submit to contests and open reading periods via Poets & Writers, Duotrope, "
+                "and CLMP.\n"
+            ),
+        },
+        {
+            "folder": ".",
+            "title": "Getting Started",
+            "tags": "guide",
+            "content": (
+                "Welcome to your poetry workshop.\n\n"
+                "- **Drafts/**: Poems in progress\n"
+                "- **Craft Notes/**: Foundations, Intermediate, Advanced\n"
+                "- **Reading Journal/**: Notes on poets you study\n"
+                "- **Collections/**: Chapbook manuscripts\n\n"
+                "Tell Claude: \"Give me a poetry prompt\" or \"Help me revise this draft.\"\n"
+            ),
+        },
+    ],
+    daily_template="## {{date}} -- Poetry Journal\n\n### Observations\n\n\n### Lines and Fragments\n\n- \n",
+))
+
+
+# ---------------------------------------------------------------------------
+# Songwriting
+# ---------------------------------------------------------------------------
+
+_register(VaultPreset(
+    slug="songwriting",
+    name="Songwriting",
+    description="Write lyrics, sketch melodies, learn song structure, and develop your craft from first verse to finished track. Includes AI-assisted production workflows.",
+    icon="🎵",
+    directories=[
+        "Songs", "Songs/Drafts", "Songs/Finished", "Lyrics", "Chord Charts",
+        "Ideas", "Craft Notes", "Craft Notes/Foundations", "Craft Notes/Intermediate",
+        "Craft Notes/Advanced", "Co-Writes", "Production Notes", "Business", "templates",
+    ],
+    seed_notes=[
+        {
+            "folder": "templates",
+            "title": "Song Draft Template",
+            "tags": "template, song",
+            "content": (
+                "## Title (working)\n\n\n## Key / BPM\n\nKey: \nBPM: \n\n"
+                "## Core Idea\n\nOne sentence:\n\n\n\n"
+                "## Verse 1\n\n\n\n## Pre-Chorus\n\n\n\n## Chorus\n\n\n\n"
+                "## Verse 2\n\n\n\n## Bridge\n\n\n\n## Final Chorus\n\n\n\n"
+                "## Melody Notes\n\n\n## Production Ideas\n\n\n"
+            ),
+        },
+        {
+            "folder": "templates",
+            "title": "Chord Chart Template",
+            "tags": "template, chords",
+            "content": (
+                "## Song Title\n\n\n## Key\n\n\n## BPM\n\n\n"
+                "```\nIntro:  | Am | F | C | G |\nVerse:  | Am | F | C | G |\n"
+                "Chorus: | C  | G | Am | F |\nBridge: | F  | C | G  | Am |\n```\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Foundations",
+            "title": "Song Structure",
+            "tags": "craft, foundations, structure",
+            "content": (
+                "## Building Blocks\n\n"
+                "- **Verse**: Tells the story. Different lyrics, same melody each time.\n"
+                "- **Chorus**: Emotional centerpiece. Contains the hook/title. Same lyrics each time.\n"
+                "- **Pre-Chorus**: Builds anticipation between verse and chorus.\n"
+                "- **Bridge**: Contrast. New melody, new chords, new perspective. Appears once.\n"
+                "- **Outro**: How the song ends.\n\n"
+                "## Common Structures\n\n"
+                "- **ABABCB**: Verse/Chorus/Verse/Chorus/Bridge/Chorus (most common pop)\n"
+                "- **AABA**: Verse/Verse/Bridge/Verse (jazz standards, Beatles)\n"
+                "- **Through-composed**: No repeated sections (Bohemian Rhapsody)\n\n"
+                "## Energy Arc\n\nVerse (moderate) -> Pre-Chorus (building) -> Chorus (peak) -> "
+                "Bridge (contrast) -> Final Chorus (highest)\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Foundations",
+            "title": "Chord Progressions",
+            "tags": "craft, foundations, chords",
+            "content": (
+                "## Essential Progressions\n\n"
+                "**I-IV-V-I** (C-F-G-C): Blues, rock, country, folk. The foundation.\n\n"
+                "**I-V-vi-IV** (C-G-Am-F): The most used pop progression. \"Let It Be,\" "
+                "\"Someone Like You,\" \"No Woman No Cry.\"\n\n"
+                "**vi-IV-I-V** (Am-F-C-G): Same chords, darker starting point. \"Numb,\" \"Africa.\"\n\n"
+                "**ii-V-I** (Dm-G-C): Jazz cadence. Strong resolution.\n\n"
+                "Most hit songs use 3-5 chords. Complexity is not the goal -- emotional effectiveness is.\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Foundations",
+            "title": "Lyric Writing Fundamentals",
+            "tags": "craft, foundations, lyrics",
+            "content": (
+                "## Lyrics vs Poetry\n\n"
+                "Lyrics are heard once in real time. Clarity > complexity. Melody carries meaning. "
+                "Repetition is expected. Open vowels sustain on long notes.\n\n"
+                "## Principles\n\n"
+                "1. Write conversationally\n2. Show, don't tell (specific images > abstract statements)\n"
+                "3. One theme per song\n4. Title in the chorus\n"
+                "5. Verses = specific narrative, Chorus = universal emotion\n\n"
+                "## Process\n\nConcept -> Free-write -> Identify chorus -> Build verses -> Revise for singability\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Intermediate",
+            "title": "Hooks, Rhyme, and Co-Writing",
+            "tags": "craft, intermediate",
+            "content": (
+                "## Hooks\n\nMelodic, lyric, rhythmic, riff, or production. The element that "
+                "grabs the listener. Write the chorus first -- the hook is the song's reason for existing.\n\n"
+                "## Beyond Perfect Rhyme\n\n"
+                "- Slant rhyme (home/stone): more natural, vastly more options\n"
+                "- Internal rhyme: rhyme within lines for density\n"
+                "- Multisyllabic rhyme: technical mastery (opportunity/community)\n"
+                "- If you contort the lyric to land the rhyme, the rhyme is not worth it\n\n"
+                "## Co-Writing\n\nMost hits are co-written. Bring ideas. Say \"yes, and.\" "
+                "Build chorus first. Record a rough demo. Agree on splits.\n"
+            ),
+        },
+        {
+            "folder": "Craft Notes/Advanced",
+            "title": "Production, AI Tools, and the Business",
+            "tags": "craft, advanced, production, ai, business",
+            "content": (
+                "## Arrangement\n\nStart sparse, add layers. Verse (stripped) -> Chorus (full) -> "
+                "Bridge (contrast) -> Final Chorus (everything). The vocal is the most important "
+                "element -- leave room for it in the mid frequencies.\n\n"
+                "## AI Tools (2025-2026)\n\n"
+                "- **Suno/Udio**: Generate full song demos from text prompts\n"
+                "- **ChordChord/AudioCipher**: Generate progressions and melodies as MIDI\n"
+                "- Use AI for demos and exploration; your perspective and emotion are the art\n\n"
+                "## Revenue Streams\n\n"
+                "Streaming royalties, sync licensing (film/TV/ads -- can range $hundreds to $100K+), "
+                "performance royalties (register with ASCAP/BMI), mechanical royalties.\n\n"
+                "## Sync Tips\n\nOwn your masters. Build a catalog (20-50 songs). Tag metadata. "
+                "Use sync libraries (Musicbed, Artlist, Songtradr).\n"
+            ),
+        },
+        {
+            "folder": ".",
+            "title": "Getting Started",
+            "tags": "guide",
+            "content": (
+                "Welcome to your songwriting workshop.\n\n"
+                "- **Songs/**: Drafts and finished songs\n"
+                "- **Craft Notes/**: Foundations, Intermediate, Advanced\n"
+                "- **Ideas/**: Hooks, titles, fragments\n"
+                "- **Co-Writes/**: Collaborative session notes\n\n"
+                "Tell Claude: \"Help me write a chorus about...\" or \"What chord progression "
+                "would work for a melancholy pop song?\"\n"
+            ),
+        },
+    ],
+    daily_template="## {{date}} -- Songwriting Log\n\n### Worked on\n\n\n### Ideas captured\n\n- \n",
+))
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
 def list_presets() -> list[dict[str, str]]:
     """Return all available vault presets."""
     return [
