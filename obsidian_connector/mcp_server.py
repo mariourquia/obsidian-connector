@@ -1524,6 +1524,94 @@ def obsidian_idea_files(vault: str | None = None) -> str:
         return _error_envelope(exc)
 
 
+# ---------------------------------------------------------------------------
+# Vault guardian tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Mark Auto-Generated Files",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_mark_auto_generated(vault: str | None = None) -> str:
+    """Add 'do not edit' callouts to auto-generated vault files.
+
+    Marks Dashboard.md, Running TODO.md, projects/*.md, and
+    context/active-threads.md with a visible Obsidian callout warning
+    users not to edit them manually (they get overwritten on sync).
+    """
+    from obsidian_connector.vault_guardian import mark_auto_generated
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        result = mark_auto_generated(vault_path)
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Detect Unorganized Notes",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_detect_unorganized(vault: str | None = None) -> str:
+    """Find notes in the vault root that should be in a subfolder.
+
+    Returns suggestions with the file name, recommended folder, and
+    reasoning. Use obsidian_organize_file to execute the move.
+    """
+    from obsidian_connector.vault_guardian import detect_unorganized
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        suggestions = detect_unorganized(vault_path)
+        return json.dumps({"suggestions": suggestions, "count": len(suggestions)}, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
+@mcp.tool(
+    title="Organize a Vault File",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_organize_file(
+    file_name: str,
+    target_folder: str,
+    vault: str | None = None,
+) -> str:
+    """Move a file from the vault root to the suggested folder.
+
+    Only moves files from the vault root -- never touches files already
+    in subfolders. Will not overwrite existing files at the destination.
+    """
+    from obsidian_connector.vault_guardian import organize_file
+
+    try:
+        result = organize_file(
+            file_name=file_name,
+            target_folder=target_folder,
+            vault=vault,
+        )
+        return json.dumps(result, indent=2)
+    except ObsidianCLIError as exc:
+        return _error_envelope(exc)
+
+
 def main() -> None:
     """Run the MCP server.
 
