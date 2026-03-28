@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-47 MCP tools. 35 CLI commands. 13 skills. 11 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
+47 MCP tools. 35 CLI commands. 13 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
 
 ## What it does
 
@@ -505,6 +505,8 @@ obsx create-vault --name "My Journal" --preset journaling
 | `budgeting` | Expense tracking, financial goals, savings targets, debt payoff |
 | `creative-writing` | Drafts, worldbuilding, character sheets, plot outlines, prompts |
 | `self-expression` | Free writing, mood boards, manifestos, letters never sent, art journaling |
+| `poetry` | Draft poems, study forms (haiku to sonnet), build toward a chapbook |
+| `songwriting` | Lyrics, melodies, chord progressions, AI production tools, sync licensing |
 
 Vaults are created alongside your existing Obsidian vaults (auto-detected).
 Each comes with starter notes, templates, and directory structure.
