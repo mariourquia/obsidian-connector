@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
@@ -1610,6 +1611,179 @@ def obsidian_organize_file(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+
+
+# ---------------------------------------------------------------------------
+# Vault factory tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Create New Vault",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_create_vault(
+    name: str,
+    description: str = "",
+    seed_topics: str = "",
+    vault_root: str = "",
+) -> str:
+    """Create a new Obsidian vault for a topic or idea.
+
+    Auto-detects where existing vaults are stored and creates the new one
+    alongside them. Seeds it with research stubs for any topics provided.
+
+    Parameters:
+    - name: vault name (e.g., "Aviation Research", "Side Project Ideas")
+    - description: what this vault is for
+    - seed_topics: pipe-separated topics to create research stubs for
+      (e.g., "ADS-B tracking|flight data APIs|aircraft performance")
+    - vault_root: override parent directory (auto-detected if empty)
+
+    The vault gets: Home.md, Research/, Cards/, Inbox/, daily/, templates/
+    and research stubs for each seed topic with key questions to explore.
+    """
+    from obsidian_connector.vault_factory import create_vault
+
+    try:
+        topics = [t.strip() for t in seed_topics.split("|") if t.strip()] if seed_topics else None
+        result = create_vault(
+            name=name,
+            description=description,
+            seed_topics=topics,
+            vault_root=vault_root,
+        )
+        return json.dumps(result, indent=2)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Seed Vault with Research",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_seed_vault(
+    vault_path: str,
+    title: str,
+    content: str,
+    tags: str = "",
+    folder: str = "Cards",
+) -> str:
+    """Add a research note to a vault.
+
+    Use this after researching a topic (web search, reading docs, etc.)
+    to save findings as a structured note in the vault.
+
+    Parameters:
+    - vault_path: path to the vault
+    - title: note title
+    - content: markdown content (research findings, key points, links)
+    - tags: comma-separated tags
+    - folder: which folder to put it in (default: Cards/)
+    """
+    from obsidian_connector.vault_factory import _slugify, _render_seed_note
+    from pathlib import Path as _Path
+
+    try:
+        vpath = _Path(vault_path).expanduser()
+        target_dir = vpath / folder
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        slug = _slugify(title)
+        note_file = target_dir / f"{slug}.md"
+
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else ["research"]
+        note_content = _render_seed_note(title=title, content=content, tags=tag_list)
+
+        if note_file.exists():
+            # Append instead of overwrite
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            with open(note_file, "a", encoding="utf-8") as f:
+                f.write(f"\n---\n\n## Update ({now})\n\n{content}\n")
+        else:
+            note_file.write_text(note_content, encoding="utf-8")
+
+        log_action(
+            "seed-vault",
+            {"title": title, "folder": folder},
+            None,
+            affected_path=str(note_file),
+            content=content,
+        )
+
+        return json.dumps({
+            "file": str(note_file),
+            "title": title,
+            "folder": folder,
+            "created": not note_file.exists(),
+        }, indent=2)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="List Existing Vaults",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_list_vaults() -> str:
+    """List all Obsidian vaults registered on this machine."""
+    from obsidian_connector.vault_factory import list_existing_vaults
+
+    try:
+        vaults = list_existing_vaults()
+        return json.dumps({"vaults": vaults, "count": len(vaults)}, indent=2)
+    except (OSError, json.JSONDecodeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Discard a Vault",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=True,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_discard_vault(
+    vault_path: str,
+    confirm: bool = False,
+) -> str:
+    """Discard a vault that's no longer useful.
+
+    Without confirm=True, this is a dry run that shows what would be deleted.
+    With confirm=True, permanently removes the vault directory.
+    """
+    from obsidian_connector.vault_factory import discard_vault
+
+    try:
+        result = discard_vault(vault_path=vault_path, confirm=confirm)
+        return json.dumps(result, indent=2)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 def main() -> None:
