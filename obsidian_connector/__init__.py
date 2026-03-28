@@ -50,6 +50,12 @@ from obsidian_connector.project_sync import (
     log_session,
     sync_projects,
 )
+from obsidian_connector.idea_router import (
+    float_idea,
+    incubate_project,
+    list_idea_files,
+    list_incubating,
+)
 from obsidian_connector.vault_init import (
     discover_repos,
     init_vault,
@@ -129,6 +135,11 @@ __all__ = [
     "get_running_todo",
     "log_session",
     "sync_projects",
+    # idea_router
+    "float_idea",
+    "incubate_project",
+    "list_idea_files",
+    "list_incubating",
     # vault_init
     "discover_repos",
     "init_vault",
