@@ -53,12 +53,13 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/mcp_tool_contract_test.py
           coverage run --append --source=obsidian_connector scripts/cli_parse_test.py
           coverage run --append --source=obsidian_connector scripts/file_backend_test.py
+          coverage run --append --source=obsidian_connector scripts/new_modules_test.py
       - name: Coverage report
         if: always()
         shell: bash
         run: |
           coverage report --show-missing
-          coverage report --fail-under=0
+          coverage report --fail-under=40
           coverage xml
 
   mcp-launch:
