@@ -4,6 +4,27 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-30
+
+### Added
+- **Idea routing** (`idea_router.py`): Auto-routes ideas to the correct project's idea file via keyword matching against the repo registry. `obsidian_float_idea` MCP tool + `/float` skill.
+- **Project incubation**: `obsidian_incubate_project` creates inception cards for projects that don't exist yet (`Inbox/Project Ideas/`).
+- **Auto-detect ideas**: `UserPromptSubmit` prompt hook (`idea_detect.md`) tells Claude to automatically capture tangential ideas ("what if...", "we should eventually...") without the user invoking a skill.
+- **Vault guardian** (`vault_guardian.py`): Marks auto-generated files with Obsidian callouts ("do not edit"), detects unorganized notes in the vault root, and moves them to the correct folder.
+- **Vault factory** (`vault_factory.py`): Creates new Obsidian vaults alongside existing ones (auto-detected from Obsidian's config). Seeds with research topic stubs. Includes discard for unwanted vaults.
+- **13 vault presets** (was 11): Added `poetry` (forms, meter, imagery, chapbook building) and `songwriting` (structure, chord progressions, hooks, AI production, sync licensing). Each preset has craft notes at foundations/intermediate/advanced levels.
+- **`/explore` skill**: Creates a vault for any topic and seeds it with real web research.
+- **7 new MCP tools** (47 total): `obsidian_float_idea`, `obsidian_incubate_project`, `obsidian_incubating`, `obsidian_idea_files`, `obsidian_create_vault`, `obsidian_seed_vault`, `obsidian_vault_presets`, `obsidian_list_vaults`, `obsidian_discard_vault`, `obsidian_mark_auto_generated`, `obsidian_detect_unorganized`, `obsidian_organize_file`.
+
+### Fixed
+- **Existing vault isolation**: Sync output now goes into `Project Tracking/` subdirectory when no `sync_config.json` exists, preventing pollution of personal vaults. Auto-detected: if the vault already has user content, it's treated as existing.
+- User-content directories (`daily/`, `Cards/`, `Inbox/`) always created in vault root, never namespaced.
+
+### Changed
+- `vault_init` gains `existing_vault` parameter (auto-detected from vault contents).
+- `SyncConfig.vault_subdir` defaults to `"Project Tracking"` when no config file exists.
+- `hooks.json` adds `UserPromptSubmit` and `Stop` hooks alongside existing `SessionStart`.
+
 ## [0.4.0] - 2026-03-25
 
 ### Added
