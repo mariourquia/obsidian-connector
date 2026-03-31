@@ -57,11 +57,76 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Import Apple Developer ID certificate
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE_BASE64" ]; then
+            echo "::warning::APPLE_CERTIFICATE_BASE64 not set -- building unsigned DMG"
+            echo "SKIP_SIGN=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          echo -n "$APPLE_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | grep "Developer ID Application" \
+            | head -1 \
+            | sed 's/.*"\(.*\)"/\1/')
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "SKIP_SIGN=false" >> "$GITHUB_ENV"
+
       - name: Build macOS .dmg installer
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          bash scripts/create-dmg.sh "$TAG_NAME"
+          if [ "$SKIP_SIGN" = "true" ]; then
+            bash scripts/create-dmg.sh "$TAG_NAME" --no-sign
+          else
+            bash scripts/create-dmg.sh "$TAG_NAME" --identity "$SIGN_IDENTITY"
+          fi
+
+      - name: Notarize and staple DMG
+        if: env.SKIP_SIGN != 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          DMG_PATH="dist/obsidian-connector-${TAG_NAME}.dmg"
+
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+
+          xcrun stapler staple "$DMG_PATH"
+
+      - name: Verify signed DMG
+        if: env.SKIP_SIGN != 'true'
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          DMG_PATH="dist/obsidian-connector-${TAG_NAME}.dmg"
+          spctl --assess --type open --context context:primary-signature "$DMG_PATH"
+          codesign --verify --verbose "$DMG_PATH"
+          echo "DMG is signed, notarized, and stapled"
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@v4
