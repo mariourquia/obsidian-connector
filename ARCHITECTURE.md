@@ -2,7 +2,7 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-03-16"
+last_reviewed: "2026-03-30"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
@@ -29,7 +29,7 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (20 modules) |
+| `obsidian_connector/` | Core Python package (31 modules) |
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | User-facing documentation, release artifacts, distribution guides |
@@ -46,6 +46,17 @@ persisted to SQLite for fast incremental updates.
 | `mcp_server.py` | MCP server (FastMCP): 35 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
+| `write_manager.py` | Atomic writes, pre-write snapshots, rollback, file locks, diff preview, protected folders |
+| `watcher.py` | Filesystem watcher for incremental re-index on vault changes (watchdog or polling fallback) |
+| `draft_manager.py` | Draft lifecycle: list, approve, reject, auto-archive stale agent drafts |
+| `vault_registry.py` | Named vault registry with profiles and per-vault policies |
+| `retrieval.py` | Hybrid search: lexical + semantic + graph + recency scoring with profiles and explanations |
+| `embeddings.py` | Local embedding index via sentence-transformers (optional) |
+| `template_engine.py` | Template loading, variable substitution, inheritance, configurable daily notes and sentinels |
+| `scheduler.py` | Schedule config, workflow chaining, active hours, missed-run recovery, event triggers |
+| `reports.py` | Report generation: weekly, monthly, vault health, project status |
+| `telemetry.py` | Local-only session telemetry (zero network calls) |
+| `project_intelligence.py` | Project health scores, changelogs, stale detection, graduation suggestions, weekly packets |
 | `workflows.py` | Higher-level workflows: daily ops, open loops, graduate pipeline, delegation detection, context loader |
 | `thinking.py` | Thinking tools: ghost (voice), drift (intention vs behavior), trace (idea evolution), ideas (graph analysis) |
 | `graph.py` | Graph-aware vault indexing: parse links, tags, frontmatter from `.md` files, build `NoteIndex` |
