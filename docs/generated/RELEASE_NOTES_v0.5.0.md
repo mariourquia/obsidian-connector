@@ -1,3 +1,10 @@
+---
+title: "Release Notes -- obsidian-connector v0.5.0"
+# generated, do not edit
+status: verified
+owner: mariourquia
+---
+
 ```
   ___  _         _    _ _                ___
  / _ \| |__  ___(_) _| (_) __ _ _ __    / __\___  _ __  _ __   ___| |_ ___  _ __
