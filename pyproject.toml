@@ -32,6 +32,7 @@ classifiers = [
 scheduling = ["pyyaml>=6.0,<7.0"]
 live = ["watchdog>=4.0,<5.0"]
 semantic = ["sentence-transformers>=3.0,<4.0"]
+dev = ["pytest>=8.0,<9.0"]
 
 [project.scripts]
 obsidian-connector = "obsidian_connector.cli:main"
@@ -41,3 +42,8 @@ obsx = "obsidian_connector.cli:main"
 Homepage = "https://github.com/mariourquia/obsidian-connector"
 Repository = "https://github.com/mariourquia/obsidian-connector"
 Issues = "https://github.com/mariourquia/obsidian-connector/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

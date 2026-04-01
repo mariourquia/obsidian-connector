@@ -1450,6 +1450,17 @@ def build_parser() -> argparse.ArgumentParser:
     p = schedule_sub.add_parser("status", help="Show health of all schedules.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
+    p = schedule_sub.add_parser("run", help="Execute a named schedule now.")
+    p.add_argument("name", help="Schedule name to execute.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = schedule_sub.add_parser("fire", help="Fire an event trigger.")
+    p.add_argument("event", help="Event name (after_sync, after_note_create, after_session_end).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = schedule_sub.add_parser("tools", help="List available automation tools.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
     # -- report ------------------------------------------------------------
     p = sub.add_parser("report", help="Generate a vault report.")
     p.add_argument("type", choices=["weekly", "monthly", "vault-health", "project-status"], help="Report type.")
@@ -2328,6 +2339,41 @@ def main(argv: list[str] | None = None) -> int:
                     for s in statuses
                 ]
                 human = _fmt_schedule_status(data)
+            elif action == "run":
+                from obsidian_connector.automation import run_schedule_now
+                result = run_schedule_now(vault, args.name, config=cfg_dict)
+                data = {
+                    "chain_name": result.chain_name, "trigger": result.trigger,
+                    "all_ok": result.all_ok, "total_duration_ms": result.total_duration_ms,
+                    "steps": [{"tool": s.tool_name, "ok": s.ok, "ms": s.duration_ms, "error": s.error} for s in result.steps],
+                }
+                lines = [f"Schedule '{args.name}': {'OK' if result.all_ok else 'FAILED'} ({result.total_duration_ms}ms)"]
+                for s in result.steps:
+                    status = "OK" if s.ok else f"FAIL: {s.error}"
+                    lines.append(f"  {s.tool_name}: {status} ({s.duration_ms}ms)")
+                human = "\n".join(lines)
+            elif action == "fire":
+                from obsidian_connector.automation import run_event_now
+                results = run_event_now(vault, args.event, config=cfg_dict)
+                data = [
+                    {
+                        "chain_name": r.chain_name, "trigger": r.trigger,
+                        "all_ok": r.all_ok, "total_duration_ms": r.total_duration_ms,
+                    }
+                    for r in results
+                ]
+                if not results:
+                    human = f"No triggers matched event '{args.event}'."
+                else:
+                    lines = [f"Event '{args.event}': {len(results)} chain(s) fired"]
+                    for r in results:
+                        lines.append(f"  {r.chain_name}: {'OK' if r.all_ok else 'FAILED'} ({r.total_duration_ms}ms)")
+                    human = "\n".join(lines)
+            elif action == "tools":
+                from obsidian_connector.automation import list_available_tools
+                tools = list_available_tools()
+                data = tools
+                human = "Available automation tools:\n" + "\n".join(f"  {t}" for t in tools)
             else:
                 parser.parse_args(["schedule", "--help"])
                 return 0
