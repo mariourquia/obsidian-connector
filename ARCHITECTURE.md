@@ -72,6 +72,11 @@ persisted to SQLite for fast incremental updates.
 | `search.py` | Search result enrichment and deduplication |
 | `project_sync.py` | Project sync engine: git state extraction, dashboard/threads/todo/session rendering, configurable repo registry |
 | `vault_init.py` | Vault initialization wizard: interactive setup, auto-discovery, scaffold generation |
+| `vault_factory.py` | Vault discovery, creation alongside existing vaults, research topic seeding |
+| `vault_presets.py` | 13 vault preset templates (research, project-management, journal, etc.) |
+| `vault_guardian.py` | Auto-generated file marking, unorganized note detection, file organization |
+| `idea_router.py` | Idea routing to project idea files via keyword matching against repo registry |
+| `automation.py` | Event-triggered automation: tool registry, chain runner, event bus |
 
 ## Dependency flow
 

@@ -22,6 +22,8 @@ jobs:
         run: python3 tools/docs_lint.py --severity error
       - name: Manifest count check (docs match code)
         run: python3 scripts/manifest_check.py
+      - name: Plugin integrity check (structure, versions, drift)
+        run: python3 scripts/integrity_check.py
 
   test:
     runs-on: ${{ matrix.os }}

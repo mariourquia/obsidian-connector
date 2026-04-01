@@ -150,7 +150,7 @@ shell out to `obsidian` or `python main.py` from within an MCP-connected session
 The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 `obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
 
-### Commands (62 total)
+### Commands (65 total)
 
 | Command | Description | Mutating |
 |---|---|---|
