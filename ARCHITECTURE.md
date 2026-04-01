@@ -42,7 +42,7 @@ persisted to SQLite for fast incremental updates.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
-| `cli.py` | CLI entry point (`obsx`): 62 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `cli.py` | CLI entry point (`obsx`): 65 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
 | `mcp_server.py` | MCP server (FastMCP): 62 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
