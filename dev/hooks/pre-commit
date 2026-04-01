@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Harness Engineering — pre-commit hook
+# Lints only changed docs (fast). Install with:
+#   ln -sf ../../dev/hooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+# Or use `pre-commit` framework with .pre-commit-config.yaml instead.
+
+set -euo pipefail
+
+# Check if any docs-related files are staged
+DOCS_CHANGED=$(git diff --cached --name-only -- 'docs/**' 'AGENTS.md' 'ARCHITECTURE.md' '*.md' 2>/dev/null || true)
+
+if [ -z "$DOCS_CHANGED" ]; then
+    exit 0  # No docs changed, skip
+fi
+
+echo "Harness: linting changed docs..."
+if command -v python3 &>/dev/null && [ -f tools/docs_lint.py ]; then
+    python3 tools/docs_lint.py --changed-only --severity error
+else
+    echo "Harness: skipping docs lint (python3 or tools/docs_lint.py not found)"
+fi

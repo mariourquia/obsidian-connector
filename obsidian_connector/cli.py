@@ -27,6 +27,7 @@ from obsidian_connector.envelope import (
     success_envelope,
 )
 from obsidian_connector.audit import log_action
+from obsidian_connector.retrieval import hybrid_search, SearchResult, PROFILE_WEIGHTS
 from obsidian_connector.search import enrich_search_results
 from obsidian_connector.thinking import (
     deep_ideas,
@@ -73,6 +74,23 @@ def _fmt_search(results: list[dict]) -> str:
             lines.append(f"    L{m['line']}: {m['text'][:120]}")
         if n > 3:
             lines.append(f"    ... and {n - 3} more")
+    return "\n".join(lines)
+
+
+def _fmt_hybrid_search(results: list[SearchResult], explain: bool = False) -> str:
+    """Format hybrid_search results for human-readable CLI output."""
+    if not results:
+        return "No matches."
+    lines: list[str] = []
+    for r in results:
+        lines.append(f"  {r.path}  (score: {r.score:.3f})")
+        if r.title:
+            lines.append(f"    title: {r.title}")
+        if r.snippet:
+            lines.append(f"    snippet: {r.snippet[:160]}{'...' if len(r.snippet) > 160 else ''}")
+        if explain and r.match_reasons:
+            for reason in r.match_reasons:
+                lines.append(f"    - {reason}")
     return "\n".join(lines)
 
 
@@ -879,6 +897,213 @@ def _fmt_init_vault(data: dict) -> str:
     )
 
 
+def _fmt_rollback(data: dict) -> str:
+    """Human-readable rollback output."""
+    restored = data.get("restored", [])
+    snap = data.get("snapshot", "?")
+    lines = [f"Restored from snapshot: {snap}", f"Files restored: {len(restored)}"]
+    for f in restored[:10]:
+        lines.append(f"  {f}")
+    if len(restored) > 10:
+        lines.append(f"  ... and {len(restored) - 10} more")
+    return "\n".join(lines)
+
+
+def _fmt_drafts_list(data: list) -> str:
+    """Human-readable draft listing."""
+    if not data:
+        return "No agent drafts found."
+    lines: list[str] = []
+    for d in data:
+        status = d.get("status", "?")
+        lines.append(f"  [{status}] {d.get('title', '?')} ({d.get('age_days', 0)}d old)")
+        lines.append(f"    path: {d.get('path', '?')}")
+        lines.append(f"    source: {d.get('source_tool', '?')}")
+    return "\n".join(lines)
+
+
+def _fmt_draft_action(data: dict) -> str:
+    """Human-readable draft approve/reject output."""
+    if data.get("error"):
+        return f"Error: {data['error']}"
+    if data.get("dry_run"):
+        return f"[dry-run] Would move: {data.get('from', '?')} -> {data.get('to', '?')}"
+    return f"{data.get('status', 'moved').capitalize()}: {data.get('from', '?')} -> {data.get('to', '?')}"
+
+
+def _fmt_draft_clean(data: list) -> str:
+    """Human-readable stale draft cleanup output."""
+    if not data:
+        return "No stale drafts to clean."
+    lines = [f"Cleaned {len(data)} stale draft(s):"]
+    for d in data:
+        lines.append(f"  {d.get('from', '?')} -> {d.get('to', '?')}")
+    return "\n".join(lines)
+
+
+def _fmt_vaults_list(data: list) -> str:
+    """Human-readable vault registry listing."""
+    if not data:
+        return "No vaults registered."
+    lines: list[str] = []
+    for v in data:
+        default_marker = " (default)" if v.get("is_default") else ""
+        lines.append(f"  {v.get('name', '?')}{default_marker}")
+        lines.append(f"    path: {v.get('path', '?')}")
+        lines.append(f"    profile: {v.get('profile', '?')}")
+    return "\n".join(lines)
+
+
+def _fmt_vault_action(data: dict) -> str:
+    """Human-readable vault add/remove/default output."""
+    if data.get("error"):
+        return f"Error: {data['error']}"
+    action = data.get("action", "done")
+    name = data.get("name", "?")
+    return f"Vault {name}: {action}"
+
+
+def _fmt_templates_list(data: list) -> str:
+    """Human-readable template listing."""
+    if not data:
+        return "No templates found."
+    lines: list[str] = []
+    for t in data:
+        lines.append(f"  {t.get('name', '?')} (v{t.get('version', '?')})")
+        desc = t.get("description", "")
+        if desc:
+            lines.append(f"    {desc}")
+        variables = t.get("variables", [])
+        if variables:
+            lines.append(f"    variables: {', '.join(variables)}")
+    return "\n".join(lines)
+
+
+def _fmt_templates_init(data: dict) -> str:
+    """Human-readable template init output."""
+    written = data.get("written", [])
+    if not written:
+        return "No new templates written (all already exist)."
+    return f"Initialized {len(written)} template(s): {', '.join(written)}"
+
+
+def _fmt_templates_check(data: list) -> str:
+    """Human-readable template check output."""
+    if not data:
+        return "All templates are up to date."
+    lines = ["Outdated templates:"]
+    for t in data:
+        lines.append(f"  {t.get('name', '?')}: vault={t.get('vault_version', '?')} builtin={t.get('builtin_version', '?')}")
+    return "\n".join(lines)
+
+
+def _fmt_schedule_list(data: list) -> str:
+    """Human-readable schedule listing."""
+    if not data:
+        return "No schedules configured."
+    lines: list[str] = []
+    for s in data:
+        enabled = "enabled" if s.get("enabled", True) else "disabled"
+        lines.append(f"  {s.get('name', '?')} [{enabled}] ({s.get('schedule_type', '?')})")
+        chain = s.get("tool_chain", [])
+        if chain:
+            lines.append(f"    tools: {' -> '.join(chain)}")
+    return "\n".join(lines)
+
+
+def _fmt_schedule_preview(data: dict) -> str:
+    """Human-readable schedule preview output."""
+    name = data.get("name", "?")
+    chain = data.get("tool_chain", [])
+    if not chain:
+        return f"Schedule {name}: no tools configured."
+    lines = [f"Schedule {name} would run:"]
+    for i, tool in enumerate(chain, 1):
+        lines.append(f"  {i}. {tool}")
+    return "\n".join(lines)
+
+
+def _fmt_schedule_status(data: list) -> str:
+    """Human-readable schedule status output."""
+    if not data:
+        return "No schedules configured."
+    lines: list[str] = []
+    for s in data:
+        missed = " MISSED" if s.get("missed") else ""
+        result = s.get("last_result") or "never"
+        lines.append(f"  {s.get('name', '?')}: last={s.get('last_run', 'never')} result={result}{missed}")
+        if s.get("next_run"):
+            lines.append(f"    next: {s['next_run']}")
+    return "\n".join(lines)
+
+
+def _fmt_report(data: dict) -> str:
+    """Human-readable report generation output."""
+    return (
+        f"Report generated: {data.get('report_type', '?')}\n"
+        f"Path: {data.get('path', '?')}\n"
+        f"Generated at: {data.get('generated_at', '?')}"
+    )
+
+
+def _fmt_stats(data: dict) -> str:
+    """Human-readable telemetry stats output."""
+    if not data:
+        return "No telemetry data available."
+    lines: list[str] = []
+    lines.append(f"Notes read: {data.get('notes_read', 0)}")
+    lines.append(f"Notes written: {data.get('notes_written', 0)}")
+    lines.append(f"Errors: {data.get('errors', 0)}")
+    lines.append(f"Retrieval misses: {data.get('retrieval_misses', 0)}")
+    lines.append(f"Write risk events: {data.get('write_risk_events', 0)}")
+    tools = data.get("tools_called", {})
+    if tools:
+        lines.append(f"Tools called ({len(tools)}):")
+        for tool, count in sorted(tools.items(), key=lambda x: x[1], reverse=True)[:10]:
+            lines.append(f"  {tool}: {count}")
+    return "\n".join(lines)
+
+
+def _fmt_project_health(data: list) -> str:
+    """Human-readable project health output."""
+    if not data:
+        return "No project health data."
+    lines: list[str] = []
+    for p in data:
+        status = p.get("status", "?")
+        score = p.get("score", 0)
+        lines.append(f"  {p.get('name', '?')}: {score:.0f}/100 [{status}]")
+        factors = p.get("factors", {})
+        if factors.get("days_since_last_commit"):
+            lines.append(f"    last commit: {factors['days_since_last_commit']}d ago")
+        if factors.get("open_todo_count"):
+            lines.append(f"    open TODOs: {factors['open_todo_count']}")
+    return "\n".join(lines)
+
+
+def _fmt_project_changelog(data: str) -> str:
+    """Human-readable project changelog (already Markdown)."""
+    return data if data else "No changelog entries found."
+
+
+def _fmt_project_packet(data: str) -> str:
+    """Human-readable weekly project packet (already Markdown)."""
+    return data if data else "No project activity in the requested period."
+
+
+def _fmt_index_status(data: dict) -> str:
+    """Human-readable index status output."""
+    age = data.get("age_seconds", float("inf"))
+    stale = data.get("is_stale", True)
+    if age == float("inf"):
+        return "Index: no data (never built or inaccessible)"
+    lines = [
+        f"Index age: {age:.0f}s ({age / 60:.1f}m)",
+        f"Stale: {'yes' if stale else 'no'}",
+    ]
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -917,6 +1142,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-results", type=int, default=None, help="Limit number of files returned.")
     p.add_argument("--context-lines", type=int, default=0, help="Lines of context around matches.")
     p.add_argument("--dedupe", action="store_true", help="Deduplicate matches per file.")
+    p.add_argument("--profile", choices=["default", "journal", "project", "research", "review"], default=None, help="Retrieval profile for hybrid search.")
+    p.add_argument("--explain", action="store_true", help="Include scoring breakdown in results.")
 
     # -- read --------------------------------------------------------------
     p = sub.add_parser("read", help="Read a note by name or path.")
@@ -1144,6 +1371,115 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--use-defaults", action="store_true", help="Use built-in default repo list.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
+    # -- rollback ----------------------------------------------------------
+    p = sub.add_parser("rollback", help="Restore vault files from a snapshot.")
+    p.add_argument("--last", action="store_true", default=True, help="Restore from the most recent snapshot (default).")
+    p.add_argument("--snapshot", default=None, help="Specific snapshot directory to restore.")
+    p.add_argument("--dry-run", action="store_true", help="Show what would be restored without mutating.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- drafts ------------------------------------------------------------
+    drafts_p = sub.add_parser("drafts", help="Manage agent-generated draft notes.")
+    drafts_sub = drafts_p.add_subparsers(dest="drafts_action")
+
+    p = drafts_sub.add_parser("list", help="List all agent drafts.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = drafts_sub.add_parser("approve", help="Move a draft to a target folder.")
+    p.add_argument("path", help="Vault-relative path to the draft.")
+    p.add_argument("--target", required=True, help="Target folder for the approved draft.")
+    p.add_argument("--dry-run", action="store_true", help="Show what would happen without mutating.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = drafts_sub.add_parser("reject", help="Archive a draft as rejected.")
+    p.add_argument("path", help="Vault-relative path to the draft.")
+    p.add_argument("--dry-run", action="store_true", help="Show what would happen without mutating.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = drafts_sub.add_parser("clean", help="Auto-archive stale drafts.")
+    p.add_argument("--max-age", type=int, default=14, help="Max draft age in days (default 14).")
+    p.add_argument("--dry-run", action="store_true", help="Show what would be archived without mutating.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- vaults ------------------------------------------------------------
+    vaults_p = sub.add_parser("vaults", help="Manage the named vault registry.")
+    vaults_sub = vaults_p.add_subparsers(dest="vaults_action")
+
+    p = vaults_sub.add_parser("list", help="List all registered vaults.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = vaults_sub.add_parser("add", help="Register a new vault.")
+    p.add_argument("name", help="Vault name.")
+    p.add_argument("path", help="Filesystem path to the vault directory.")
+    p.add_argument("--profile", choices=["personal", "work", "research", "creative"], default="personal", help="Vault profile (default personal).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = vaults_sub.add_parser("remove", help="Unregister a vault.")
+    p.add_argument("name", help="Vault name to remove.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = vaults_sub.add_parser("default", help="Set a vault as the default.")
+    p.add_argument("name", help="Vault name to set as default.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- templates ---------------------------------------------------------
+    templates_p = sub.add_parser("templates", help="Manage vault templates.")
+    templates_sub = templates_p.add_subparsers(dest="templates_action")
+
+    p = templates_sub.add_parser("list", help="List all templates in the vault.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = templates_sub.add_parser("init", help="Seed _templates/ from built-in templates.")
+    p.add_argument("--dry-run", action="store_true", help="Show what would be created without mutating.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = templates_sub.add_parser("check", help="Show outdated templates.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- schedule ----------------------------------------------------------
+    schedule_p = sub.add_parser("schedule", help="Manage connector schedules.")
+    schedule_sub = schedule_p.add_subparsers(dest="schedule_action")
+
+    p = schedule_sub.add_parser("list", help="List all configured schedules.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = schedule_sub.add_parser("preview", help="Show what a schedule would run.")
+    p.add_argument("name", help="Schedule name.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = schedule_sub.add_parser("status", help="Show health of all schedules.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- report ------------------------------------------------------------
+    p = sub.add_parser("report", help="Generate a vault report.")
+    p.add_argument("type", choices=["weekly", "monthly", "vault-health", "project-status"], help="Report type.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- stats -------------------------------------------------------------
+    p = sub.add_parser("stats", help="Show session telemetry stats.")
+    p.add_argument("--weekly", action="store_true", help="Show weekly aggregate instead of current session.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- project -----------------------------------------------------------
+    project_p = sub.add_parser("project", help="Project intelligence commands.")
+    project_sub = project_p.add_subparsers(dest="project_action")
+
+    p = project_sub.add_parser("health", help="Show health scores for all projects.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = project_sub.add_parser("changelog", help="Generate a project changelog.")
+    p.add_argument("name", help="Project name.")
+    p.add_argument("--days", type=int, default=7, help="Lookback days (default 7).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = project_sub.add_parser("packet", help="Generate a weekly project packet.")
+    p.add_argument("--days", type=int, default=7, help="Lookback days (default 7).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- index-status ------------------------------------------------------
+    p = sub.add_parser("index-status", help="Show index age and staleness.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
     return parser
 
 
@@ -1188,16 +1524,42 @@ def main(argv: list[str] | None = None) -> int:
                 human = "Appended to daily note."
 
         elif args.command == "search":
-            results = search_notes(args.query, vault=args.vault)
-            results = enrich_search_results(
-                results,
-                vault=args.vault,
-                context_lines=getattr(args, "context_lines", 0),
-                dedupe=getattr(args, "dedupe", False),
-                max_results=getattr(args, "max_results", None),
-            )
-            data = results
-            human = _fmt_search(results)
+            use_hybrid = getattr(args, "profile", None) or getattr(args, "explain", False)
+            if use_hybrid:
+                from obsidian_connector.config import resolve_vault_path
+                vault_path = resolve_vault_path(args.vault)
+                profile = getattr(args, "profile", None) or "default"
+                explain = getattr(args, "explain", False)
+                top_k = getattr(args, "max_results", None) or 10
+                hybrid_results = hybrid_search(
+                    query=args.query,
+                    vault_path=vault_path,
+                    profile=profile,
+                    top_k=top_k,
+                    explain=explain,
+                )
+                data = [
+                    {
+                        "path": r.path,
+                        "title": r.title,
+                        "score": r.score,
+                        "snippet": r.snippet,
+                        **({"match_reasons": r.match_reasons} if explain else {}),
+                    }
+                    for r in hybrid_results
+                ]
+                human = _fmt_hybrid_search(hybrid_results, explain=explain)
+            else:
+                results = search_notes(args.query, vault=args.vault)
+                results = enrich_search_results(
+                    results,
+                    vault=args.vault,
+                    context_lines=getattr(args, "context_lines", 0),
+                    dedupe=getattr(args, "dedupe", False),
+                    max_results=getattr(args, "max_results", None),
+                )
+                data = results
+                human = _fmt_search(results)
 
         elif args.command == "read":
             content = read_note(args.note, vault=args.vault)
@@ -1793,6 +2155,259 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 data = result
                 human = _fmt_init_vault(result)
+
+        elif args.command == "rollback":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.write_manager import list_snapshots, rollback as wm_rollback
+
+            vault_path = resolve_vault_path(args.vault)
+            dry = getattr(args, "dry_run", False)
+            snapshot_dir = args.snapshot  # None means use latest
+
+            if dry:
+                snaps = list_snapshots(vault_path)
+                target = snapshot_dir or (snaps[-1] if snaps else None)
+                data = {"dry_run": True, "snapshot": target, "available": snaps}
+                human = f"[dry-run] Would restore from snapshot: {target}\nAvailable snapshots: {len(snaps)}"
+            else:
+                result = wm_rollback(vault_path, snapshot_dir=snapshot_dir)
+                data = result
+                human = _fmt_rollback(result)
+
+        elif args.command == "drafts":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.draft_manager import (
+                approve_draft,
+                clean_stale_drafts,
+                list_drafts,
+                reject_draft,
+            )
+
+            vault_path = resolve_vault_path(args.vault)
+            action = getattr(args, "drafts_action", None)
+
+            if action == "list":
+                result = list_drafts(vault_path)
+                data = [
+                    {
+                        "path": d.path, "title": d.title,
+                        "created_at": d.created_at, "age_days": d.age_days,
+                        "source_tool": d.source_tool, "status": d.status,
+                    }
+                    for d in result
+                ]
+                human = _fmt_drafts_list(data)
+            elif action == "approve":
+                dry = getattr(args, "dry_run", False)
+                if dry:
+                    data = {"dry_run": True, "from": args.path, "to": args.target}
+                    human = _fmt_draft_action(data)
+                else:
+                    result = approve_draft(vault_path, args.path, args.target)
+                    data = result
+                    human = _fmt_draft_action(result)
+            elif action == "reject":
+                dry = getattr(args, "dry_run", False)
+                if dry:
+                    data = {"dry_run": True, "from": args.path, "to": "Archive/Rejected Drafts/"}
+                    human = _fmt_draft_action(data)
+                else:
+                    result = reject_draft(vault_path, args.path)
+                    data = result
+                    human = _fmt_draft_action(result)
+            elif action == "clean":
+                dry = getattr(args, "dry_run", False)
+                result = clean_stale_drafts(
+                    vault_path,
+                    max_age_days=args.max_age,
+                    dry_run=dry,
+                )
+                data = result
+                human = _fmt_draft_clean(result)
+            else:
+                parser.parse_args(["drafts", "--help"])
+                return 0
+
+        elif args.command == "vaults":
+            from obsidian_connector.vault_registry import VaultRegistry
+
+            registry = VaultRegistry()
+            action = getattr(args, "vaults_action", None)
+
+            if action == "list":
+                entries = registry.list_vaults()
+                data = [e.to_dict() for e in entries]
+                human = _fmt_vaults_list(data)
+            elif action == "add":
+                entry = registry.register(
+                    name=args.name,
+                    path=args.path,
+                    profile=getattr(args, "profile", "personal"),
+                )
+                data = {"action": "registered", "name": entry.name, "path": entry.path}
+                human = _fmt_vault_action(data)
+            elif action == "remove":
+                registry.unregister(args.name)
+                data = {"action": "removed", "name": args.name}
+                human = _fmt_vault_action(data)
+            elif action == "default":
+                registry.set_default(args.name)
+                data = {"action": "set as default", "name": args.name}
+                human = _fmt_vault_action(data)
+            else:
+                parser.parse_args(["vaults", "--help"])
+                return 0
+
+        elif args.command == "templates":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.template_engine import TemplateEngine, init_templates
+
+            vault_path = resolve_vault_path(args.vault)
+            action = getattr(args, "templates_action", None)
+
+            if action == "list":
+                engine = TemplateEngine(vault_path)
+                templates = engine.list_templates()
+                data = [
+                    {
+                        "name": t.name, "version": t.version,
+                        "description": t.description,
+                        "variables": t.variables, "extends": t.extends,
+                    }
+                    for t in templates
+                ]
+                human = _fmt_templates_list(data)
+            elif action == "init":
+                dry = getattr(args, "dry_run", False)
+                if dry:
+                    from obsidian_connector.template_engine import BUILTIN_TEMPLATES
+                    data = {"dry_run": True, "would_create": list(BUILTIN_TEMPLATES.keys())}
+                    human = f"[dry-run] Would create templates: {', '.join(BUILTIN_TEMPLATES.keys())}"
+                else:
+                    written = init_templates(vault_path)
+                    data = {"written": written}
+                    human = _fmt_templates_init(data)
+            elif action == "check":
+                engine = TemplateEngine(vault_path)
+                outdated = engine.check_updates()
+                data = outdated
+                human = _fmt_templates_check(outdated)
+            else:
+                parser.parse_args(["templates", "--help"])
+                return 0
+
+        elif args.command == "schedule":
+            from obsidian_connector.scheduler import Scheduler
+
+            cfg_dict = cfg.raw if hasattr(cfg, "raw") else {}
+            sched = Scheduler(config=cfg_dict)
+            action = getattr(args, "schedule_action", None)
+
+            if action == "list":
+                entries = sched.list_schedules()
+                data = [
+                    {
+                        "name": e.name, "schedule_type": e.schedule_type,
+                        "tool_chain": e.tool_chain, "enabled": e.enabled,
+                    }
+                    for e in entries
+                ]
+                human = _fmt_schedule_list(data)
+            elif action == "preview":
+                chain = sched.preview(args.name)
+                data = {"name": args.name, "tool_chain": chain}
+                human = _fmt_schedule_preview(data)
+            elif action == "status":
+                statuses = sched.all_statuses()
+                data = [
+                    {
+                        "name": s.name, "last_run": s.last_run,
+                        "next_run": s.next_run, "missed": s.missed,
+                        "last_result": s.last_result,
+                    }
+                    for s in statuses
+                ]
+                human = _fmt_schedule_status(data)
+            else:
+                parser.parse_args(["schedule", "--help"])
+                return 0
+
+        elif args.command == "report":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.reports import generate_report
+
+            vault_path = resolve_vault_path(args.vault)
+            report_type = args.type.replace("-", "_")
+            result = generate_report(str(vault_path), report_type)
+            data = {
+                "report_type": result.report_type,
+                "path": result.path,
+                "generated_at": result.generated_at,
+                "summary": result.summary,
+            }
+            human = _fmt_report(data)
+
+        elif args.command == "stats":
+            from obsidian_connector.telemetry import TelemetryCollector
+
+            collector = TelemetryCollector()
+            if args.weekly:
+                result = collector.weekly_summary()
+            else:
+                result = collector.session_summary()
+            data = result
+            human = _fmt_stats(result)
+
+        elif args.command == "project":
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.project_intelligence import (
+                project_changelog,
+                project_health,
+                project_packet,
+            )
+
+            vault_path = resolve_vault_path(args.vault)
+            action = getattr(args, "project_action", None)
+
+            if action == "health":
+                results = project_health(vault_path)
+                data = [
+                    {
+                        "name": h.name, "score": h.score,
+                        "status": h.status, "factors": h.factors,
+                    }
+                    for h in results
+                ]
+                human = _fmt_project_health(data)
+            elif action == "changelog":
+                result = project_changelog(
+                    vault_path,
+                    project_name=args.name,
+                    since_days=args.days,
+                )
+                data = {"changelog": result}
+                human = _fmt_project_changelog(result)
+            elif action == "packet":
+                result = project_packet(vault_path, days=args.days)
+                data = {"packet": result}
+                human = _fmt_project_packet(result)
+            else:
+                parser.parse_args(["project", "--help"])
+                return 0
+
+        elif args.command == "index-status":
+            from obsidian_connector.index_store import IndexStore
+            from obsidian_connector.watcher import get_index_age, is_stale
+
+            store = IndexStore()
+            try:
+                age = get_index_age(store)
+                stale = is_stale(store)
+            finally:
+                store.close()
+
+            data = {"age_seconds": age, "is_stale": stale}
+            human = _fmt_index_status(data)
 
         duration_ms = int((time.monotonic() - t0) * 1000)
 
