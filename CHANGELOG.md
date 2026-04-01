@@ -4,6 +4,31 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-30
+
+### Added
+- **Atomic write manager** (`write_manager.py`): All mutating operations now route through write-then-rename for atomicity. Pre-write snapshots, rollback, diff preview, file locking, protected-folder policy, and `generated_by` metadata injection.
+- **Filesystem watcher** (`watcher.py`): Incremental re-index on vault file changes. Uses `watchdog` if installed, falls back to polling. Debounce, exclude patterns, stale-index indicator.
+- **Draft lifecycle manager** (`draft_manager.py`): List, approve, reject, and auto-archive stale agent drafts. Configurable retention, dashboard integration.
+- **Named vault registry** (`vault_registry.py`): Register multiple vaults with profiles (`personal`, `work`, `research`, `creative`) and per-vault policies. Cross-vault search support.
+- **Hybrid retrieval engine** (`retrieval.py`, `embeddings.py`): Combines lexical, semantic (optional `sentence-transformers`), graph, and recency signals. Four retrieval profiles (journal, project, research, review) with explanation mode.
+- **Template system** (`template_engine.py`): User templates with `{{variable}}` substitution, template inheritance, 5 built-in templates (daily-note, meeting-note, research-note, decision-log, project-idea). Configurable daily note path/format and sentinel headings.
+- **Scheduler expansion** (`scheduler.py`): First-class schedule config for morning/evening/weekly jobs with workflow chaining, active hours, missed-run recovery, and event triggers.
+- **Report generation** (`reports.py`): Weekly review, monthly review, vault health (orphans, stale notes, index coverage), and project status reports. Markdown output to `Reports/` folder.
+- **Session telemetry** (`telemetry.py`): Local-only (zero network) session tracking: notes read/written, tools called, retrieval misses, write-risk events. JSONL storage with auto-rotation.
+- **Project intelligence** (`project_intelligence.py`): Project health scores (0-100 with status), changelogs from session logs, stale project detection, idea-to-project graduation suggestions, weekly project packets.
+- **Manifest validation** (`scripts/manifest_check.py`): CI-ready script that validates tool/skill/preset/command counts across README, CLAUDE.md, TOOLS_CONTRACT.md, marketplace.json, mcpb.json.
+- **Compatibility matrix generator** (`scripts/generate_compat_matrix.py`): Autogenerates feature availability table across MCP, CLI, Python API, and portable surfaces.
+- **Release checklist template** (`templates/release-checklist.md`): Standardized release process.
+- **15 new MCP tools** (62 total): `obsidian_rollback`, `obsidian_list_drafts`, `obsidian_approve_draft`, `obsidian_reject_draft`, `obsidian_clean_drafts`, `obsidian_register_vault`, `obsidian_set_default_vault`, `obsidian_list_templates`, `obsidian_create_from_template`, `obsidian_project_changelog`, `obsidian_project_health`, `obsidian_project_packet`, `obsidian_generate_report`, `obsidian_session_stats`, `obsidian_index_status`.
+- **New CLI commands**: `rollback`, `drafts` (list/approve/reject/clean), `vaults` (list/add/remove/default), `templates` (list/init/check), `schedule` (list/preview/status), `report`, `stats`, `project` (health/changelog/packet), `index-status`. Existing `search` gains `--profile` and `--explain` flags.
+- **386 new test assertions** across 9 test suites covering all new modules.
+
+### Changed
+- `pyproject.toml`: New optional dependency groups `live` (watchdog) and `semantic` (sentence-transformers).
+- `errors.py`: Added `ProtectedFolderError`, `WriteLockError`, `RollbackError`.
+- ARCHITECTURE.md, CLAUDE.md, TOOLS_CONTRACT.md updated with new module counts and tool tables.
+
 ## [0.5.0] - 2026-03-30
 
 ### Added
