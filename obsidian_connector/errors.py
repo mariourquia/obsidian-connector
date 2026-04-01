@@ -83,3 +83,39 @@ class MalformedCLIOutput(ObsidianCLIError):
             stdout="",
             stderr=message,
         )
+
+
+class ProtectedFolderError(ObsidianCLIError):
+    """Write attempted to a protected folder without --force."""
+
+    def __init__(self, message: str = "write to protected folder denied") -> None:
+        super().__init__(
+            command=["obsidian"],
+            returncode=1,
+            stdout="",
+            stderr=message,
+        )
+
+
+class WriteLockError(ObsidianCLIError):
+    """Could not acquire file lock within timeout."""
+
+    def __init__(self, message: str = "failed to acquire file lock") -> None:
+        super().__init__(
+            command=["obsidian"],
+            returncode=1,
+            stdout="",
+            stderr=message,
+        )
+
+
+class RollbackError(ObsidianCLIError):
+    """Snapshot restore failed."""
+
+    def __init__(self, message: str = "rollback failed") -> None:
+        super().__init__(
+            command=["obsidian"],
+            returncode=1,
+            stdout="",
+            stderr=message,
+        )

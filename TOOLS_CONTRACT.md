@@ -12,7 +12,7 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-35 tools are available to Claude and other MCP clients.  All `vault`
+62 tools are available to Claude and other MCP clients.  All `vault`
 parameters are optional -- when omitted, the configured default vault is used.
 
 ### Core vault operations
@@ -86,6 +86,61 @@ These tools read vault `.md` files directly and work without Obsidian running.
 | MCP Tool | Parameters | Returns |
 |---|---|---|
 | `obsidian_uninstall` | `dry_run?`, `remove_venv?`, `remove_skills?`, `remove_hook?`, `remove_plist?`, `remove_logs?`, `remove_cache?` | JSON removal plan (dry_run=true) or removal results (dry_run=false) |
+
+### Write safety (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_rollback` | `vault?` | JSON result of restored snapshot |
+
+### Draft management (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_list_drafts` | `vault?` | JSON array of draft info (path, age, status) |
+| `obsidian_approve_draft` | `draft_path`, `target_folder`, `vault?` | JSON confirmation with new path |
+| `obsidian_reject_draft` | `draft_path`, `vault?` | JSON confirmation with archive path |
+| `obsidian_clean_drafts` | `max_age_days?`, `dry_run?`, `vault?` | JSON list of archived drafts |
+
+### Vault registry (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_register_vault` | `name`, `path`, `profile?` | JSON confirmation |
+| `obsidian_set_default_vault` | `name` | JSON confirmation |
+
+### Templates (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_list_templates` | `vault?` | JSON array of template info |
+| `obsidian_create_from_template` | `template_name`, `title`, `vault?`, `variables?` | JSON with created file path |
+
+### Project intelligence (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_project_changelog` | `project_name`, `since_days?`, `vault?` | Markdown changelog string |
+| `obsidian_project_health` | `vault?` | JSON array of project health scores |
+| `obsidian_project_packet` | `days?`, `vault?` | Markdown weekly packet string |
+
+### Reports (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_generate_report` | `report_type`, `vault?` | JSON with report path and summary |
+
+### Telemetry (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_session_stats` | (none) | JSON session telemetry summary |
+
+### Index status (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_index_status` | `vault?` | JSON with index age and staleness flag |
 
 **Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
 shell out to `obsidian` or `python main.py` from within an MCP-connected session.

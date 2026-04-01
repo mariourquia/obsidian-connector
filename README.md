@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-47 MCP tools. 35 CLI commands. 13 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
+62 MCP tools. 62 CLI commands. 13 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
 
 ## What it does
 
@@ -47,9 +47,9 @@ Five surfaces, pick the one that fits:
 | Surface | Command | What you get |
 |---------|---------|-------------|
 | **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 35 MCP tools |
-| **Claude Desktop** | `./scripts/install.sh` | 35 MCP tools via `claude_desktop_config.json` |
+| **Claude Desktop** | `./scripts/install.sh` | 62 MCP tools via `claude_desktop_config.json` |
 | **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer (configures Claude Desktop) |
-| **CLI** | `pip install -e .` then `obsx` | 35 CLI commands |
+| **CLI** | `pip install -e .` then `obsx` | 62 CLI commands |
 | **Python API** | `from obsidian_connector import ...` | Programmatic vault access |
 
 ### Requirements
@@ -275,7 +275,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 
 ## CLI usage
 
-35 commands available as `./bin/obsx` (works without venv activation) or `obsx`
+62 commands available as `./bin/obsx` (works without venv activation) or `obsx`
 (after `pip install -e .`).
 
 ```bash

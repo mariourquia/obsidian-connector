@@ -1,6 +1,6 @@
 """obsidian-connector: Python wrapper for the Obsidian CLI."""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 from obsidian_connector.cache import CLICache
 from obsidian_connector.audit import log_action
@@ -87,6 +87,38 @@ from obsidian_connector.workflows import (
     my_world_snapshot,
     today_brief,
 )
+# v0.6.0 modules
+from obsidian_connector.write_manager import (
+    atomic_write,
+    check_protected,
+    list_snapshots,
+    preview,
+    rollback,
+    snapshot,
+)
+from obsidian_connector.draft_manager import (
+    approve_draft,
+    clean_stale_drafts,
+    draft_summary,
+    list_drafts,
+    reject_draft,
+)
+from obsidian_connector.vault_registry import VaultEntry, VaultRegistry
+from obsidian_connector.retrieval import hybrid_search
+from obsidian_connector.template_engine import TemplateEngine, init_templates
+from obsidian_connector.scheduler import Scheduler
+from obsidian_connector.reports import generate_report
+from obsidian_connector.telemetry import TelemetryCollector
+from obsidian_connector.project_intelligence import (
+    project_changelog,
+    project_health,
+    project_packet,
+)
+from obsidian_connector.errors import (
+    ProtectedFolderError,
+    RollbackError,
+    WriteLockError,
+)
 
 __all__ = [
     "CLICache",
@@ -161,4 +193,38 @@ __all__ = [
     # vault_init
     "discover_repos",
     "init_vault",
+    # v0.6.0 -- write safety
+    "atomic_write",
+    "check_protected",
+    "list_snapshots",
+    "preview",
+    "rollback",
+    "snapshot",
+    "ProtectedFolderError",
+    "RollbackError",
+    "WriteLockError",
+    # v0.6.0 -- draft management
+    "approve_draft",
+    "clean_stale_drafts",
+    "draft_summary",
+    "list_drafts",
+    "reject_draft",
+    # v0.6.0 -- vault registry
+    "VaultEntry",
+    "VaultRegistry",
+    # v0.6.0 -- retrieval
+    "hybrid_search",
+    # v0.6.0 -- templates
+    "TemplateEngine",
+    "init_templates",
+    # v0.6.0 -- scheduler
+    "Scheduler",
+    # v0.6.0 -- reports
+    "generate_report",
+    # v0.6.0 -- telemetry
+    "TelemetryCollector",
+    # v0.6.0 -- project intelligence
+    "project_changelog",
+    "project_health",
+    "project_packet",
 ]

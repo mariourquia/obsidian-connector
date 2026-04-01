@@ -2,7 +2,7 @@
 title: "Roadmap"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-03-16"
+last_reviewed: "2026-03-30"
 ---
 
 # Roadmap
@@ -32,43 +32,24 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 
 ---
 
-## v0.2.1 -- Resilience & Configuration
-
-### P0 -- Must have
-
-| # | Type | Title | Description | Status |
-|---|------|-------|-------------|--------|
-| 2 | `risk` | **Write conflict protection during sync** | Mutating commands (`log-daily`, `graduate execute`) can conflict with iCloud/Obsidian Sync. Add file-level locking or atomic write-then-rename to prevent partial writes. Current mitigation: atomic appends + audit log. | Open |
-| 3 | `improvement` | **Configurable daily note format** | Hard-codes `YYYY-MM-DD.md` in `daily/` or root. Support arbitrary date formats and paths via `config.json` (e.g., `daily/%Y/%m/%Y-%m-%d.md`). | Open |
-
-### P1 -- Should have
-
-| # | Type | Title | Description | Status |
-|---|------|-------|-------------|--------|
-| 4 | `improvement` | **File-watching index updates** | Index lags behind live edits until `rebuild-index` runs. Add `fswatch`/`watchdog` listener to trigger incremental updates on file save. Current mitigation: mtime-based incremental on next query. | Open |
-| 5 | `feature` | **Multi-vault workflows** | Cross-vault search, unified graph queries, vault-switching in CLI/MCP. Currently requires `--vault` flag or `OBSIDIAN_VAULT` env var per command. | Open |
-| 7 | `improvement` | **Scheduled automation expansion** | Only morning briefing has a launchd job. Add configurable jobs for evening close and weekly review with per-workflow time/day settings. | Open |
-| 8 | `risk` | **Agent draft lifecycle management** | Drafts accumulate in `Inbox/Agent Drafts/` without cleanup. Add `draft-review` command to list, approve, reject, or archive drafts. `check_in` already counts them. | Open |
-| 15 | `improvement` | **Configurable sentinel headings** | Ritual detection uses hardcoded sentinels (`## Morning Briefing`, `## Day Close`). Make configurable via `config.json`. | Open |
-
----
-
-## v0.3.0 -- Intelligence & Integrations
+## v0.7.0 -- Cross-Project & Tooling
 
 ### P1
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
-| 9 | `feature` | **Semantic search** | Full-text search is keyword-based. Add optional embedding-based semantic search using local models (e.g., sentence-transformers). No cloud dependency. | Open |
-| 10 | `feature` | **Template system** | `create-research-note` uses a single hardcoded template. Support user-defined templates in a `templates/` vault folder with variable substitution. | Open |
-| 11 | `improvement` | **Newline encoding fix** | Obsidian CLI does not distinguish literal `\n` from actual newlines in output. Investigate binary-safe IPC or direct file read as workaround. | Open |
-| 12 | `feature` | **Obsidian URI protocol** | Use `obsidian://` URI scheme as alternative to CLI for read operations. Would eliminate the CLI plugin requirement for basic operations. | Open |
+| 25 | `feature` | **Cross-project integration with obsidian-capture-service** | Wire voice capture API into the connector for seamless vault ingestion of transcribed captures. | Open |
+| 26 | `feature` | **PDF export for reports** | Generate weekly/monthly reports as PDF. Combine drift analysis, graduation history, and vault health into a downloadable artifact. | Open |
+| 27 | `feature` | **Advanced graph quality tools** | Orphan detection, duplicate concept identification, and graph health scoring. | Open |
+| 28 | `feature` | **Event-triggered automation** | Fire workflows in response to vault events (file create, rename, tag change) beyond scheduled cron. | Open |
 
 ### P2
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
-| 14 | `feature` | **Export and reporting** | Generate weekly/monthly reports as standalone Markdown or PDF. Combine drift analysis, graduation history, and vault health into a single artifact. | Open |
+| 29 | `improvement` | **Policy engine beyond protected_folders** | Extensible rule engine for write guards, naming conventions, and structural constraints. | Open |
+| 30 | `infra` | **pytest migration** | Move test suites from custom `scripts/` runners to pytest for standard tooling, fixtures, and coverage reporting. | Open |
+| 31 | `infra` | **PyPI publication** | Publish to PyPI so users can `pip install obsidian-connector` instead of cloning. | Open |
 
 ---
 
@@ -76,13 +57,13 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 
 | # | Type | Title | Description | Status |
 |---|------|-------|-------------|--------|
+| 11 | `improvement` | **Newline encoding fix** | Obsidian CLI does not distinguish literal `\n` from actual newlines in output. Investigate binary-safe IPC or direct file read as workaround. | Open |
+| 12 | `feature` | **Obsidian URI protocol** | Partially addressed via capability detection. Full `obsidian://` URI scheme support for read operations would eliminate the CLI plugin requirement. | Open |
+| 14 | `feature` | **Export and reporting** | Generate weekly/monthly reports as standalone Markdown or PDF. Combine drift analysis, graduation history, and vault health into a single artifact. | Open |
 | 16 | `feature` | **Plugin marketplace** | Package individual tool groups (graph, thinking, workflows) as separate optional installs. | Open |
 | 17 | `feature` | **Collaborative vaults** | Support for shared vaults with per-user delegation tracking and conflict resolution. | Open |
-| 18 | `infra` | **PyPI publication** | Publish to PyPI so users can `pip install obsidian-connector` instead of cloning. | Open |
-| 19 | `infra` | **pytest migration** | Move test suites from custom `scripts/` runners to pytest for standard tooling, fixtures, and coverage reporting. | Open |
 | 20 | `docs` | **Video walkthrough** | Screen recording of the morning-to-evening workflow showing all four rituals in action. | Open |
 | 21 | `improvement` | **Graceful pyyaml fallback** | Scheduling config currently logs a warning and uses defaults when pyyaml is missing. Surface a one-time install hint to the user instead of silently degrading. | Open |
-| 22 | `improvement` | **Index staleness indicator** | Show age of last index scan in graph tool output. Warn if index is older than a configurable threshold. Current mitigation: `rebuild-index` forces full rescan. | Open |
 | 23 | `risk` | **Scheduled jobs without user presence** | launchd jobs fire regardless of whether the user is at their machine, appending to the daily note silently. Add an optional "active hours" window or skip if no recent user activity. | Open |
 | 24 | `infra` | **Linux/Windows native installers** | AppImage/deb for Linux, MSI/exe for Windows -- equivalent to the macOS .dmg. Currently Linux and Windows use script-based installation. | Open |
 
@@ -92,6 +73,16 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 
 | # | Type | Title | Shipped In |
 |---|------|-------|------------|
+| 2 | `risk` | Write conflict protection during sync | v0.6.0 |
+| 3 | `improvement` | Configurable daily note format | v0.6.0 |
+| 4 | `improvement` | File-watching index updates | v0.6.0 |
+| 5 | `feature` | Multi-vault workflows | v0.6.0 |
+| 7 | `improvement` | Scheduled automation expansion | v0.6.0 |
+| 8 | `risk` | Agent draft lifecycle management | v0.6.0 |
+| 9 | `feature` | Semantic search | v0.6.0 |
+| 10 | `feature` | Template system | v0.6.0 |
+| 15 | `improvement` | Configurable sentinel headings | v0.6.0 |
+| 22 | `improvement` | Index staleness indicator | v0.6.0 |
 | -- | `infra` | GitHub Actions CI | v0.1.1 |
 | -- | `infra` | Release automation with sha256 checksums | v0.1.1 |
 | -- | `docs` | CONTRIBUTING.md | v0.1.1 |

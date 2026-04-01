@@ -26,8 +26,8 @@ turn Claude into a proactive second brain assistant.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper, batch reads |
-| `cli.py` | 35 CLI subcommands |
-| `mcp_server.py` | 35 MCP tools (FastMCP) |
+| `cli.py` | 62 CLI subcommands |
+| `mcp_server.py` | 62 MCP tools (FastMCP) |
 | `workflows.py` | Daily ops, loops, graduate, delegations, context |
 | `thinking.py` | Ghost, drift, trace, ideas |
 | `graph.py` | Vault graph indexing (links, tags, backlinks) |
