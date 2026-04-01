@@ -20,6 +20,8 @@ jobs:
       - run: pip install -e .
       - name: Docs lint
         run: python3 tools/docs_lint.py --severity error
+      - name: Manifest count check (docs match code)
+        run: python3 scripts/manifest_check.py
 
   test:
     runs-on: ${{ matrix.os }}
@@ -54,6 +56,16 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/cli_parse_test.py
           coverage run --append --source=obsidian_connector scripts/file_backend_test.py
           coverage run --append --source=obsidian_connector scripts/new_modules_test.py
+          coverage run --append --source=obsidian_connector scripts/write_manager_test.py
+          coverage run --append --source=obsidian_connector scripts/watcher_test.py
+          coverage run --append --source=obsidian_connector scripts/draft_manager_test.py
+          coverage run --append --source=obsidian_connector scripts/vault_registry_test.py
+          coverage run --append --source=obsidian_connector scripts/template_test.py
+          coverage run --append --source=obsidian_connector scripts/retrieval_test.py
+          coverage run --append --source=obsidian_connector scripts/scheduler_test.py
+          coverage run --append --source=obsidian_connector scripts/reports_test.py
+          coverage run --append --source=obsidian_connector scripts/project_intelligence_test.py
+          coverage run --append --source=obsidian_connector scripts/automation_test.py
       - name: Coverage report
         if: always()
         shell: bash

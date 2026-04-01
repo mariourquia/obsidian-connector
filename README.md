@@ -46,7 +46,7 @@ Five surfaces, pick the one that fits:
 
 | Surface | Command | What you get |
 |---------|---------|-------------|
-| **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 35 MCP tools |
+| **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 62 MCP tools |
 | **Claude Desktop** | `./scripts/install.sh` | 62 MCP tools via `claude_desktop_config.json` |
 | **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer (configures Claude Desktop) |
 | **CLI** | `pip install -e .` then `obsx` | 62 CLI commands |
@@ -89,7 +89,7 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you all 35 MCP tools plus 11 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`), with a SessionStart hook that suggests workflows based on time of day.
+This gives you all 62 MCP tools plus 13 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`), with a SessionStart hook that suggests workflows based on time of day.
 
 > **Note:** Plugin mode (`.mcp.json`) currently uses Unix paths for the Python venv.
 > On Windows, use the terminal installer (`scripts/Install.ps1`) instead of plugin mode.
@@ -467,15 +467,15 @@ bash /path/to/obsidian-connector/scripts/setup.sh
 ```
 
 **What the plugin provides:**
-- 11 skills: `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
+- 13 skills: `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
 - SessionStart hook: suggests `/morning` or `/evening` based on time of day
-- 35 MCP tools: full vault access (search, read, write, graph, thinking, workflows)
+- 62 MCP tools: full vault access (search, read, write, graph, thinking, workflows, drafts, templates, reports, project intelligence)
 - Post-install setup: `scripts/setup.sh` creates the Python venv
 
 **Plugin structure:**
 ```
 .claude-plugin/plugin.json    # manifest (name, version, author)
-skills/*/SKILL.md             # 11 skills (6 workflow + 5 knowledge)
+skills/*/SKILL.md             # 13 skills (8 workflow + 5 knowledge)
 portable/                     # 5 portable skills for Codex/OpenCode/Gemini
 hooks/hooks.json              # SessionStart hook config
 .mcp.json                     # MCP server config
