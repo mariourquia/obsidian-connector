@@ -45,7 +45,7 @@ jobs:
           cat checksums.txt
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-artifacts
           path: |
@@ -130,7 +130,7 @@ jobs:
           echo "DMG is signed, notarized, and stapled"
 
       - name: Upload .dmg artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-artifacts
           path: dist/obsidian-connector-*.dmg
@@ -153,7 +153,7 @@ jobs:
         shell: pwsh
 
       - name: Upload .exe artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-artifacts
           path: dist/obsidian-connector-*-setup.exe
