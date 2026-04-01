@@ -48,7 +48,7 @@ python3 scripts/project_sync_test.py   # Project sync + vault init tests (56 ass
 - `platform.py` -- cross-platform path resolution, scheduling, notifications (macOS/Linux/Windows)
 - `errors.py` -- canonical exception hierarchy (ObsidianCLIError base class)
 - `mcp_server.py` -- FastMCP tool definitions (62 tools)
-- `cli.py` -- argparse CLI (62 commands)
+- `cli.py` -- argparse CLI (65 commands)
 - `project_sync.py` -- project sync engine (git state, dashboard, TODO, sessions)
 - `vault_init.py` -- vault initialization wizard
 - `workflows.py` -- composed multi-step operations
