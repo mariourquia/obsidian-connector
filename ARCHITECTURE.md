@@ -33,7 +33,7 @@ persisted to SQLite for fast incremental updates.
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | User-facing documentation, release artifacts, distribution guides |
-| `skills/` | Claude Code skill definitions (11 skills: 6 workflow + 5 knowledge) |
+| `skills/` | Claude Code skill definitions (13 skills: 8 workflow + 5 knowledge) |
 | `portable/` | Portable skills bundle for Codex CLI, OpenCode, Gemini CLI (5 skills) |
 | `scheduling/` | launchd/cron configs for scheduled automation |
 
@@ -42,8 +42,8 @@ persisted to SQLite for fast incremental updates.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
-| `cli.py` | CLI entry point (`obsx`): 35 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
-| `mcp_server.py` | MCP server (FastMCP): 35 tools for Claude Desktop (stdio + HTTP transports) |
+| `cli.py` | CLI entry point (`obsx`): 62 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `mcp_server.py` | MCP server (FastMCP): 62 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
 | `write_manager.py` | Atomic writes, pre-write snapshots, rollback, file locks, diff preview, protected folders |

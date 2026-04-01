@@ -150,7 +150,7 @@ shell out to `obsidian` or `python main.py` from within an MCP-connected session
 The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 `obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
 
-### Commands (35 total)
+### Commands (62 total)
 
 | Command | Description | Mutating |
 |---|---|---|
@@ -417,9 +417,9 @@ obsidian-connector/
   pyproject.toml                   Package metadata (console scripts: obsx)
   TOOLS_CONTRACT.md                This file
   obsidian_connector/
-    __init__.py                    Public API re-exports (45 symbols)
-    cli.py                         CLI entry point (35 subcommands)
-    mcp_server.py                  MCP server (35 tools for Claude Desktop)
+    __init__.py                    Public API re-exports (92 symbols)
+    cli.py                         CLI entry point (62 subcommands)
+    mcp_server.py                  MCP server (62 tools for Claude Desktop)
     uninstall.py                   Safe two-mode uninstaller (CLI + MCP)
     workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
     thinking.py                    Thinking tools: ghost, drift, trace, ideas
