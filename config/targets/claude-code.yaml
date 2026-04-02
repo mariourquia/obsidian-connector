@@ -1,0 +1,21 @@
+name: claude-code
+description: Full Claude Code plugin with all skills, hooks, and MCP server
+
+skills:
+  include: all
+  normalize: false
+
+hooks:
+  include: true
+  variant: full
+
+manifest:
+  include_mcp: true
+  include_plugin: true
+
+python_package:
+  include: true
+  venv: true
+
+bin:
+  include: true

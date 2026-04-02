@@ -49,7 +49,7 @@ press_to_exit() {
 
 TELEMETRY_URL="https://cre-skills-feedback-api.vercel.app/api/installer-telemetry"
 PLUGIN_NAME_CONST="obsidian-connector"
-INSTALLER_VERSION_CONST="0.7.2"
+INSTALLER_VERSION_CONST="0.7.1"
 
 send_telemetry() {
     local step_failed="$1"
@@ -57,10 +57,15 @@ send_telemetry() {
     local prereqs_json="${3:-{}}"
 
     {
-        local id_source
-        id_source="$(hostname)-$(whoami)"
+        local id_file="$HOME/.obsidian-connector-install-id"
         local install_hash
-        install_hash=$(printf '%s' "$id_source" | shasum -a 256 | cut -d' ' -f1)
+        if [ -f "$id_file" ]; then
+            install_hash=$(cat "$id_file")
+        else
+            install_hash=$(uuidgen | tr '[:upper:]' '[:lower:]')
+            mkdir -p "$(dirname "$id_file")"
+            printf '%s' "$install_hash" > "$id_file"
+        fi
         local event_seed
         event_seed="$step_failed-$error_msg-$(date +%s)"
         local event_id
@@ -69,6 +74,9 @@ send_telemetry() {
         if [ ${#error_msg} -gt 2000 ]; then
             error_msg="${error_msg:0:2000}"
         fi
+
+        # Escape for JSON safety
+        error_msg=$(printf '%s' "$error_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ' | tr '\r' ' ')
 
         curl -s -X POST "$TELEMETRY_URL" \
             -H "Content-Type: application/json" \

@@ -15,8 +15,10 @@ def test_all_tools_registered():
     with open("obsidian_connector/mcp_server.py") as f:
         source = f.read()
     decorator_count = len(re.findall(r"@mcp\.tool\(", source))
-    assert decorator_count >= 29, (
-        f"Expected at least 29 @mcp.tool decorators, found {decorator_count}"
+    # Tolerance of 2 below actual count (62) to catch bulk tool deletions
+    # while allowing minor refactors. Update this floor when tools are added.
+    assert decorator_count >= 60, (
+        f"Expected at least 60 @mcp.tool decorators (project has 62), found {decorator_count}"
     )
     print(f"PASS: test_all_tools_registered ({decorator_count} tools by source scan)")
 

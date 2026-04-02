@@ -844,6 +844,8 @@ def obsidian_graduate_execute(
         return json.dumps(result, indent=2)
     except ValueError as exc:
         return json.dumps({"ok": False, "error": {"type": "ValueError", "message": str(exc)}})
+    except (OSError, FileExistsError) as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
 
@@ -1026,6 +1028,10 @@ def obsidian_rebuild_index(vault: str | None = None) -> str:
         }, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1056,6 +1062,10 @@ def obsidian_delegations(
         return json.dumps(results, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1081,6 +1091,10 @@ def obsidian_context_load(vault: str | None = None) -> str:
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1110,6 +1124,10 @@ def obsidian_check_in(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1257,6 +1275,10 @@ def obsidian_sync_projects(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1289,6 +1311,10 @@ def obsidian_project_status(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1316,6 +1342,10 @@ def obsidian_active_threads(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1374,6 +1404,10 @@ def obsidian_log_session(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1399,6 +1433,10 @@ def obsidian_running_todo(vault: str | None = None) -> str:
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1479,6 +1517,10 @@ def obsidian_float_idea(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, FileExistsError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1525,6 +1567,10 @@ def obsidian_incubate_project(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, FileExistsError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1545,6 +1591,10 @@ def obsidian_incubating(vault: str | None = None) -> str:
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1565,6 +1615,10 @@ def obsidian_idea_files(vault: str | None = None) -> str:
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1596,6 +1650,10 @@ def obsidian_mark_auto_generated(vault: str | None = None) -> str:
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1621,6 +1679,10 @@ def obsidian_detect_unorganized(vault: str | None = None) -> str:
         return json.dumps({"suggestions": suggestions, "count": len(suggestions)}, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 @mcp.tool(
@@ -1653,6 +1715,10 @@ def obsidian_organize_file(
         return json.dumps(result, indent=2)
     except ObsidianCLIError as exc:
         return _error_envelope(exc)
+    except (OSError, FileExistsError, ValueError) as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
 
 
 # ---------------------------------------------------------------------------

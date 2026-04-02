@@ -305,10 +305,12 @@ osascript -e 'display notification "Copying files to ~/obsidian-connector..." wi
 cp -R "$CONTENT_DIR" "$INSTALL_DIR"
 
 # Open Terminal and run the installer from the writable copy
+# Escape single quotes in path for AppleScript safety
+ESCAPED_DIR=$(printf '%s' "$INSTALL_DIR/Install.command" | sed "s/'/'\\\\''/g")
 osascript << EOF
 tell application "Terminal"
     activate
-    do script "clear && bash '$INSTALL_DIR/Install.command'"
+    do script "clear && bash '${ESCAPED_DIR}'"
 end tell
 EOF
 LAUNCHER
