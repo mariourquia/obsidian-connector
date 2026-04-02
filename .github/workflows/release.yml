@@ -165,7 +165,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           path: release-assets
 
@@ -237,4 +237,4 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.cert" \
             --title "$TAG_NAME" \
             --generate-notes \
-            --draft
+
