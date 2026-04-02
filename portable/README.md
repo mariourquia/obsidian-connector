@@ -3,6 +3,9 @@
 5 Agent Skills-compliant skills for working with Obsidian vaults. Compatible with
 any agent that supports the [Agent Skills](https://agentskills.io) specification.
 
+**These skills do NOT require the obsidian-connector MCP server or Python package.**
+They are self-contained markdown reference files that work with any agent system.
+
 ## Included Skills
 
 | Skill | Description | Requires |

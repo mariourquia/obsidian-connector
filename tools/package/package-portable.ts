@@ -65,7 +65,11 @@ function generateReadme(skills: string[]): string {
   return `# Obsidian Connector -- Portable Skills
 
 These skills work with any AI agent system that supports markdown skill files.
-They do not require the obsidian-connector MCP server or Python package.
+
+**Important:** Portable skills do NOT require the obsidian-connector MCP server,
+Python package, or any specific runtime. They are self-contained markdown
+reference files that work with any agent system that reads skill definitions.
+No installation beyond copying files is needed.
 
 ## Skills Included
 
@@ -81,6 +85,19 @@ Copy skill files to \`~/.gemini/skills/\`.
 
 ### Generic
 Each skill is a self-contained \`SKILL.md\` file. Place it where your agent reads skill definitions.
+
+## Full Platform
+
+These ${skills.length} skills are a subset of the full obsidian-connector platform.
+For the complete experience (62 MCP tools, 17 skills, workflow automation,
+project sync, session logging), install the Claude Code plugin:
+
+\`\`\`bash
+claude plugin install obsidian-connector
+\`\`\`
+
+See the main README for all installation options:
+https://github.com/mariourquia/obsidian-connector
 `;
 }
 

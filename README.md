@@ -42,15 +42,7 @@ Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prom
 
 ## Install
 
-Five surfaces, pick the one that fits:
-
-| Surface | Artifact | What you get |
-|---------|----------|-------------|
-| **Claude Code plugin** | `obsidian-connector-claude-code.zip` | 17 skills + hooks + 62 MCP tools |
-| **Claude Desktop** | `obsidian-connector-desktop.zip` | 62 MCP tools via MCP config |
-| **Portable** (Codex/OpenCode/Gemini) | `obsidian-connector-portable.zip` | 5 knowledge reference skills |
-| **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer |
-| **CLI / Python API** | `pip install obsidian-connector` | 65 CLI commands + Python API |
+Six surfaces. Pick the one that fits your setup.
 
 ### Requirements
 
@@ -58,29 +50,27 @@ Five surfaces, pick the one that fits:
 - Python 3.11+ ([download](https://www.python.org/downloads/))
 - macOS, Linux, or Windows
 
-### Option A: Download and double-click (easiest)
+| Surface | Best for | What you get |
+|---------|----------|-------------|
+| Claude Code plugin | CLI users | 17 skills + hooks + 62 MCP tools |
+| Claude Desktop marketplace | Desktop users | 62 MCP tools via MCP config |
+| Claude Desktop manual config | Desktop users (fallback) | 62 MCP tools via MCP config |
+| macOS DMG | Non-technical macOS users | Double-click installer |
+| Windows EXE | Non-technical Windows users | Installer wizard |
+| pip install | Python developers | 65 CLI commands + Python API |
 
-1. Go to [Releases](https://github.com/mariourquia/obsidian-connector/releases)
-   and download the `.dmg` file
-2. Open the DMG
-3. Double-click **`Install.command`**
-4. Restart Claude Desktop
+> New to this project? See [Install Surfaces](docs/INSTALL-SURFACES.md) for a detailed guide on which method to choose.
 
-That's it. No terminal, no commands.
-
-> If macOS says the file can't be opened: right-click `Install.command`,
-> select **Open**, then click **Open** in the dialog.
-
-### Option B: Claude Code Plugin (recommended for Claude Code users)
-
-```bash
-claude --plugin-dir /path/to/obsidian-connector
-```
-
-Or, once accepted into the official marketplace:
+### a. Claude Code (recommended for CLI users)
 
 ```bash
 claude plugin install obsidian-connector
+```
+
+Or point at a local clone:
+
+```bash
+claude --plugin-dir /path/to/obsidian-connector
 ```
 
 After installing, run the setup script to create the Python environment:
@@ -89,21 +79,23 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you all 62 MCP tools plus 17 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`), with a SessionStart hook that suggests workflows based on time of day.
+This gives you 62 MCP tools, 17 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/capture`, `/ritual`, `/new-vault`, `/sync`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`), and a SessionStart hook that suggests workflows based on time of day.
 
-> **Note:** Plugin mode (`.mcp.json`) currently uses Unix paths for the Python venv.
-> On Windows, use the terminal installer (`scripts/Install.ps1`) instead of plugin mode.
+> **Note:** Plugin mode (`.mcp.json`) uses Unix venv paths. On Windows, use `scripts/Install.ps1` instead.
 
-### Option C: Download ZIP
+### b. Claude Desktop -- Add Marketplace (recommended for Desktop users)
 
-1. Click the green **Code** button on this page, then **Download ZIP**
-2. Unzip the folder
-3. Open the folder and double-click **`Install.command`**
-4. Restart Claude Desktop
+1. Open Claude Desktop
+2. Go to **Settings > Extensions > Add marketplace**
+3. Paste: `https://github.com/mariourquia/obsidian-connector`
+4. Click **Add**
+5. Restart Claude Desktop
 
-### Option D: Terminal (for developers)
+Claude Desktop reads the `.claude-plugin/marketplace.json` from this repo and registers the MCP server. After restart, 62 Obsidian tools appear in the tools panel.
 
-**macOS:**
+### c. Claude Desktop -- Manual config (if marketplace does not work)
+
+**macOS / Linux:**
 
 ```bash
 git clone https://github.com/mariourquia/obsidian-connector.git
@@ -111,7 +103,7 @@ cd obsidian-connector
 ./scripts/install.sh
 ```
 
-**Linux:**
+**Linux (explicit):**
 
 ```bash
 git clone https://github.com/mariourquia/obsidian-connector.git
@@ -127,12 +119,10 @@ cd obsidian-connector
 .\scripts\Install.ps1
 ```
 
-The install script creates the Python environment, installs the package, and
-configures Claude Desktop automatically. Restart Claude Desktop and the
-Obsidian tools appear.
+The install script creates the Python environment, installs the package, and writes the MCP server entry to your Claude Desktop config. Restart Claude Desktop and the Obsidian tools appear.
 
 <details>
-<summary>Manual setup (full control)</summary>
+<summary>Full manual setup (no script)</summary>
 
 ```bash
 git clone https://github.com/mariourquia/obsidian-connector.git
@@ -177,6 +167,49 @@ To target a specific vault, add an `env` key:
 Restart Claude Desktop after saving.
 
 </details>
+
+### d. macOS DMG (non-technical users)
+
+1. Go to [Releases](https://github.com/mariourquia/obsidian-connector/releases) and download the `.dmg` file
+2. Open the DMG
+3. Double-click **`Install.command`**
+4. Restart Claude Desktop
+
+No terminal required.
+
+> If macOS says the file cannot be opened: right-click `Install.command`, select **Open**, then click **Open** in the dialog.
+
+### e. Windows EXE (non-technical users)
+
+1. Go to [Releases](https://github.com/mariourquia/obsidian-connector/releases) and download the `.exe` installer
+2. Run the installer wizard
+3. Restart Claude Desktop
+
+The installer checks for Python, creates the venv, and registers the MCP server with Claude Desktop.
+
+### f. pip install (Python developers)
+
+```bash
+pip install obsidian-connector
+```
+
+This gives you the `obsx` CLI (65 commands) and the Python API. It does not configure Claude Desktop -- use one of the options above for that.
+
+### How to verify it worked
+
+**Claude Code:** Start a new session. The SessionStart hook prints a greeting with time-aware suggestions. Type `/morning` or `/evening` to confirm skills load.
+
+**Claude Desktop:** Open a new conversation. Click the tools icon (hammer) in the input area. You should see 62 tools prefixed with `obsidian_`. Try asking Claude to run `obsidian_doctor`.
+
+**CLI:**
+
+```bash
+obsx doctor
+```
+
+A passing result confirms Obsidian connectivity and vault resolution.
+
+See [docs/INSTALL-SURFACES.md](docs/INSTALL-SURFACES.md) for a detailed breakdown of what each install surface provides and how to uninstall.
 
 ## What's under the hood
 
@@ -458,12 +491,17 @@ See the [Setup Guide](docs/setup-guide.md) for installation and the
 
 ## Claude Code plugin
 
-obsidian-connector is a Claude Code plugin, submitted to Anthropic's official marketplace.
+obsidian-connector is a Claude Code plugin available via the marketplace and local install.
 
-**Install locally:**
+**Install:**
 ```bash
-claude --plugin-dir /path/to/obsidian-connector
-bash /path/to/obsidian-connector/scripts/setup.sh
+claude plugin install obsidian-connector
+# Or: claude --plugin-dir /path/to/obsidian-connector
+```
+
+Then run setup to create the Python venv:
+```bash
+bash <plugin-dir>/scripts/setup.sh
 ```
 
 **What the plugin provides:**
@@ -474,12 +512,13 @@ bash /path/to/obsidian-connector/scripts/setup.sh
 
 **Plugin structure:**
 ```
-.claude-plugin/plugin.json    # manifest (name, version, author)
-skills/*/SKILL.md             # 17 skills (12 workflow + 5 knowledge)
-portable/                     # 5 portable skills for Codex/OpenCode/Gemini
-hooks/hooks.json              # SessionStart hook config
-.mcp.json                     # MCP server config
-scripts/setup.sh              # post-install venv bootstrap
+.claude-plugin/plugin.json       # manifest (name, version, author)
+.claude-plugin/marketplace.json  # marketplace registry for Claude Desktop "Add marketplace"
+skills/*/SKILL.md                # 17 skills (12 workflow + 5 knowledge)
+portable/                        # 5 portable skills for Codex/OpenCode/Gemini
+hooks/hooks.json                 # SessionStart hook config
+.mcp.json                        # MCP server config
+scripts/setup.sh                 # post-install venv bootstrap
 ```
 
 **Note:** Plugin mode uses Unix venv paths. Windows users should use `scripts/Install.ps1` instead.
