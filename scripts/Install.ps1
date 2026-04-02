@@ -684,6 +684,55 @@ else:
 
 Write-Host ""
 
+# ── Post-install verification ──────────────────────────────────────
+
+Write-Blue "  Running post-install verification..."
+$verifyFails = 0
+
+# Check 1: venv python exists
+$venvPy = Join-Path $VenvDir "Scripts\python.exe"
+if (Test-Path $venvPy) {
+    Write-Green "  Venv python: OK"
+} else {
+    Write-Red "  Venv python missing: $venvPy"
+    $verifyFails++
+}
+
+# Check 2: obsidian_connector package importable
+if (Test-Path $venvPy) {
+    try {
+        $importCheck = & $venvPy -c "import obsidian_connector; print('OK')" 2>&1
+        if ("$importCheck" -match "OK") {
+            Write-Green "  Package import: OK"
+        } else {
+            Write-Red "  Package import failed: $importCheck"
+            $verifyFails++
+        }
+    } catch {
+        Write-Red "  Package import check failed: $_"
+        $verifyFails++
+    }
+}
+
+# Check 3: Plugin cache (if registered)
+if ($InstalledSomewhere) {
+    $cacheDir = Join-Path (Join-Path $env:USERPROFILE ".claude") "plugins\cache\local\obsidian-connector"
+    if (Test-Path $cacheDir) {
+        Write-Green "  Plugin cache: OK"
+    } else {
+        Write-Yellow "  Plugin cache not found (non-fatal)"
+    }
+}
+
+if ($verifyFails -gt 0) {
+    Write-Yellow "  $verifyFails verification check(s) failed"
+    Send-InstallerTelemetry -StepFailed "post_verify" -ErrorMsg "$verifyFails checks failed"
+} else {
+    Write-Green "  All verification checks passed"
+}
+
+Write-Host ""
+
 # ── Summary ─────────────────────────────────────────────────────────
 
 Write-Green "  Installation complete!"

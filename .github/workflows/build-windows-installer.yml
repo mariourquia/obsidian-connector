@@ -53,6 +53,24 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Path dist -Force | Out-Null
 
+      - name: Verify source layout for Inno Setup
+        shell: pwsh
+        run: |
+          $required = @("src\skills", "src\hooks", "src\plugin", "obsidian_connector", "pyproject.toml")
+          $missing = @()
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              $missing += $path
+              Write-Host "MISSING: $path" -ForegroundColor Red
+            } else {
+              Write-Host "OK: $path" -ForegroundColor Green
+            }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Error "Required source files/dirs missing: $($missing -join ', ')"
+            exit 1
+          }
+
       - name: Compile installer
         shell: pwsh
         env:
