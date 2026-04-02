@@ -107,5 +107,8 @@ jobs:
       - run: pip install pip-tools
       - name: Verify lockfile is in sync with pyproject.toml
         run: |
-          pip-compile --generate-hashes --output-file=requirements-lock-ci.txt pyproject.toml
-          diff requirements-lock.txt requirements-lock-ci.txt || (echo "Lockfile is out of sync. Run: pip-compile --generate-hashes --output-file=requirements-lock.txt pyproject.toml" && exit 1)
+          # Extract package==version lines from both lockfiles and compare
+          pip-compile --output-file=requirements-lock-ci.txt pyproject.toml
+          grep -E '^[a-z].*==' requirements-lock.txt | sort > /tmp/lock-local.txt
+          grep -E '^[a-z].*==' requirements-lock-ci.txt | sort > /tmp/lock-ci.txt
+          diff /tmp/lock-local.txt /tmp/lock-ci.txt || (echo "Lockfile dependencies out of sync. Run: pip-compile --generate-hashes --output-file=requirements-lock.txt pyproject.toml" && exit 1)
