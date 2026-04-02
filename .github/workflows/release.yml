@@ -237,4 +237,4 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.cert" \
             --title "$TAG_NAME" \
             --generate-notes \
-            --draft
+
