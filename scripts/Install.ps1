@@ -126,14 +126,25 @@ if ($claudeCmd) {
         Write-Green "  Claude Code CLI found"
     }
 } else {
-    # Check npm global install location
-    $npmClaudePath = Join-Path $env:APPDATA "npm\claude.cmd"
-    if (Test-Path $npmClaudePath) {
-        $HasClaudeCode = $true
-        $ClaudePath = $npmClaudePath
-        Write-Green "  Claude Code CLI found at: $npmClaudePath"
-    } else {
+    # Check known install locations on Windows
+    $searchPaths = @(
+        (Join-Path $env:APPDATA "npm\claude.cmd"),
+        (Join-Path $env:LOCALAPPDATA "Programs\claude\claude.exe"),
+        (Join-Path $env:LOCALAPPDATA "Claude\claude.exe"),
+        (Join-Path $env:PROGRAMFILES "Claude\claude.exe"),
+        (Join-Path ${env:PROGRAMFILES(x86)} "Claude\claude.exe")
+    )
+    foreach ($candidatePath in $searchPaths) {
+        if ($candidatePath -and (Test-Path $candidatePath)) {
+            $HasClaudeCode = $true
+            $ClaudePath = $candidatePath
+            Write-Green "  Claude Code CLI found at: $candidatePath"
+            break
+        }
+    }
+    if (-not $HasClaudeCode) {
         Write-Yellow "  Claude Code CLI not found (optional)"
+        Write-Dim  "  If installed, ensure 'claude' is in your PATH"
     }
 }
 
@@ -206,28 +217,49 @@ if ($HasClaudeDesktop) {
     }
 
     try {
-        $config = Get-Content $DesktopConfigPath -Raw | ConvertFrom-Json
-        if (-not $config.mcpServers) {
-            $config | Add-Member -MemberType NoteProperty -Name mcpServers -Value @{} -Force
+        $pythonPath = (Join-Path $VenvDir "Scripts\python.exe") -replace '\\', '\\'
+
+        # Read existing config as raw text, parse with Python for reliable JSON handling
+        # PowerShell's ConvertFrom-Json can't set properties with hyphens reliably
+        $installDirEscaped = $InstallDir -replace '\\', '\\'
+
+        $pyScript = @"
+import json, sys, shutil, os
+from datetime import datetime
+
+config_path = r'$DesktopConfigPath'
+
+# Backup
+backup = config_path + '.backup-' + datetime.now().strftime('%Y%m%d-%H%M%S')
+shutil.copy2(config_path, backup)
+
+with open(config_path, 'r', encoding='utf-8') as f:
+    config = json.load(f)
+
+if 'mcpServers' not in config:
+    config['mcpServers'] = {}
+
+config['mcpServers']['obsidian-connector'] = {
+    'command': r'$pythonPath',
+    'args': ['-m', 'obsidian_connector.mcp_server'],
+    'env': {'PYTHONPATH': r'$installDirEscaped'}
+}
+
+with open(config_path, 'w', encoding='utf-8') as f:
+    json.dump(config, f, indent=2)
+
+print('OK')
+"@
+
+        $result = & $PythonCmd -c $pyScript 2>&1
+        if ($result -match "OK") {
+            Write-Green "  MCP server registered in Claude Desktop config"
+            Write-Dim  "  Config backed up"
+            $InstalledSomewhere = $true
+        } else {
+            Write-Yellow "  Config update returned: $result"
+            $InstalledSomewhere = $true
         }
-
-        $pythonPath = Join-Path $VenvDir "Scripts\python.exe"
-        $config.mcpServers."obsidian-connector" = @{
-            command = $pythonPath
-            args = @("-m", "obsidian_connector.mcp_server")
-            env = @{
-                PYTHONPATH = $InstallDir
-            }
-        }
-
-        # Backup existing config
-        $backupPath = "${DesktopConfigPath}.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-        Copy-Item $DesktopConfigPath $backupPath
-
-        $config | ConvertTo-Json -Depth 10 | Set-Content $DesktopConfigPath -Encoding UTF8
-        Write-Green "  MCP server registered in Claude Desktop config"
-        Write-Dim  "  Config backed up to: $(Split-Path $backupPath -Leaf)"
-        $InstalledSomewhere = $true
     } catch {
         Write-Yellow "  Could not update Claude Desktop config: $_"
         Write-Dim  "  Manual: add obsidian-connector to claude_desktop_config.json"
