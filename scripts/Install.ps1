@@ -10,15 +10,18 @@
 # ──────────────────────────────────────────────────────────────────────
 
 param(
-    [string]$InstallDir = $PSScriptRoot
+    [string]$InstallDir = $PSScriptRoot,
+    [switch]$NonInteractive
 )
 
 if ($InstallDir -eq $PSScriptRoot) {
     $InstallDir = Split-Path $PSScriptRoot -Parent
 }
 
-# Detect non-interactive mode (Inno Setup /VERYSILENT, piped stdin, CI)
-$NonInteractive = (-not [Environment]::UserInteractive) -or ([Console]::IsInputRedirected) -or ($env:CI -eq "true")
+# Detect non-interactive mode (explicit flag, Inno Setup /VERYSILENT, piped stdin, CI)
+if (-not $NonInteractive) {
+    $NonInteractive = (-not [Environment]::UserInteractive) -or ([Console]::IsInputRedirected) -or ($env:CI -eq "true")
+}
 
 $ErrorActionPreference = 'Continue'
 
@@ -57,7 +60,7 @@ function Write-Dim    { param([string]$Text) Write-Host $Text -ForegroundColor D
 
 $TelemetryUrl = "https://cre-skills-feedback-api.vercel.app/api/installer-telemetry"
 $PluginNameConst = "obsidian-connector"
-$InstallerVersionConst = "0.7.2"
+$InstallerVersionConst = "0.8.0"
 
 function Send-InstallerTelemetry {
     param(
@@ -298,7 +301,13 @@ if (-not (Test-Path $VenvDir)) {
 
 $PipPath = Join-Path $VenvDir "Scripts\pip.exe"
 if (Test-Path $PipPath) {
-    & $PipPath install -e $InstallDir --quiet 2>&1 | Out-Null
+    Write-Dim "  Installing dependencies (this may take a minute)..."
+    & $PipPath install --upgrade pip 2>&1 | ForEach-Object { Write-Dim "    $_" }
+    & $PipPath install -e $InstallDir 2>&1 | ForEach-Object {
+        if ($_ -match '(Downloading|Installing|Collecting|Building|Successfully)') {
+            Write-Dim "    $_"
+        }
+    }
     Write-Green "  Package installed"
 } else {
     Write-Yellow "  Could not find pip in venv"
