@@ -1,0 +1,219 @@
+name: Verify Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to verify (e.g. v0.7.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  verify-windows:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Create fake Claude home for installer detection
+        shell: pwsh
+        run: |
+          $claudeHome = Join-Path $env:USERPROFILE ".claude"
+          New-Item -ItemType Directory -Path $claudeHome -Force | Out-Null
+          '{}' | Out-File (Join-Path $claudeHome "settings.json") -Encoding utf8
+          Write-Output "Created Claude home at $claudeHome"
+
+      - name: Download .exe from draft release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          gh release download $env:TAG --pattern "*.exe" --dir dist
+          Get-ChildItem dist/*.exe | ForEach-Object { Write-Output "Downloaded: $($_.Name)" }
+
+      - name: Download .sha256 from draft release
+        shell: pwsh
+        run: |
+          gh release download $env:TAG --pattern "*.sha256" --dir dist
+          Get-ChildItem dist/*.sha256 | ForEach-Object { Write-Output "Downloaded: $($_.Name)" }
+
+      - name: Verify checksum
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem dist/*.exe | Select-Object -First 1).FullName
+          $sha256File = (Get-ChildItem dist/*.sha256 | Select-Object -First 1).FullName
+
+          $computed = (Get-FileHash -Path $exe -Algorithm SHA256).Hash.ToLower()
+
+          # sha256 file format: "<hash>  <filename>" or "<hash> <filename>"
+          $content = Get-Content $sha256File -Raw
+          # Find the line matching the exe filename
+          $exeName = [System.IO.Path]::GetFileName($exe)
+          $expectedLine = ($content -split "`n") | Where-Object { $_ -match [regex]::Escape($exeName) } | Select-Object -First 1
+          if (-not $expectedLine) {
+            # Fall back to any line with a hash
+            $expectedLine = ($content -split "`n") | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1
+          }
+          $expected = ($expectedLine.Trim() -split "\s+")[0].ToLower()
+
+          Write-Output "Computed: $computed"
+          Write-Output "Expected: $expected"
+
+          if ($computed -ne $expected) {
+            Write-Error "Checksum mismatch for $exeName"
+            exit 1
+          }
+          Write-Output "Checksum verified OK"
+
+      - name: Run .exe installer silently
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem dist/*.exe | Select-Object -First 1).FullName
+          $installDir = Join-Path $env:TEMP "oc-verify"
+          Write-Output "Installing $exe to $installDir"
+          Start-Process -FilePath $exe -ArgumentList "/VERYSILENT /DIR=$installDir /SUPPRESSMSGBOXES /NORESTART" -Wait -NoNewWindow
+          Write-Output "Installer exited"
+
+      - name: Wait for post-install scripts
+        shell: pwsh
+        run: Start-Sleep -Seconds 5
+
+      - name: Run installer smoke test
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:TEMP "oc-verify"
+          $claudeHome = Join-Path $env:USERPROFILE ".claude"
+          python scripts/installer_smoke_test.py --claude-home $claudeHome --install-dir $installDir
+
+  verify-macos:
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download .dmg from draft release
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --pattern "*.dmg" --dir dist
+          ls -lh dist/*.dmg
+
+      - name: Mount DMG
+        id: mount
+        run: |
+          DMG=$(ls dist/*.dmg | head -1)
+          echo "dmg_path=$DMG" >> "$GITHUB_OUTPUT"
+
+          MOUNT_OUTPUT=$(hdiutil attach "$DMG" -nobrowse 2>&1)
+          echo "$MOUNT_OUTPUT"
+
+          # Extract mount point (last field on the last line with /Volumes/)
+          MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep '/Volumes/' | awk '{print $NF}')
+          if [ -z "$MOUNT_POINT" ]; then
+            # Try extracting the full /Volumes/... path
+            MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep -o '/Volumes/[^ ]*' | tail -1)
+          fi
+          echo "mount_point=$MOUNT_POINT" >> "$GITHUB_OUTPUT"
+          echo "Mounted at: $MOUNT_POINT"
+
+      - name: Verify DMG contents
+        env:
+          MOUNT_POINT: ${{ steps.mount.outputs.mount_point }}
+        run: |
+          echo "Contents of $MOUNT_POINT:"
+          ls -la "$MOUNT_POINT"
+
+          if [ ! -d "$MOUNT_POINT" ]; then
+            echo "::error::DMG mount point does not exist: $MOUNT_POINT"
+            exit 1
+          fi
+
+          FILE_COUNT=$(ls -1 "$MOUNT_POINT" | wc -l | tr -d ' ')
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::DMG is empty"
+            exit 1
+          fi
+          echo "DMG contains $FILE_COUNT item(s)"
+
+      - name: Verify code signature (best-effort)
+        env:
+          DMG_PATH: ${{ steps.mount.outputs.dmg_path }}
+        run: |
+          if codesign --verify --verbose "$DMG_PATH" 2>&1; then
+            echo "Code signature verified"
+          else
+            echo "::warning::DMG is not signed or signature verification failed (non-fatal)"
+          fi
+
+      - name: Unmount DMG
+        if: always()
+        env:
+          MOUNT_POINT: ${{ steps.mount.outputs.mount_point }}
+        run: |
+          if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT" ]; then
+            hdiutil detach "$MOUNT_POINT" -quiet || true
+            echo "Unmounted $MOUNT_POINT"
+          else
+            echo "No mount point to unmount"
+          fi
+
+  promote:
+    needs: [verify-windows, verify-macos]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Promote draft release to live
+        run: |
+          echo "Promoting $TAG from draft to live"
+          gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+          echo "Release $TAG is now live"
+
+  on-failure:
+    needs: [verify-windows, verify-macos]
+    if: failure()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create failure issue
+        run: |
+          BODY="## Release verification failed
+
+          One or more verification jobs failed for the draft release. Review the workflow logs to identify the failure, fix the issue, and re-run verification.
+
+          **Tag:** \`$TAG\`
+          **Workflow run:** $RUN_URL
+
+          ### Next steps
+          1. Check the [workflow run]($RUN_URL) for details
+          2. Fix the underlying issue
+          3. Re-trigger the verify-release workflow for \`$TAG\`"
+
+          gh issue create \
+            --title "Release $TAG verification failed" \
+            --body "$BODY" \
+            --label "bug" --label "release"

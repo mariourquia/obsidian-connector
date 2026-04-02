@@ -19,11 +19,39 @@ if ($InstallDir -eq $PSScriptRoot) {
 
 $ErrorActionPreference = 'Continue'
 
-# Global error trap: keep window open on any crash
+# Global error trap: keep window open on any crash, generate diagnostic report
 trap {
     Write-Host ""
-    Write-Host "  An error occurred: $_" -ForegroundColor Red
+    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+    Write-Host "  INSTALLATION ERROR" -ForegroundColor Red
+    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
     Write-Host ""
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+
+    # Try to run diagnostic report generator
+    $diagScript = Join-Path $InstallDir "scripts" "diagnostic_report.py"
+    $escapedError = ($_.Exception.Message) -replace '"', '\"'
+    $diagRan = $false
+    try {
+        if (Test-Path $diagScript) {
+            & python3 $diagScript --error "$escapedError" --step "install" 2>$null
+            if ($LASTEXITCODE -eq 0) { $diagRan = $true }
+        }
+    } catch {}
+    if (-not $diagRan) {
+        try {
+            & python $diagScript --error "$escapedError" --step "install" 2>$null
+            if ($LASTEXITCODE -eq 0) { $diagRan = $true }
+        } catch {}
+    }
+
+    if (-not $diagRan) {
+        Write-Host "  Submit a bug report:" -ForegroundColor Yellow
+        Write-Host "  https://github.com/mariourquia/obsidian-connector/issues/new?labels=bug,installer" -ForegroundColor Cyan
+        Write-Host ""
+    }
+
     Write-Host "  Press Enter to close this window." -ForegroundColor White
     Read-Host
     exit 1
@@ -372,6 +400,103 @@ print('OK')
             Write-Yellow "  Config update returned: $result"
             $InstalledSomewhere = $true
         }
+
+        # ── MCP config path validation ────────────────────────────────
+        # Read the config back and verify the registered command path
+        # exists on disk. Uses Python because PowerShell cannot handle
+        # hyphenated JSON keys with dot notation.
+        Write-Host ""
+        Write-Blue "  Verifying MCP config..."
+
+        $verifyScript = Join-Path $env:TEMP "obsidian_connector_verify_mcp.py"
+        @"
+import json, sys, os
+
+config_path = sys.argv[1]
+
+try:
+    with open(config_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+except Exception as e:
+    print(f'ERROR: Could not read config: {e}')
+    sys.exit(2)
+
+entry = data.get('mcpServers', {}).get('obsidian-connector', {})
+if not entry:
+    print('ERROR: mcpServers.obsidian-connector entry not found in config')
+    sys.exit(2)
+
+cmd = entry.get('command', '')
+args = entry.get('args', [])
+env = entry.get('env', {})
+
+# Diagnostic output
+print(f'command={cmd}')
+print(f'args={json.dumps(args)}')
+print(f'env={json.dumps(env)}')
+print(f'full_entry={json.dumps(entry, indent=2)}')
+
+if not cmd:
+    print('WARNING: command field is empty')
+    sys.exit(1)
+
+if os.path.exists(cmd):
+    print(f'command_exists=true')
+    print('MCP config verification: OK')
+    sys.exit(0)
+else:
+    print(f'command_exists=false')
+    print(f'WARNING: command path does not exist: {cmd}')
+    sys.exit(1)
+"@ | Set-Content $verifyScript -Encoding UTF8
+
+        $verifyOutput = & $PythonCmd $verifyScript $DesktopConfigPath 2>&1
+        $verifyExit = $LASTEXITCODE
+        Remove-Item $verifyScript -ErrorAction SilentlyContinue
+
+        # ── Diagnostic log output ─────────────────────────────────────
+        Write-Host ""
+        Write-Blue "  MCP registration diagnostics:"
+        foreach ($line in ($verifyOutput -split "`n")) {
+            $trimmed = $line.Trim()
+            if ($trimmed -match '^command=(.+)$') {
+                Write-Dim  "    Command path: $($Matches[1])"
+            } elseif ($trimmed -match '^command_exists=(.+)$') {
+                if ($Matches[1] -eq 'true') {
+                    Write-Green "    Command exists: YES"
+                } else {
+                    Write-Red   "    Command exists: NO"
+                }
+            } elseif ($trimmed -match '^args=(.+)$') {
+                Write-Dim  "    Args: $($Matches[1])"
+            } elseif ($trimmed -match '^env=(.+)$') {
+                Write-Dim  "    Env: $($Matches[1])"
+            } elseif ($trimmed -match '^full_entry=') {
+                # Skip multiline JSON -- already printed fields above
+            } elseif ($trimmed -match '^(WARNING|ERROR):') {
+                Write-Yellow "    $trimmed"
+            } elseif ($trimmed -eq 'MCP config verification: OK') {
+                Write-Green "    $trimmed"
+            }
+        }
+
+        if ($verifyExit -eq 1) {
+            Write-Host ""
+            Write-Yellow "  The MCP command path does not exist on disk."
+            Write-Yellow "  Claude Desktop will not be able to start the MCP server."
+            Write-Host ""
+            Write-Host "  Possible causes:"
+            Write-Dim  "    - Python venv was not created successfully"
+            Write-Dim  "    - Path contains spaces or special characters"
+            Write-Dim  "    - Antivirus quarantined the python.exe"
+            Write-Host ""
+            Write-Host "  Try recreating the venv:"
+            Write-Dim  "    $PythonCmd -m venv `"$VenvDir`""
+            Write-Dim  "    Then re-run this installer."
+        } elseif ($verifyExit -ge 2) {
+            Write-Yellow "  Could not verify MCP config (exit code $verifyExit)"
+        }
+
     } catch {
         Write-Yellow "  Could not update Claude Desktop config: $_"
         Write-Dim  "  Manual: add obsidian-connector to claude_desktop_config.json"
