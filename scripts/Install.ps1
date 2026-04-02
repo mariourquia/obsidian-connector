@@ -19,11 +19,39 @@ if ($InstallDir -eq $PSScriptRoot) {
 
 $ErrorActionPreference = 'Continue'
 
-# Global error trap: keep window open on any crash
+# Global error trap: keep window open on any crash, generate diagnostic report
 trap {
     Write-Host ""
-    Write-Host "  An error occurred: $_" -ForegroundColor Red
+    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+    Write-Host "  INSTALLATION ERROR" -ForegroundColor Red
+    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
     Write-Host ""
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+
+    # Try to run diagnostic report generator
+    $diagScript = Join-Path $InstallDir "scripts" "diagnostic_report.py"
+    $escapedError = ($_.Exception.Message) -replace '"', '\"'
+    $diagRan = $false
+    try {
+        if (Test-Path $diagScript) {
+            & python3 $diagScript --error "$escapedError" --step "install" 2>$null
+            if ($LASTEXITCODE -eq 0) { $diagRan = $true }
+        }
+    } catch {}
+    if (-not $diagRan) {
+        try {
+            & python $diagScript --error "$escapedError" --step "install" 2>$null
+            if ($LASTEXITCODE -eq 0) { $diagRan = $true }
+        } catch {}
+    }
+
+    if (-not $diagRan) {
+        Write-Host "  Submit a bug report:" -ForegroundColor Yellow
+        Write-Host "  https://github.com/mariourquia/obsidian-connector/issues/new?labels=bug,installer" -ForegroundColor Cyan
+        Write-Host ""
+    }
+
     Write-Host "  Press Enter to close this window." -ForegroundColor White
     Read-Host
     exit 1
