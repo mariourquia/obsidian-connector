@@ -83,6 +83,33 @@ jobs:
           coverage report --fail-under=10
           coverage xml
 
+  build-system:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev]" pyyaml
+      - name: Install build tools
+        working-directory: tools
+        run: npm ci
+      - name: Build all plugin targets
+        run: |
+          npx tsx tools/build.ts --target claude-code
+          npx tsx tools/build.ts --target claude-desktop
+          npx tsx tools/build.ts --target portable
+      - name: Validate all plugin targets
+        run: |
+          npx tsx tools/validate.ts --target claude-code
+          npx tsx tools/validate.ts --target claude-desktop
+          npx tsx tools/validate.ts --target portable
+      - name: Build system tests
+        run: python3 -m pytest tests/test_build_system.py -v
+
   mcp-launch:
     runs-on: ${{ matrix.os }}
     strategy:
