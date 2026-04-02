@@ -1,6 +1,6 @@
 {
   "name": "obsidian-connector",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Access your Obsidian vault from Claude. Search notes, read content, log decisions, manage tasks, and think with your notes -- all through MCP tools.",
   "author": {
     "name": "Mario Urquia",
