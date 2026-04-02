@@ -50,7 +50,7 @@ jobs:
           #   - Missing files (line 62): if obsidian_connector/ not found
           #   - No Python (line 95): if python3 not found
           #   - No Claude (line 206): if neither Claude CLI, Desktop, nor ~/.claude
-          #   - Final prompt (line 403): always
+          #   - Final prompt (line 500): always
           #
           # We pre-create ~/.claude so HasClaudeHome=true, which means
           # registration proceeds. The only Read-Host that fires on the
@@ -62,6 +62,59 @@ jobs:
         shell: pwsh
         run: |
           python scripts/installer_smoke_test.py --claude-home "$env:USERPROFILE\.claude" --install-dir .
+
+      - name: Validate Desktop MCP config
+        shell: pwsh
+        run: |
+          # Create fake Claude Desktop directory so Install.ps1 detects it
+          $desktopDir = Join-Path $env:APPDATA "Claude"
+          New-Item -ItemType Directory -Path $desktopDir -Force | Out-Null
+          Write-Host "Created Claude Desktop dir at $desktopDir"
+
+          # Re-run Install.ps1 -- it will now detect the Desktop dir and
+          # write the MCP config to claude_desktop_config.json
+          echo "" | powershell -ExecutionPolicy Bypass -File scripts/Install.ps1 -InstallDir (Get-Location).Path
+
+          # Validate the generated config with Python
+          $configPath = Join-Path $desktopDir "claude_desktop_config.json"
+          python -c @"
+          import json, sys
+
+          config_path = r'$configPath'.replace("'", "")
+
+          try:
+              with open(config_path, 'r', encoding='utf-8') as f:
+                  data = json.load(f)
+          except FileNotFoundError:
+              print(f'FAIL: Config file not found at {config_path}')
+              sys.exit(1)
+          except json.JSONDecodeError as e:
+              print(f'FAIL: Invalid JSON in config: {e}')
+              sys.exit(1)
+
+          print('PASS: Config is valid JSON')
+
+          servers = data.get('mcpServers', {})
+          entry = servers.get('obsidian-connector')
+          if entry is None:
+              print('FAIL: mcpServers.obsidian-connector entry not found')
+              sys.exit(1)
+          print('PASS: mcpServers.obsidian-connector entry exists')
+
+          cmd = entry.get('command', '')
+          if not cmd:
+              print('FAIL: command field is empty')
+              sys.exit(1)
+          print(f'PASS: command field is non-empty: {cmd}')
+
+          args = entry.get('args')
+          if args is None:
+              print('FAIL: args field is missing')
+              sys.exit(1)
+          print(f'PASS: args field exists: {args}')
+
+          print('All Desktop MCP config checks passed')
+          "@
 
   smoke-macos:
     runs-on: macos-latest
