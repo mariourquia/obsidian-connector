@@ -582,7 +582,7 @@ Plugin namespace handles skill routing now."
 - [ ] **Step 1: Run Claude Code with plugin loaded**
 
 ```bash
-claude --plugin-dir /Users/mu/Documents/GitHub/obsidian-connector
+claude --plugin-dir ./path/to/obsidian-connector
 ```
 
 - [ ] **Step 2: Verify skills load**
