@@ -93,7 +93,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: pip install -e ".[dev]" pyyaml
+      - run: pip install -e ".[dev]" pyyaml build twine
       - name: Install build tools
         working-directory: tools
         run: npm ci
@@ -102,11 +102,13 @@ jobs:
           npx tsx tools/build.ts --target claude-code
           npx tsx tools/build.ts --target claude-desktop
           npx tsx tools/build.ts --target portable
+          npx tsx tools/build.ts --target pypi
       - name: Validate all plugin targets
         run: |
           npx tsx tools/validate.ts --target claude-code
           npx tsx tools/validate.ts --target claude-desktop
           npx tsx tools/validate.ts --target portable
+          npx tsx tools/validate.ts --target pypi
       - name: Build system tests
         run: python3 -m pytest tests/test_build_system.py -v
 

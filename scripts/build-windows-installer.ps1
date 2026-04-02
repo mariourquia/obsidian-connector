@@ -63,36 +63,76 @@ if (-not $ISCC) {
 Write-Host "Using Inno Setup: $ISCC"
 
 # -- Stage files -----------------------------------------------------------
+# Prefer validated build artifacts from builds\claude-desktop\ when the
+# build pipeline has been run. Fall back to the raw source tree for dev
+# builds where someone hasn't run the build pipeline.
 
 $DistDir = Join-Path $RepoRoot "dist"
 $StagingDir = Join-Path $DistDir ".win-staging"
+$BuildDir = Join-Path $RepoRoot "builds\claude-desktop"
 
 if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 
 Write-Host "Staging project files..."
 
-# Directories and patterns to exclude (mirrors create-dmg.sh)
-$ExcludeDirs = @(
-    '.venv', '.git', '.claude', '.claude-plugin', 'dist',
-    '__pycache__', '*.egg-info', 'vault-context-drafts',
-    'templates', 'tools', 'dev', 'hooks', '.github'
-)
-$ExcludeFiles = @(
-    '*.pyc', '.DS_Store', 'firebase-debug.log',
-    'AGENTS.md', 'Makefile', 'main.py', 'Install.command'
-)
+if (Test-Path $BuildDir) {
+    Write-Host "Using built artifacts from builds\claude-desktop\"
 
-# Use robocopy for efficient file staging
-$ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }
-$ExcludeFileArgs = $ExcludeFiles | ForEach-Object { "/XF"; $_ }
+    $ExcludeDirs = @('__pycache__')
+    $ExcludeFiles = @('*.pyc', '.DS_Store')
 
-$robocopyArgs = @($RepoRoot, $StagingDir) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP") + $ExcludeDirArgs + $ExcludeFileArgs
-& robocopy @robocopyArgs | Out-Null
-# robocopy exit codes 0-7 are success
-if ($LASTEXITCODE -gt 7) {
-    Write-Error "robocopy failed with exit code $LASTEXITCODE"
-    exit 1
+    $ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }
+    $ExcludeFileArgs = $ExcludeFiles | ForEach-Object { "/XF"; $_ }
+
+    $robocopyArgs = @($BuildDir, $StagingDir) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP") + $ExcludeDirArgs + $ExcludeFileArgs
+    & robocopy @robocopyArgs | Out-Null
+    if ($LASTEXITCODE -gt 7) {
+        Write-Error "robocopy failed with exit code $LASTEXITCODE"
+        exit 1
+    }
+
+    # Copy LICENSE from repo root (needed by Inno Setup LicenseFile)
+    $LicenseSrc = Join-Path $RepoRoot "LICENSE"
+    if (Test-Path $LicenseSrc) {
+        Copy-Item $LicenseSrc -Destination $StagingDir
+    }
+    # Copy scripts/ for post-install (Install.ps1, etc.)
+    $ScriptsSrc = Join-Path $RepoRoot "scripts"
+    if (Test-Path $ScriptsSrc) {
+        $ScriptsDst = Join-Path $StagingDir "scripts"
+        $robocopyArgs = @($ScriptsSrc, $ScriptsDst) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/XD", "__pycache__", "/XF", "*.pyc")
+        & robocopy @robocopyArgs | Out-Null
+        if ($LASTEXITCODE -gt 7) {
+            Write-Error "robocopy (scripts) failed with exit code $LASTEXITCODE"
+            exit 1
+        }
+    }
+} else {
+    Write-Host "No builds\claude-desktop\ found, falling back to source tree"
+
+    # Directories and patterns to exclude (mirrors create-dmg.sh)
+    $ExcludeDirs = @(
+        '.venv', '.git', '.claude', '.claude-plugin', 'dist',
+        '__pycache__', '*.egg-info', 'vault-context-drafts',
+        'templates', 'tools', 'dev', 'hooks', '.github'
+    )
+    $ExcludeFiles = @(
+        '*.pyc', '.DS_Store', 'firebase-debug.log',
+        'AGENTS.md', 'Makefile', 'main.py', 'Install.command'
+    )
+
+    # Use robocopy for efficient file staging
+    $ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }
+    $ExcludeFileArgs = $ExcludeFiles | ForEach-Object { "/XF"; $_ }
+
+    $robocopyArgs = @($RepoRoot, $StagingDir) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP") + $ExcludeDirArgs + $ExcludeFileArgs
+    & robocopy @robocopyArgs | Out-Null
+    # robocopy exit codes 0-7 are success
+    if ($LASTEXITCODE -gt 7) {
+        Write-Error "robocopy failed with exit code $LASTEXITCODE"
+        exit 1
+    }
 }
 
 Write-Host "Staged to: $StagingDir"
