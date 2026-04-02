@@ -306,44 +306,51 @@ if ($HasClaudeDesktop) {
     }
 
     try {
-        $pythonPath = (Join-Path $VenvDir "Scripts\python.exe") -replace '\\', '\\'
+        $pythonExe = Join-Path $VenvDir "Scripts\python.exe"
 
-        # Read existing config as raw text, parse with Python for reliable JSON handling
-        # PowerShell's ConvertFrom-Json can't set properties with hyphens reliably
-        $installDirEscaped = $InstallDir -replace '\\', '\\'
-
-        $pyScript = @"
-import json, sys, shutil, os
+        # Write a temp Python script to avoid path escaping issues in here-strings
+        $tempScript = Join-Path $env:TEMP "obsidian_connector_setup_desktop.py"
+        @"
+import json, shutil, os, sys
 from datetime import datetime
 
-config_path = r'$DesktopConfigPath'
+config_path = sys.argv[1]
+python_exe = sys.argv[2]
+install_dir = sys.argv[3]
 
 # Backup
-backup = config_path + '.backup-' + datetime.now().strftime('%Y%m%d-%H%M%S')
-shutil.copy2(config_path, backup)
+if os.path.exists(config_path):
+    backup = config_path + '.backup-' + datetime.now().strftime('%Y%m%d-%H%M%S')
+    shutil.copy2(config_path, backup)
 
-with open(config_path, 'r', encoding='utf-8') as f:
-    config = json.load(f)
+# Read or create config
+if os.path.exists(config_path):
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+else:
+    config = {}
 
 if 'mcpServers' not in config:
     config['mcpServers'] = {}
 
 config['mcpServers']['obsidian-connector'] = {
-    'command': r'$pythonPath',
+    'command': python_exe,
     'args': ['-m', 'obsidian_connector.mcp_server'],
-    'env': {'PYTHONPATH': r'$installDirEscaped'}
+    'env': {'PYTHONPATH': install_dir}
 }
 
 with open(config_path, 'w', encoding='utf-8') as f:
     json.dump(config, f, indent=2)
 
 print('OK')
-"@
+"@ | Set-Content $tempScript -Encoding UTF8
 
-        $result = & $PythonCmd -c $pyScript 2>&1
+        $result = & $PythonCmd $tempScript $DesktopConfigPath $pythonExe $InstallDir 2>&1
+        Remove-Item $tempScript -ErrorAction SilentlyContinue
+
         if ($result -match "OK") {
             Write-Green "  MCP server registered in Claude Desktop config"
-            Write-Dim  "  Config backed up"
+            Write-Dim  "  Config backed up. Restart Claude Desktop to load tools."
             $InstalledSomewhere = $true
         } else {
             Write-Yellow "  Config update returned: $result"
