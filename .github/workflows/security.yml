@@ -18,20 +18,20 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: github/codeql-action/init@5c8a8a642e79153f5d047b10ec1cba1d1cc65699  # v3
         with:
           languages: python
-      - uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/autobuild@5c8a8a642e79153f5d047b10ec1cba1d1cc65699  # v3
+      - uses: github/codeql-action/analyze@5c8a8a642e79153f5d047b10ec1cba1d1cc65699  # v3
 
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -39,8 +39,8 @@ jobs:
   pip-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.11"
       - run: pip install -e .

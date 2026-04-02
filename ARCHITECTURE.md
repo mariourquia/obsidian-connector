@@ -2,10 +2,11 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-03-30"
+last_reviewed: "2026-04-02"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
+  - "src/"
 ---
 
 # Architecture Map -- obsidian-connector
@@ -29,13 +30,33 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (39 modules) |
-| `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
+| `obsidian_connector/` | Core Python package (39 modules) -- stays at root for PyPI |
+| `src/` | Human-authored plugin content (skills, hooks, manifest, MCP config, bin wrappers) |
+| `src/skills/` | 17 Claude Code skill definitions (12 workflow + 5 knowledge) |
+| `src/hooks/` | hooks.json + session_start.sh, session_stop.sh, idea_detect.md |
+| `src/plugin/` | Plugin manifest (plugin.json) and MCP server config (.mcp.json) |
+| `src/bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
+| `config/targets/` | Build target profiles (claude-code, claude-desktop, portable, pypi) |
+| `config/defaults/` | Skill portability classification (skill-portability.yaml) |
+| `tools/` | TypeScript build pipeline (build, validate, diff, doctor, package) |
+| `builds/` | Generated build output per target -- gitignored, never edit |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | User-facing documentation, release artifacts, distribution guides |
-| `skills/` | Claude Code skill definitions (17 skills: 12 workflow + 5 knowledge) |
-| `portable/` | Portable skills bundle for Codex CLI, OpenCode, Gemini CLI (5 skills) |
+| `tests/` | pytest suite including build system tests and snapshots |
 | `scheduling/` | launchd/cron configs for scheduled automation |
+
+### Backward-compatibility symlinks
+
+These symlinks at the repo root point into `src/` so that `claude --plugin-dir .`
+and existing scripts continue to work during development:
+
+| Symlink | Target |
+|---------|--------|
+| `.mcp.json` | `src/plugin/.mcp.json` |
+| `.claude-plugin/plugin.json` | `src/plugin/plugin.json` |
+
+The `skills/`, `hooks/`, and `bin/` directories at root share content with
+their `src/` counterparts (same underlying files).
 
 ## Package modules
 
@@ -102,6 +123,24 @@ file_backend.py uses: (no internal deps -- standalone file access)
 uninstall.py uses: platform.py, config.py
 ```
 
+## Build system
+
+Plugin artifacts are authored in `src/` and built to `builds/` by the TypeScript
+pipeline in `tools/`. The Python package (`obsidian_connector/`) stays at the
+repo root because PyPI needs it there.
+
+Four build targets, each defined by a YAML profile in `config/targets/`:
+
+| Target | What ships | Build command |
+|--------|-----------|---------------|
+| `claude-code` | Full plugin (skills + hooks + manifest + MCP + Python pkg) | `npx tsx tools/build.ts --target claude-code` |
+| `claude-desktop` | MCP server + install config | `npx tsx tools/build.ts --target claude-desktop` |
+| `portable` | 5 stripped knowledge skills for Codex/OpenCode/Gemini | `npx tsx tools/build.ts --target portable` |
+| `pypi` | Python package only | `npx tsx tools/build.ts --target pypi` |
+
+Skill portability (which skills ship to the portable target) is classified in
+`config/defaults/skill-portability.yaml`.
+
 ## Key entry points
 
 - **Tools contract:** `TOOLS_CONTRACT.md`
@@ -109,3 +148,5 @@ uninstall.py uses: platform.py, config.py
 - **Install:** `scripts/install.sh`
 - **CLI:** `bin/obsx`
 - **MCP server:** `python3 -m obsidian_connector.mcp_server`
+- **Build all targets:** `npx tsx tools/build.ts --target all`
+- **Validate builds:** `npx tsx tools/validate.ts --target all`

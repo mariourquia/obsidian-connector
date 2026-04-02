@@ -1,0 +1,19 @@
+name: pypi
+description: Python package for pip install
+
+skills:
+  include: none
+
+hooks:
+  include: false
+
+manifest:
+  include_mcp: false
+  include_plugin: false
+
+python_package:
+  include: true
+  venv: false
+
+bin:
+  include: true

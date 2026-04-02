@@ -2479,6 +2479,41 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
+    except KeyboardInterrupt:
+        print("\nInterrupted.", file=sys.stderr)
+        return 130
+    except (OSError, json.JSONDecodeError, FileNotFoundError, FileExistsError) as exc:
+        duration_ms = int((time.monotonic() - t0) * 1000)
+        if use_json:
+            env = error_envelope(
+                command=args.command,
+                error_type=type(exc).__name__,
+                message=str(exc),
+                stderr="",
+                exit_code=1,
+                vault=vault,
+            )
+            print(format_output(env, as_json=True))
+            return 1
+        else:
+            print(f"Error ({type(exc).__name__}): {exc}", file=sys.stderr)
+            return 1
+    except (ValueError, KeyError, TypeError) as exc:
+        duration_ms = int((time.monotonic() - t0) * 1000)
+        if use_json:
+            env = error_envelope(
+                command=args.command,
+                error_type=type(exc).__name__,
+                message=str(exc),
+                stderr="",
+                exit_code=1,
+                vault=vault,
+            )
+            print(format_output(env, as_json=True))
+            return 1
+        else:
+            print(f"Error ({type(exc).__name__}): {exc}", file=sys.stderr)
+            return 1
 
     return 0
 

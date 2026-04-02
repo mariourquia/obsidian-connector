@@ -832,6 +832,17 @@ def sync_projects(
     context_dir.mkdir(parents=True, exist_ok=True)
     sessions_dir.mkdir(parents=True, exist_ok=True)
 
+    # Sentinel file for interrupted-sync detection
+    sentinel = out_root / ".sync-in-progress"
+    if sentinel.exists():
+        print(
+            "WARNING: previous sync was interrupted; performing full rebuild",
+            file=sys.stderr,
+        )
+    sentinel.write_text(
+        datetime.now().strftime("%Y-%m-%d %H:%M"), encoding="utf-8"
+    )
+
     # Extract state for all repos
     states: list[RepoState] = []
     for entry in config.repos:
@@ -875,6 +886,10 @@ def sync_projects(
     # Timestamp
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     (out_root / ".last-sync").write_text(now, encoding="utf-8")
+
+    # Remove sentinel -- sync completed successfully
+    if sentinel.exists():
+        sentinel.unlink()
 
     # Audit
     log_action(

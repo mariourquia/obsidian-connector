@@ -235,7 +235,7 @@ def file_read(name_or_path: str, vault_path: Path) -> str:
     """
     vault_path = vault_path.resolve()
     resolved = _resolve_note_path(name_or_path, vault_path)
-    return resolved.read_text(encoding="utf-8")
+    return resolved.read_text(encoding="utf-8", errors="replace")
 
 
 def file_list_tasks(

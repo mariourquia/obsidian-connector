@@ -71,17 +71,15 @@ turn Claude into a proactive second brain assistant.
 make docs-lint                # Validate docs structure
 make docs-lint-strict         # Errors only (CI equivalent)
 make docs-staleness           # Check git-based staleness
-python3 scripts/smoke_test.py       # Core function smoke tests
-python3 scripts/graph_test.py       # Graph module tests
-python3 scripts/index_test.py       # Index store tests
-python3 scripts/graduate_test.py    # Graduate pipeline tests
-python3 scripts/thinking_deep_test.py  # Thinking tools tests (56 assertions)
-bash scripts/mcp_launch_smoke.sh    # MCP server launch test
+npx tsx tools/build.ts --target all   # Build all targets
+npx tsx tools/validate.ts --target all # Validate builds
+npx tsx tools/doctor.ts               # Build environment check
 ./bin/obsx doctor             # Health check (Obsidian connectivity)
-python3 scripts/checkin_test.py       # Check-in workflow tests
-bash hooks/session_start.sh           # SessionStart hook test
+bash hooks/session_start.sh   # SessionStart hook test
 python3 scheduling/run_scheduled.py morning  # Scheduled runner test
 ```
+
+Full test catalog (36 scripts) in `CONTRIBUTING.md`.
 
 ## Tools & skills reference
 

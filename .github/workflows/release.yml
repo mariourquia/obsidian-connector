@@ -14,49 +14,86 @@ jobs:
   build-artifacts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.11"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install and test
         run: |
-          pip install -e .
-          # Run only CI-safe tests. Tests requiring Obsidian CLI (cache_test, escaping_test, thinking_deep_test)
-          # are validated locally before release; Obsidian CLI unavailable in CI.
+          pip install -e ".[dev]" pyyaml build twine
+          # Full CI-safe test battery (mirrors ci.yml)
           python3 scripts/audit_test.py
           python3 scripts/graph_test.py
           python3 scripts/index_test.py
           python3 scripts/graduate_test.py
           python3 scripts/delegation_test.py
+          python3 scripts/import_cycle_test.py
+          python3 scripts/uninstall_test.py
+          python3 scripts/mcp_tool_contract_test.py
+          python3 scripts/cli_parse_test.py
+          python3 scripts/new_modules_test.py
+          python3 scripts/write_manager_test.py
+          python3 scripts/watcher_test.py
+          python3 scripts/draft_manager_test.py
+          python3 scripts/vault_registry_test.py
+          python3 scripts/template_test.py
+          python3 scripts/retrieval_test.py
+          python3 scripts/scheduler_test.py
+          python3 scripts/reports_test.py
+          python3 scripts/project_intelligence_test.py
+          python3 scripts/automation_test.py
+
+      - name: Install build tools
+        working-directory: tools
+        run: npm ci
+
+      - name: Build and validate targets
+        run: |
+          npx tsx tools/build.ts --target claude-code
+          npx tsx tools/build.ts --target claude-desktop
+          npx tsx tools/build.ts --target portable
+          npx tsx tools/validate.ts --target claude-code
+          npx tsx tools/validate.ts --target claude-desktop
+          npx tsx tools/validate.ts --target portable
+          python3 -m pytest tests/test_build_system.py -v
+
+      - name: Package target archives
+        run: |
+          npx tsx tools/package.ts --target claude-code
+          npx tsx tools/package.ts --target claude-desktop
+          npx tsx tools/package.ts --target portable
 
       - name: Build source archive
         run: |
           TAG_NAME="${GITHUB_REF_NAME}"
-          git archive --format=tar.gz --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.tar.gz"
-          git archive --format=zip --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "obsidian-connector-${TAG_NAME}.zip"
+          git archive --format=tar.gz --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "dist/obsidian-connector-${TAG_NAME}.tar.gz"
+          git archive --format=zip --prefix="obsidian-connector-${TAG_NAME}/" HEAD -o "dist/obsidian-connector-${TAG_NAME}.zip"
 
-      - name: Generate checksums for source archives
+      - name: Generate checksums
         run: |
-          TAG_NAME="${GITHUB_REF_NAME}"
-          sha256sum "obsidian-connector-${TAG_NAME}.tar.gz" \
-                    "obsidian-connector-${TAG_NAME}.zip" > "checksums.txt"
+          cd dist
+          sha256sum *.zip *.tar.gz > checksums.txt
           cat checksums.txt
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
         with:
           name: linux-artifacts
           path: |
-            obsidian-connector-*.tar.gz
-            obsidian-connector-*.zip
-            checksums.txt
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
 
   build-macos-dmg:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Import Apple Developer ID certificate
         env:
@@ -130,7 +167,7 @@ jobs:
           echo "DMG is signed, notarized, and stapled"
 
       - name: Upload .dmg artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
         with:
           name: macos-artifacts
           path: dist/obsidian-connector-*.dmg
@@ -138,7 +175,7 @@ jobs:
   build-windows-exe:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
@@ -153,7 +190,7 @@ jobs:
         shell: pwsh
 
       - name: Upload .exe artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
         with:
           name: windows-artifacts
           path: dist/obsidian-connector-*-setup.exe
@@ -162,10 +199,10 @@ jobs:
     needs: [build-artifacts, build-macos-dmg, build-windows-exe]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
         with:
           path: release-assets
 
@@ -189,23 +226,31 @@ jobs:
       - name: Create full checksums
         run: |
           TAG_NAME="${GITHUB_REF_NAME}"
+          CLEAN_VERSION="${TAG_NAME#v}"
           cd final-assets
           sha256sum obsidian-connector-${TAG_NAME}.tar.gz \
                     obsidian-connector-${TAG_NAME}.zip \
+                    obsidian-connector-claude-code-v${CLEAN_VERSION}.zip \
+                    obsidian-connector-desktop-v${CLEAN_VERSION}.zip \
+                    obsidian-connector-portable-v${CLEAN_VERSION}.zip \
                     obsidian-connector-${TAG_NAME}.dmg \
                     obsidian-connector-${TAG_NAME}-setup.exe > obsidian-connector-${TAG_NAME}.sha256
           cat obsidian-connector-${TAG_NAME}.sha256
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3
 
       - name: Sign release assets (keyless OIDC)
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
+          CLEAN_VERSION="${TAG_NAME#v}"
           cd final-assets
           for f in "obsidian-connector-${TAG_NAME}.tar.gz" \
                    "obsidian-connector-${TAG_NAME}.zip" \
+                   "obsidian-connector-claude-code-v${CLEAN_VERSION}.zip" \
+                   "obsidian-connector-desktop-v${CLEAN_VERSION}.zip" \
+                   "obsidian-connector-portable-v${CLEAN_VERSION}.zip" \
                    "obsidian-connector-${TAG_NAME}.dmg" \
                    "obsidian-connector-${TAG_NAME}-setup.exe" \
                    "obsidian-connector-${TAG_NAME}.sha256"; do
@@ -219,9 +264,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
+          CLEAN_VERSION="${TAG_NAME#v}"
           gh release create "$TAG_NAME" \
             "final-assets/obsidian-connector-${TAG_NAME}.tar.gz" \
             "final-assets/obsidian-connector-${TAG_NAME}.zip" \
+            "final-assets/obsidian-connector-claude-code-v${CLEAN_VERSION}.zip" \
+            "final-assets/obsidian-connector-desktop-v${CLEAN_VERSION}.zip" \
+            "final-assets/obsidian-connector-portable-v${CLEAN_VERSION}.zip" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg" \
             "final-assets/obsidian-connector-${TAG_NAME}-setup.exe" \
             "final-assets/obsidian-connector-${TAG_NAME}.sha256" \
@@ -229,6 +278,12 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.tar.gz.cert" \
             "final-assets/obsidian-connector-${TAG_NAME}.zip.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.zip.cert" \
+            "final-assets/obsidian-connector-claude-code-v${CLEAN_VERSION}.zip.sig" \
+            "final-assets/obsidian-connector-claude-code-v${CLEAN_VERSION}.zip.cert" \
+            "final-assets/obsidian-connector-desktop-v${CLEAN_VERSION}.zip.sig" \
+            "final-assets/obsidian-connector-desktop-v${CLEAN_VERSION}.zip.cert" \
+            "final-assets/obsidian-connector-portable-v${CLEAN_VERSION}.zip.sig" \
+            "final-assets/obsidian-connector-portable-v${CLEAN_VERSION}.zip.cert" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg.cert" \
             "final-assets/obsidian-connector-${TAG_NAME}-setup.exe.sig" \

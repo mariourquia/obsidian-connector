@@ -1,0 +1,19 @@
+name: claude-desktop
+description: Claude Desktop MCP server configuration
+
+skills:
+  include: none
+
+hooks:
+  include: false
+
+manifest:
+  include_mcp: true
+  include_plugin: false
+
+python_package:
+  include: true
+  venv: true
+
+bin:
+  include: true

@@ -50,6 +50,7 @@ Priority: P0 (next release) > P1 (near-term) > P2 (planned) > P3 (future)
 | 29 | `improvement` | **Policy engine beyond protected_folders** | Extensible rule engine for write guards, naming conventions, and structural constraints. | Open |
 | 30 | `infra` | **pytest migration** | Move test suites from custom `scripts/` runners to pytest for standard tooling, fixtures, and coverage reporting. | Open |
 | 31 | `infra` | **PyPI publication** | Publish to PyPI so users can `pip install obsidian-connector` instead of cloning. | Open |
+| 32 | `infra` | **MCPB distribution target** | Add `--target mcpb` to `tools/build.ts` to produce `.mcpb` bundles from the existing `mcpb.json` manifest. The multi-target pipeline is in place; this wires the final format. | Open |
 
 ---
 
