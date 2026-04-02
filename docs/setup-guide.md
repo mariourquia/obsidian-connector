@@ -44,7 +44,7 @@ cd obsidian-connector
 
 ### What you get
 
-- 35 MCP tools available in every Claude Desktop conversation
+- 62 MCP tools available in every Claude Desktop conversation
 - Automatic `check_in` at conversation start (via system prompt)
 - No skills, hooks, or scheduling (those require Claude CLI)
 
@@ -100,7 +100,7 @@ launchctl load ~/Library/LaunchAgents/com.obsidian-connector.daily.plist
 
 ### What you get
 
-- 11 skills: `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
+- 17 skills: `/capture`, `/ritual`, `/new-vault`, `/sync`, `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
 - SessionStart hook: Claude checks in automatically at every session
 - (Optional) Scheduled automation: briefings and reflections write themselves
 

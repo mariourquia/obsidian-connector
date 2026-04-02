@@ -4,6 +4,27 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-02
+
+### Added
+- **Product registry** (`product_registry.py`): Single source of truth for all product metadata (version, counts, skill registry, surface registry). Used by manifest_check and integrity_check.
+- **4 new compressed skills** (17 total): `/capture` (quick/route/incubate/auto), `/ritual` (morning/evening/weekly/auto), `/new-vault` (project/topic/preset/existing), `/sync` (explicit manual sync). Legacy skills remain as wrappers with alias tips.
+- **Enhanced manifest checker**: Now validates 14 user-facing files, checks MCP tool contract completeness (every @mcp.tool in TOOLS_CONTRACT.md), and validates skill registry completeness.
+- **TOOLS_CONTRACT completeness**: Added 12 previously undocumented tools across 3 new sections (idea routing, vault factory, vault guardian). All 62 MCP tools now documented.
+- **CLI section rewrite**: TOOLS_CONTRACT CLI section now documents all 59 runnable leaf commands with explicit methodology note.
+
+### Fixed
+- **Personal environment leakage**: Removed hardcoded "creation" vault paths from vault_init.py, project_sync.py, hooks/session_stop.sh, and generated docs. Default vault name changed to "My Vault". Personal repo registry replaced with auto-discovery.
+- **Documentation drift**: Fixed stale counts in docs/setup-guide.md (35->62 tools, 11->13 skills), docs/second-brain-overview.md (11->13 skills), docs/daily-optimization.md (35->62 tools), Install.command (29->62 tools), ARCHITECTURE.md (31->38 modules), portable/README.md.
+- **Skill classification**: All 17 skills properly classified into groups (capture, ritual, vault, sync, knowledge, workflow).
+
+### Changed
+- Version bump 0.6.1 -> 0.7.0 across all manifests.
+- `hooks/session_stop.sh` now resolves vault from config.json, with platform-aware fallback discovery.
+- `vault_init.py` default vault name changed from "creation" to "My Vault", path suggestions are platform-aware.
+- `project_sync.py` default repo registry is now empty (relies on auto-discovery or sync_config.json).
+- Legacy skills (`/idea`, `/float`, `/morning`, `/evening`, `/weekly`, `/init-vault`, `/explore`, `/sync-vault`) preserved with tips pointing to new unified entrypoints.
+
 ## [0.6.1] - 2026-04-01
 
 ### Added
@@ -92,7 +113,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.3.0] - 2026-03-23
 
 ### Added
-- **Project sync engine** (`project_sync.py`, 530 LOC): Syncs git repository state into the vault. Generates per-project Markdown files, Dashboard, Active Threads, and Running TODO. Replaces the standalone `sync-creation-vault` bash script with cross-platform Python.
+- **Project sync engine** (`project_sync.py`, 530 LOC): Syncs git repository state into the vault. Generates per-project Markdown files, Dashboard, Active Threads, and Running TODO. Cross-platform Python implementation.
 - **Vault initialization wizard** (`vault_init.py`, 280 LOC): Interactive `obsx init` command walks users through vault creation, repo discovery, and scaffold setup. Also available as `obsidian_init_vault` MCP tool.
 - **Structured session logging**: `obsidian_log_session` writes YAML frontmatter with `projects_touched`, `work_type` tags, and `files_changed` counts per project. Queryable via Obsidian Bases for time-series analysis.
 - **Running TODO**: `Running TODO.md` aggregates all open `- [ ]` items across the vault with source attribution. Completed items tracked with timestamps. Updated on each sync.

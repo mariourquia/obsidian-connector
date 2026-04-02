@@ -5,6 +5,8 @@ description: Run your weekly review. Checks drift, graduates ideas, audits vault
 
 # Weekly Review
 
+> **Tip:** You can also use `/ritual` which auto-selects based on time of day.
+
 You are running the user's weekly review. This is a longer, more reflective workflow.
 
 ## Step 1: Context load

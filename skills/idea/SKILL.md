@@ -5,6 +5,8 @@ description: Quickly capture an idea to your daily note. Surfaces related contex
 
 # Quick Idea Capture
 
+> **Tip:** You can also use `/capture` for a unified capture experience.
+
 You are capturing an idea for the user. This should be fast -- two seconds from thought to vault.
 
 ## Step 1: Parse the idea

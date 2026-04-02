@@ -14,7 +14,7 @@ tracking, session logging, and personal knowledge management.
 
 Determine:
 - **Do they already have an Obsidian vault?** If yes, get the path.
-  If no, suggest creating one (default: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/creation/creation` on macOS for iCloud sync).
+  If no, suggest creating one (default: iCloud Obsidian directory on macOS, or `~/Documents/Obsidian/My Vault` as a cross-platform fallback).
 - **Where are their projects?** Default: `~/Documents/GitHub/`
 - **Do they want to track all discovered repos or select specific ones?**
 
