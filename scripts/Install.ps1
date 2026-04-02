@@ -295,9 +295,10 @@ if ($HasClaudeCode -or $HasClaudeDesktop) {
 
 # ── Step 4: Register with Claude Desktop ────────────────────────────
 
-$DesktopConfigPath = Join-Path $ClaudeDesktopDir "claude_desktop_config.json"
 if ($HasClaudeDesktop) {
+    $DesktopConfigPath = Join-Path $ClaudeDesktopDir "claude_desktop_config.json"
     Write-Blue "  Registering with Claude Desktop..."
+    Write-Dim  "  Config: $DesktopConfigPath"
 
     # Create config file if directory exists but config doesn't
     if (-not (Test-Path $DesktopConfigPath)) {
@@ -307,6 +308,11 @@ if ($HasClaudeDesktop) {
 
     try {
         $pythonExe = Join-Path $VenvDir "Scripts\python.exe"
+        if (-not (Test-Path $pythonExe)) {
+            Write-Yellow "  Venv python not found at: $pythonExe"
+            Write-Dim  "  Using system Python instead"
+            $pythonExe = $PythonCmd
+        }
 
         # Write a temp Python script to avoid path escaping issues in here-strings
         $tempScript = Join-Path $env:TEMP "obsidian_connector_setup_desktop.py"
@@ -345,12 +351,14 @@ with open(config_path, 'w', encoding='utf-8') as f:
 print('OK')
 "@ | Set-Content $tempScript -Encoding UTF8
 
+        Write-Dim  "  Running: $PythonCmd $tempScript"
+        Write-Dim  "  Args: config=$DesktopConfigPath python=$pythonExe dir=$InstallDir"
         $result = & $PythonCmd $tempScript $DesktopConfigPath $pythonExe $InstallDir 2>&1
         Remove-Item $tempScript -ErrorAction SilentlyContinue
 
         if ($result -match "OK") {
             Write-Green "  MCP server registered in Claude Desktop config"
-            Write-Dim  "  Config backed up. Restart Claude Desktop to load tools."
+            Write-Dim  "  Restart Claude Desktop to load 62 MCP tools."
             $InstalledSomewhere = $true
         } else {
             Write-Yellow "  Config update returned: $result"
@@ -360,6 +368,9 @@ print('OK')
         Write-Yellow "  Could not update Claude Desktop config: $_"
         Write-Dim  "  Manual: add obsidian-connector to claude_desktop_config.json"
     }
+} else {
+    Write-Dim "  Claude Desktop not detected -- skipping MCP config"
+}
 }
 
 Write-Host ""
