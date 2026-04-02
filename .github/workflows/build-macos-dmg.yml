@@ -134,16 +134,12 @@ jobs:
           retention-days: 30
 
       - name: Attach to GitHub Release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          if gh release view "v${APP_VERSION}" > /dev/null 2>&1; then
-            gh release upload "v${APP_VERSION}" \
-              "dist/obsidian-connector-v${APP_VERSION}.dmg" \
-              "dist/obsidian-connector-v${APP_VERSION}.dmg.sha256" \
-              --clobber
-            echo "Attached to release v${APP_VERSION}"
-          else
-            echo "No release found for v${APP_VERSION} -- skipping attachment"
-          fi
+          gh release upload "v${APP_VERSION}" \
+            "dist/obsidian-connector-v${APP_VERSION}.dmg" \
+            "dist/obsidian-connector-v${APP_VERSION}.dmg.sha256" \
+            --clobber 2>&1 || echo "::warning::Could not attach to release v${APP_VERSION}"
