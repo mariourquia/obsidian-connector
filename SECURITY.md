@@ -4,9 +4,9 @@
 
 | Version | Supported          |
 |---------|-------------------|
-| 0.5.x   | Yes               |
-| 0.4.x   | Security fixes only |
-| 0.3.x   | End of life       |
+| 0.7.x   | Yes               |
+| 0.6.x   | Security fixes only |
+| < 0.6   | End of life       |
 
 ## Reporting a Vulnerability
 
