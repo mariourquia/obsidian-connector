@@ -14,6 +14,9 @@ from obsidian_connector.platform import current_os, scheduler_type
 
 
 def test_macos_paths():
+    if sys.platform == "win32":
+        print("SKIP: test_macos_paths (running on Windows)")
+        return
     with patch("sys.platform", "darwin"):
         import importlib
         import obsidian_connector.platform as plat
@@ -27,6 +30,9 @@ def test_macos_paths():
 
 
 def test_linux_paths():
+    if sys.platform == "win32":
+        print("SKIP: test_linux_paths (running on Windows)")
+        return
     with patch("sys.platform", "linux"):
         import importlib
         import obsidian_connector.platform as plat
