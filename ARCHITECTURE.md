@@ -29,11 +29,11 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (31 modules) |
+| `obsidian_connector/` | Core Python package (39 modules) |
 | `bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
 | `scripts/` | Install script, smoke tests, and integration tests |
 | `docs/` | User-facing documentation, release artifacts, distribution guides |
-| `skills/` | Claude Code skill definitions (13 skills: 8 workflow + 5 knowledge) |
+| `skills/` | Claude Code skill definitions (17 skills: 12 workflow + 5 knowledge) |
 | `portable/` | Portable skills bundle for Codex CLI, OpenCode, Gemini CLI (5 skills) |
 | `scheduling/` | launchd/cron configs for scheduled automation |
 
@@ -77,6 +77,7 @@ persisted to SQLite for fast incremental updates.
 | `vault_guardian.py` | Auto-generated file marking, unorganized note detection, file organization |
 | `idea_router.py` | Idea routing to project idea files via keyword matching against repo registry |
 | `automation.py` | Event-triggered automation: tool registry, chain runner, event bus |
+| `product_registry.py` | Single source of truth for product metadata (version, counts, skill/surface registries) |
 
 ## Dependency flow
 

@@ -5,6 +5,8 @@ description: Float an idea to the right project in the Obsidian vault. Auto-rout
 
 # Float Idea
 
+> **Tip:** You can also use `/capture route` for a unified capture experience.
+
 Capture an idea and route it to the right project's idea file in the vault.
 For ideas about projects that don't exist yet, offer to create an inception card.
 

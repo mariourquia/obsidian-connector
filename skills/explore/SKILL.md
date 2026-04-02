@@ -5,6 +5,8 @@ description: Create a new Obsidian vault for any topic and seed it with an initi
 
 # Explore a New Topic
 
+> **Tip:** You can also use `/new-vault topic` for a unified vault creation experience.
+
 Create a dedicated Obsidian vault for a topic and seed it with real
 knowledge from web research so the user has something to work with
 immediately.

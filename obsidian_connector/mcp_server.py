@@ -1243,8 +1243,8 @@ def obsidian_sync_projects(
     project table, Active Threads for repos with uncommitted work, and
     optionally updates the Running TODO list.
 
-    This replaces the standalone sync-creation-vault bash script with a
-    cross-platform, vault-integrated alternative.
+    This replaces standalone sync scripts with a cross-platform,
+    vault-integrated alternative.
     """
     from obsidian_connector.project_sync import sync_projects
 

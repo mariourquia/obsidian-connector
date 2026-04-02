@@ -56,7 +56,7 @@ add a symlink: `ln -s ~/.agents/skills/* ~/.claude/skills/`
 ## Full Platform
 
 These 5 skills are a subset of the full obsidian-connector platform.
-For the complete experience (35 MCP tools, 11 skills, workflow automation,
+For the complete experience (62 MCP tools, 13 skills, workflow automation,
 project sync, session logging), install the Claude Code plugin:
 
 ```bash

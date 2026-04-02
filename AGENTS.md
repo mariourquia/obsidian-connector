@@ -32,7 +32,7 @@ turn Claude into a proactive second brain assistant.
 | `thinking.py` | Ghost, drift, trace, ideas |
 | `graph.py` | Vault graph indexing (links, tags, backlinks) |
 | `index_store.py` | SQLite persistent index |
-| `skills/` | 13 Claude Code plugin skills (morning, evening, idea, weekly, sync-vault, init-vault, float, explore, obsidian-markdown, obsidian-bases, json-canvas, obsidian-cli, defuddle) in `<name>/SKILL.md` format |
+| `skills/` | 17 Claude Code plugin skills (capture, ritual, new-vault, sync, morning, evening, idea, weekly, sync-vault, init-vault, float, explore, obsidian-markdown, obsidian-bases, json-canvas, obsidian-cli, defuddle) in `<name>/SKILL.md` format |
 | `hooks/` | SessionStart hook (`session_start.sh`) + plugin config (`hooks.json`) |
 | `.mcp.json` | Plugin MCP server config (points to venv python) |
 | `.claude-plugin/` | Plugin manifest (`plugin.json`) |

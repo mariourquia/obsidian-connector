@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-62 MCP tools. 65 CLI commands. 13 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
+62 MCP tools. 65 CLI commands. 17 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
 
 ## What it does
 
@@ -89,7 +89,7 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you all 62 MCP tools plus 13 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`), with a SessionStart hook that suggests workflows based on time of day.
+This gives you all 62 MCP tools plus 17 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`), with a SessionStart hook that suggests workflows based on time of day.
 
 > **Note:** Plugin mode (`.mcp.json`) currently uses Unix paths for the Python venv.
 > On Windows, use the terminal installer (`scripts/Install.ps1`) instead of plugin mode.
@@ -467,7 +467,7 @@ bash /path/to/obsidian-connector/scripts/setup.sh
 ```
 
 **What the plugin provides:**
-- 13 skills: `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
+- 17 skills: `/capture`, `/ritual`, `/new-vault`, `/sync`, `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
 - SessionStart hook: suggests `/morning` or `/evening` based on time of day
 - 62 MCP tools: full vault access (search, read, write, graph, thinking, workflows, drafts, templates, reports, project intelligence)
 - Post-install setup: `scripts/setup.sh` creates the Python venv
@@ -475,7 +475,7 @@ bash /path/to/obsidian-connector/scripts/setup.sh
 **Plugin structure:**
 ```
 .claude-plugin/plugin.json    # manifest (name, version, author)
-skills/*/SKILL.md             # 13 skills (8 workflow + 5 knowledge)
+skills/*/SKILL.md             # 17 skills (12 workflow + 5 knowledge)
 portable/                     # 5 portable skills for Codex/OpenCode/Gemini
 hooks/hooks.json              # SessionStart hook config
 .mcp.json                     # MCP server config

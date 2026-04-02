@@ -5,6 +5,8 @@ description: Run your morning briefing. Reads daily note, surfaces open loops an
 
 # Morning Briefing
 
+> **Tip:** You can also use `/ritual` which auto-selects based on time of day.
+
 You are running the user's morning briefing workflow. Follow these steps exactly.
 
 ## Step 1: Check in

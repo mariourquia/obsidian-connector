@@ -5,9 +5,9 @@ Markdown files, a dashboard, active threads, session logs with structured
 tags for time-series analysis, and a running TODO list with completion
 tracking.
 
-Replaces the standalone bash script (sync-creation-vault) with a
-cross-platform Python implementation that integrates with the plugin's
-config, audit, and error infrastructure.
+Replaces standalone sync scripts with a cross-platform Python
+implementation that integrates with the plugin's config, audit, and
+error infrastructure.
 """
 
 from __future__ import annotations
@@ -37,8 +37,8 @@ SYNC_CONFIG_FILENAME = "sync_config.json"
 
 # Default subdirectory for sync output within the vault.
 # Keeps project tracking isolated from the user's own notes.
-# Set to "" in sync_config.json to use the vault root (only for
-# dedicated project-tracking vaults like "creation").
+# Set to "" in sync_config.json to use the vault root (useful for
+# dedicated project-tracking vaults).
 DEFAULT_SYNC_SUBDIR = "Project Tracking"
 
 # Work type tags for session classification
@@ -135,11 +135,9 @@ class SyncConfig:
 # Group display names
 # ---------------------------------------------------------------------------
 
+# Built-in group display names. Users can extend this via sync_config.json.
+# The group_display() function falls back to the raw group slug if not found.
 GROUP_DISPLAY: dict[str, str] = {
-    "amos": "AMOS",
-    "keiki": "Keiki",
-    "mcmc": "MCMC",
-    "signalforge": "SignalForge",
     "standalone": "Standalone",
     "research": "Research",
 }
@@ -150,47 +148,18 @@ def group_display(group: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Default repo registry (matches the user's existing setup)
+# Default repo registry (example entries -- replaced by auto-discovery)
 # ---------------------------------------------------------------------------
 
 def default_repos() -> list[RepoEntry]:
-    """Return the default repo registry."""
-    return [
-        RepoEntry("site", "mariourquia.com (Portfolio OS)", "claude.md", "active", "standalone",
-                   ["portfolio", "next-js", "react", "vercel", "retro-ui", "personal-brand"]),
-        RepoEntry("cre-asset-mgmt-os", "AMOS Backend", "CLAUDE.md", "active", "amos",
-                   ["cre", "commercial-real-estate", "fastapi", "python", "backend", "fintech"]),
-        RepoEntry("fe-cre-asset-mgmt-os", "AMOS Frontend", "CLAUDE.md", "active", "amos",
-                   ["cre", "commercial-real-estate", "next-js", "typescript", "mui", "frontend", "fintech"]),
-        RepoEntry("cre-skills-plugin", "CRE Skills Plugin", "README.md", "active", "amos",
-                   ["cre", "commercial-real-estate", "claude-code", "plugin", "ai-skills"]),
-        RepoEntry("keiki", "Keiki Monorepo", "AGENTS.md", "active", "keiki",
-                   ["childcare", "marketplace", "monorepo"]),
-        RepoEntry("keiki-platform", "Keiki Backend", "AGENTS.md", "active", "keiki",
-                   ["childcare", "marketplace", "fastapi", "python", "azure", "backend"]),
-        RepoEntry("keiki-ios", "Keiki iOS", "AGENTS.md", "active", "keiki",
-                   ["childcare", "marketplace", "swiftui", "ios", "mobile"]),
-        RepoEntry("mcmc-erp", "MCMC ERP Backend", "CLAUDE.md", "active", "mcmc",
-                   ["healthcare", "honduras", "erp", "fastapi", "python", "backend", "multi-tenant"]),
-        RepoEntry("mcmc-erp-web", "MCMC ERP Frontend", "CLAUDE.md", "active", "mcmc",
-                   ["healthcare", "honduras", "erp", "next-js", "typescript", "shadcn", "frontend"]),
-        RepoEntry("mcmc-ehr", "MCMC EHR Backend", "CLAUDE.md", "active", "mcmc",
-                   ["healthcare", "honduras", "ehr", "fastapi", "python", "backend"]),
-        RepoEntry("mcmc-ehr-web", "MCMC EHR Frontend", "CLAUDE.md", "active", "mcmc",
-                   ["healthcare", "honduras", "ehr", "next-js", "typescript", "frontend"]),
-        RepoEntry("signalforge", "SignalForge", "CLAUDE.md", "active", "signalforge",
-                   ["quant", "finance", "next-js", "supabase", "open-source"]),
-        RepoEntry("signalforge-opencore", "SignalForge Open-Core DSL", "README.md", "active", "signalforge",
-                   ["quant", "finance", "typescript", "dsl", "compiler", "open-source"]),
-        RepoEntry("harness-engineering", "Harness Engineering", "AGENTS.md", "active", "standalone",
-                   ["engineering", "python", "docs-as-code", "framework"]),
-        RepoEntry("obsidian-connector", "Obsidian Connector", "CLAUDE.md", "active", "standalone",
-                   ["obsidian", "mcp", "claude-code", "plugin", "knowledge-management"]),
-        RepoEntry("skills-creation-agent", "Skill Factory", "README.md", "active", "standalone",
-                   ["skill-factory", "agent-skills", "python", "cli", "registry", "automation"]),
-        RepoEntry("rag-fin-midterm-1", "Course RAG Engine", "README.md", "active", "research",
-                   ["rag", "finance", "education", "python", "llm-evaluation", "retrieval", "nyu-stern"]),
-    ]
+    """Return the default repo registry.
+
+    Returns an empty list. The sync engine uses auto-discovery
+    (``discover_repos()``) to find git repositories under the configured
+    ``github_root``. Users can override the list via ``sync_config.json``
+    in the vault.
+    """
+    return []
 
 
 # ---------------------------------------------------------------------------

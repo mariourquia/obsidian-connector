@@ -13,7 +13,7 @@
       "name": "obsidian-connector",
       "source": ".",
       "description": "Access your Obsidian vault from Claude. Search notes, read content, log decisions, manage tasks, and think with your notes.",
-      "version": "0.6.1",
+      "version": "0.7.0",
       "category": "productivity",
       "keywords": ["obsidian", "notes", "productivity", "knowledge-management", "mcp"],
       "author": {

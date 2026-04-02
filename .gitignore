@@ -12,6 +12,14 @@ build/
 
 # Environment
 .env
+.env.*
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+credentials.json
+serviceAccountKey.json
 
 # Stray logs
 firebase-debug.log

@@ -5,6 +5,8 @@ description: Sync project state to the Obsidian vault, write session logs with s
 
 # Sync Vault
 
+> **Tip:** You can also use `/sync` for a streamlined sync experience.
+
 Sync all tracked git repositories into the Obsidian vault, then write a
 conversation-aware session log with structured tags for time-series analysis.
 

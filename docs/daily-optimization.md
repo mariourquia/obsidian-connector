@@ -7,7 +7,7 @@ last_reviewed: "2026-03-06"
 
 # Second Brain Operating Manual
 
-35 tools. Four phases. One assistant running your day.
+62 tools. Four phases. One assistant running your day.
 
 Your second brain assistant lives inside Claude. It reads your Obsidian vault,
 tracks your open loops, surfaces forgotten ideas, and drives daily rituals --

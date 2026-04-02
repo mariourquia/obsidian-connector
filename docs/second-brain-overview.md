@@ -21,33 +21,42 @@ Layer 3: Proactive
   Claude acts before you ask.
          |
 Layer 2: Orchestration
-  11 Claude Code skills (6 workflow + 5 knowledge)
+  13 Claude Code skills (8 workflow + 5 knowledge)
   Compose tools into multi-step workflows.
          |
 Layer 1: Execution
-  35 MCP tools / Python API
+  62 MCP tools / Python API
   Search, read, write, graph, thinking, workflows, check-in.
 ```
 
 ### Layer 1: Execution
 
-The foundation. 35 MCP tools and a full Python API that handle every vault
+The foundation. 62 MCP tools and a full Python API that handle every vault
 operation: search, read, write, graph analysis, thinking tools, workflow
-management, and time-aware check-in. Every tool returns a typed JSON
-envelope with structured errors. See [TOOLS_CONTRACT.md](../TOOLS_CONTRACT.md).
+management, idea routing, vault factory, and time-aware check-in. Every tool
+returns a typed JSON envelope with structured errors. See [TOOLS_CONTRACT.md](../TOOLS_CONTRACT.md).
 
 ### Layer 2: Orchestration
 
-Eleven Claude Code skills compose execution tools into workflows (6 workflow + 5 knowledge):
+Thirteen Claude Code skills compose execution tools into workflows (8 workflow + 5 knowledge):
 
-| Skill | What it does |
-|-------|-------------|
-| `/morning` | Reads daily note, surfaces open loops and delegations, writes a briefing |
-| `/evening` | Reviews accomplishments, suggests carry-forward items, writes a reflection |
-| `/idea` | Captures a thought to your vault, surfaces related notes and connections |
-| `/weekly` | Checks drift between intentions and actions, graduates ideas, audits health |
+| Skill | Type | What it does |
+|-------|------|-------------|
+| `/morning` | workflow | Reads daily note, surfaces open loops and delegations, writes a briefing |
+| `/evening` | workflow | Reviews accomplishments, suggests carry-forward items, writes a reflection |
+| `/idea` | workflow | Captures a thought to your vault, surfaces related notes and connections |
+| `/weekly` | workflow | Checks drift between intentions and actions, graduates ideas, audits health |
+| `/sync-vault` | workflow | Syncs project state into the vault |
+| `/init-vault` | workflow | Interactive vault initialization wizard |
+| `/float` | workflow | Route an idea to the right project's idea file |
+| `/explore` | workflow | Explore vault connections and surface latent ideas |
+| `/obsidian-markdown` | knowledge | Obsidian Flavored Markdown syntax reference |
+| `/obsidian-bases` | knowledge | Obsidian Bases (.base files) reference |
+| `/json-canvas` | knowledge | JSON Canvas format (.canvas files) reference |
+| `/obsidian-cli` | knowledge | Obsidian CLI command reference |
+| `/defuddle` | knowledge | Extract clean markdown from web pages |
 
-Each skill calls `check_in` first to understand context, then sequences
+Workflow skills call `check_in` first to understand context, then sequence
 the right tools for the workflow.
 
 ### Layer 3: Proactive

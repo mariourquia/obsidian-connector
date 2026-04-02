@@ -5,6 +5,8 @@ description: Close your day. Reviews what you accomplished, surfaces remaining l
 
 # Evening Close
 
+> **Tip:** You can also use `/ritual` which auto-selects based on time of day.
+
 You are running the user's evening close workflow. Follow these steps exactly.
 
 ## Step 1: Check in

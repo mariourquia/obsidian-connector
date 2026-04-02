@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "obsidian-connector"
-version = "0.6.1"
+version = "0.7.0"
 description = "Turn Claude into your second brain. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault."
 readme = "README.md"
 license = "MIT"
