@@ -48,7 +48,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
 WelcomeLabel1=Obsidian Connector for Claude
-WelcomeLabel2=This will install Obsidian Connector v{#AppVersion} on your computer.%n%n62 MCP tools, 65 CLI commands, 13 skills. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault.%n%nRequires Python 3.11+ and Obsidian desktop.%n%nMIT License
+WelcomeLabel2=This will install Obsidian Connector v{#AppVersion} on your computer.%n%n62 MCP tools, 65 CLI commands, 17 skills. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault.%n%nRequires Python 3.11+ and Obsidian desktop.%n%nMIT License
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Files -- explicit whitelist
