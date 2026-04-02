@@ -74,6 +74,7 @@ Source: "{#SourceDir}\scheduling\*"; DestDir: "{app}\scheduling"; Flags: ignorev
 ; Templates
 Source: "{#SourceDir}\templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Install scripts
+Source: "{#SourceDir}\scripts\Install.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "{#SourceDir}\scripts\install.sh"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "{#SourceDir}\scripts\setup.sh"; DestDir: "{app}\scripts"; Flags: ignoreversion
 ; Package metadata
@@ -94,9 +95,9 @@ Source: "{#SourceDir}\CONTRIBUTING.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
 Filename: "powershell.exe"; \
-    Parameters: "-ExecutionPolicy Bypass -NoProfile -Command ""cd '{app}'; python -m venv .venv; .\.venv\Scripts\pip install -e .; Write-Host 'Obsidian Connector installed. Run: .venv\Scripts\obsx doctor'"""; \
-    Description: "Create Python environment and install package"; \
-    StatusMsg: "Setting up Python environment..."; \
+    Parameters: "-ExecutionPolicy Bypass -NoProfile -File ""{app}\scripts\Install.ps1"" -InstallDir ""{app}"""; \
+    Description: "Configure Obsidian Connector (venv + Claude registration)"; \
+    StatusMsg: "Setting up Obsidian Connector..."; \
     Flags: postinstall shellexec waituntilterminated
 
 ; ──────────────────────────────────────────────────────────────────────
