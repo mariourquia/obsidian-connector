@@ -113,22 +113,69 @@ $HasClaudeCode = $false
 $HasClaudeDesktop = $false
 $InstalledSomewhere = $false
 
-# Check for Claude Code CLI
+# Check for Claude Code CLI -- PATH first, then known install locations
 $claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
-if (-not $claudeCmd) {
+$ClaudePath = $null
+if ($claudeCmd) {
+    $HasClaudeCode = $true
+    $ClaudePath = $claudeCmd.Source
+    try {
+        $ver = & claude --version 2>$null
+        Write-Green "  Claude Code CLI found: $ver"
+    } catch {
+        Write-Green "  Claude Code CLI found"
+    }
+} else {
+    # Check npm global install location
     $npmClaudePath = Join-Path $env:APPDATA "npm\claude.cmd"
     if (Test-Path $npmClaudePath) {
-        $claudeCmd = Get-Item $npmClaudePath
+        $HasClaudeCode = $true
+        $ClaudePath = $npmClaudePath
+        Write-Green "  Claude Code CLI found at: $npmClaudePath"
+    } else {
+        Write-Yellow "  Claude Code CLI not found (optional)"
     }
 }
 
-if ($claudeCmd) {
-    $HasClaudeCode = $true
-    Write-Green "  Claude Code CLI found"
+# Check for Claude Desktop -- check directory existence (not just config file)
+$ClaudeDesktopDir = Join-Path $env:APPDATA "Claude"
+if (Test-Path $ClaudeDesktopDir) {
+    $HasClaudeDesktop = $true
+    Write-Green "  Claude Desktop found"
+} else {
+    $ClaudeLocalDir = Join-Path $env:LOCALAPPDATA "Claude"
+    if (Test-Path $ClaudeLocalDir) {
+        $HasClaudeDesktop = $true
+        $ClaudeDesktopDir = $ClaudeLocalDir
+        Write-Green "  Claude Desktop found (LocalAppData)"
+    } else {
+        Write-Yellow "  Claude Desktop not found (optional)"
+    }
+}
 
+# Bail early if neither found
+if (-not $HasClaudeCode -and -not $HasClaudeDesktop) {
+    Write-Host ""
+    Write-Red "  Neither Claude Code nor Claude Desktop was found."
+    Write-Host ""
+    Write-Host "  Install one of these first:"
+    Write-Host "    Claude Code:    npm install -g @anthropic-ai/claude-code"
+    Write-Host "    Claude Desktop: https://claude.ai/download"
+    Write-Host ""
+    Write-Host "  After installing, re-run this script or register manually:"
+    Write-Dim  "    claude plugin add `"$InstallDir`""
+    Write-Host ""
+    Write-Bold "  Press Enter to close this window."
+    Read-Host
+    exit 0
+}
+
+# Register with Claude Code
+if ($HasClaudeCode) {
+    Write-Blue "  Registering with Claude Code..."
     try {
-        if ($claudeCmd.Source) {
-            $output = & $claudeCmd.Source plugin add $InstallDir 2>&1
+        if ($ClaudePath) {
+            $output = & $ClaudePath plugin add $InstallDir 2>&1
         } else {
             $output = & claude plugin add $InstallDir 2>&1
         }
@@ -143,16 +190,20 @@ if ($claudeCmd) {
         Write-Yellow "  'plugin add' not available. Use: claude --plugin-dir `"$InstallDir`""
         $InstalledSomewhere = $true
     }
-} else {
-    Write-Dim "  Claude Code CLI not found (optional)"
+    Write-Host ""
 }
 
 # ── Step 4: Register with Claude Desktop ────────────────────────────
 
-$DesktopConfigPath = Join-Path $env:APPDATA "Claude\claude_desktop_config.json"
-if (Test-Path $DesktopConfigPath) {
-    $HasClaudeDesktop = $true
-    Write-Green "  Claude Desktop found"
+$DesktopConfigPath = Join-Path $ClaudeDesktopDir "claude_desktop_config.json"
+if ($HasClaudeDesktop) {
+    Write-Blue "  Registering with Claude Desktop..."
+
+    # Create config file if directory exists but config doesn't
+    if (-not (Test-Path $DesktopConfigPath)) {
+        '{"mcpServers":{}}' | Set-Content $DesktopConfigPath -Encoding UTF8
+        Write-Dim "  Created claude_desktop_config.json"
+    }
 
     try {
         $config = Get-Content $DesktopConfigPath -Raw | ConvertFrom-Json
@@ -181,29 +232,19 @@ if (Test-Path $DesktopConfigPath) {
         Write-Yellow "  Could not update Claude Desktop config: $_"
         Write-Dim  "  Manual: add obsidian-connector to claude_desktop_config.json"
     }
-} else {
-    Write-Dim "  Claude Desktop not found (optional)"
 }
 
 Write-Host ""
 
 # ── Summary ─────────────────────────────────────────────────────────
 
-if ($InstalledSomewhere) {
-    Write-Green "  Installation complete!"
-    Write-Host ""
-    if ($HasClaudeCode) {
-        Write-Host "  Claude Code: Try /capture, /ritual, /sync in any conversation"
-    }
-    if ($HasClaudeDesktop) {
-        Write-Host "  Claude Desktop: Restart Desktop to load 62 MCP tools"
-    }
-} else {
-    Write-Yellow "  Neither Claude Code nor Claude Desktop detected."
-    Write-Host ""
-    Write-Host "  After installing Claude Code or Desktop:"
-    Write-Host "    Claude Code:    claude plugin add `"$InstallDir`""
-    Write-Host "    Claude Desktop: Add to claude_desktop_config.json"
+Write-Green "  Installation complete!"
+Write-Host ""
+if ($HasClaudeCode) {
+    Write-Host "  Claude Code: Try /capture, /ritual, /sync in any conversation"
+}
+if ($HasClaudeDesktop) {
+    Write-Host "  Claude Desktop: Restart Desktop to load 62 MCP tools"
 }
 
 Write-Host ""
