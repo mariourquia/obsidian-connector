@@ -504,7 +504,6 @@ else:
 } else {
     Write-Dim "  Claude Desktop not detected -- skipping MCP config"
 }
-}
 
 Write-Host ""
 
