@@ -197,33 +197,97 @@ if (-not $HasClaudeCode -and -not $HasClaudeDesktop) {
     exit 0
 }
 
-# Register with Claude Code
-if ($HasClaudeCode) {
-    Write-Blue "  Registering with Claude Code..."
+# Register plugin via ~/.claude/ plugin cache (works for both Claude Code and Desktop)
+# This is the reliable method -- doesn't require the claude binary in PATH
+if ($HasClaudeCode -or $HasClaudeDesktop) {
+    Write-Blue "  Registering plugin in Claude plugin system..."
 
-    if ($ClaudePath) {
-        # We have the binary -- use `claude plugin add`
-        try {
-            $output = & $ClaudePath plugin add $InstallDir 2>&1
-            if ($LASTEXITCODE -eq 0 -or $null -eq $LASTEXITCODE) {
-                Write-Green "  Plugin registered with Claude Code"
-                $InstalledSomewhere = $true
-            } else {
-                Write-Yellow "  'plugin add' returned non-zero."
-                Write-Dim  "  Fallback: claude --plugin-dir `"$InstallDir`""
-                $InstalledSomewhere = $true
-            }
-        } catch {
-            Write-Yellow "  'plugin add' failed. Use: claude --plugin-dir `"$InstallDir`""
-            $InstalledSomewhere = $true
+    $ClaudeHome = Join-Path $env:USERPROFILE ".claude"
+    $PluginVersion = (Get-Content (Join-Path $InstallDir "pyproject.toml") | Select-String 'version = "([^"]+)"').Matches.Groups[1].Value
+    if (-not $PluginVersion) { $PluginVersion = "0.7.0" }
+    $PluginCachePath = Join-Path $ClaudeHome "plugins\cache\local\obsidian-connector\$PluginVersion"
+    $InstalledPluginsFile = Join-Path $ClaudeHome "plugins\installed_plugins.json"
+    $SettingsFile = Join-Path $ClaudeHome "settings.json"
+
+    try {
+        # 1. Copy plugin files to the plugin cache
+        if (-not (Test-Path $PluginCachePath)) {
+            New-Item -ItemType Directory -Path $PluginCachePath -Force | Out-Null
         }
-    } else {
-        # No binary found but ~/.claude exists -- tell user how to register
-        Write-Yellow "  Claude Code binary not in PATH."
-        Write-Host "  After opening a terminal with Claude Code, run:"
-        Write-Host "    claude plugin add `"$InstallDir`""
-        Write-Host "  Or start Claude Code with:"
-        Write-Host "    claude --plugin-dir `"$InstallDir`""
+
+        $robocopyArgs = @(
+            $InstallDir,
+            $PluginCachePath,
+            '/MIR',
+            '/XD', '.git', '__pycache__', 'node_modules', 'dist', '.venv', '.local', '.claude',
+            '/XF', '*.pyc', '.DS_Store', 'firebase-debug.log',
+            '/NFL', '/NDL', '/NJH', '/NJS', '/NP'
+        )
+        & robocopy @robocopyArgs | Out-Null
+
+        if ($LASTEXITCODE -ge 8) {
+            throw "Robocopy failed with exit code $LASTEXITCODE"
+        }
+        Write-Green "  Plugin files copied to cache"
+
+        # 2. Register in installed_plugins.json
+        $pluginKey = "obsidian-connector@local"
+        $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+
+        if (Test-Path $InstalledPluginsFile) {
+            $ipData = Get-Content $InstalledPluginsFile -Raw | ConvertFrom-Json
+        } else {
+            New-Item -ItemType Directory -Path (Split-Path $InstalledPluginsFile) -Force | Out-Null
+            $ipData = [PSCustomObject]@{ version = 2; plugins = [PSCustomObject]@{} }
+        }
+
+        $entry = @(
+            [PSCustomObject]@{
+                scope = "user"
+                installPath = $PluginCachePath
+                version = $PluginVersion
+                installedAt = $now
+                lastUpdated = $now
+            }
+        )
+
+        if ($ipData.plugins.PSObject.Properties.Name -contains $pluginKey) {
+            $ipData.plugins.$pluginKey = $entry
+        } else {
+            $ipData.plugins | Add-Member -NotePropertyName $pluginKey -NotePropertyValue $entry
+        }
+
+        $ipData | ConvertTo-Json -Depth 10 | Set-Content $InstalledPluginsFile -Encoding UTF8
+        Write-Green "  Plugin registered in installed_plugins.json"
+
+        # 3. Enable in settings.json
+        if (Test-Path $SettingsFile) {
+            $settings = Get-Content $SettingsFile -Raw | ConvertFrom-Json
+        } else {
+            $settings = [PSCustomObject]@{ enabledPlugins = [PSCustomObject]@{} }
+        }
+
+        if (-not ($settings.PSObject.Properties.Name -contains "enabledPlugins")) {
+            $settings | Add-Member -NotePropertyName "enabledPlugins" -NotePropertyValue ([PSCustomObject]@{})
+        }
+
+        if ($settings.enabledPlugins.PSObject.Properties.Name -contains $pluginKey) {
+            $settings.enabledPlugins.$pluginKey = $true
+        } else {
+            $settings.enabledPlugins | Add-Member -NotePropertyName $pluginKey -NotePropertyValue $true
+        }
+
+        $settings | ConvertTo-Json -Depth 10 | Set-Content $SettingsFile -Encoding UTF8
+        Write-Green "  Plugin enabled in settings.json"
+        Write-Green "  17 skills + hooks + MCP tools registered"
+
+        $InstalledSomewhere = $true
+
+    } catch {
+        Write-Yellow "  Could not register plugin automatically: $_"
+        Write-Host ""
+        Write-Host "  Manual install:"
+        Write-Dim  "    claude plugin add `"$InstallDir`""
         $InstalledSomewhere = $true
     }
     Write-Host ""
