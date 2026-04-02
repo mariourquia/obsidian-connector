@@ -49,7 +49,7 @@ press_to_exit() {
 
 TELEMETRY_URL="https://cre-skills-feedback-api.vercel.app/api/installer-telemetry"
 PLUGIN_NAME_CONST="obsidian-connector"
-INSTALLER_VERSION_CONST="0.7.1"
+INSTALLER_VERSION_CONST="0.8.0"
 
 send_telemetry() {
     local step_failed="$1"
