@@ -78,12 +78,15 @@ jobs:
 
       - name: Run .exe installer silently
         shell: pwsh
+        timeout-minutes: 5
         run: |
           $exe = (Get-ChildItem dist/*.exe | Select-Object -First 1).FullName
           $installDir = Join-Path $env:TEMP "oc-verify"
           Write-Output "Installing $exe to $installDir"
-          Start-Process -FilePath $exe -ArgumentList "/VERYSILENT /DIR=$installDir /SUPPRESSMSGBOXES /NORESTART" -Wait -NoNewWindow
-          Write-Output "Installer exited"
+          # Set CI env var so Install.ps1 skips Read-Host prompts
+          $env:CI = "true"
+          $proc = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT /DIR=$installDir /SUPPRESSMSGBOXES /NORESTART" -Wait -NoNewWindow -PassThru
+          Write-Output "Installer exited with code $($proc.ExitCode)"
 
       - name: Wait for post-install scripts
         shell: pwsh
