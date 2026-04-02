@@ -7,6 +7,32 @@
 # ──────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ── Error trap: generate diagnostic report on failure ────────────────
+cleanup_on_error() {
+    local exit_code=$?
+    if [ "$exit_code" -ne 0 ]; then
+        echo ""
+        printf '\033[1;31m  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n'
+        printf '\033[1;31m  INSTALLATION ERROR (exit code %s)\033[0m\n' "$exit_code"
+        printf '\033[1;31m  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n'
+        echo ""
+        local diag_script="${SCRIPT_DIR:-$(cd "$(dirname "$0")" && pwd)}/scripts/diagnostic_report.py"
+        if python3 "$diag_script" --error "Install.command failed with exit $exit_code" --step "install" 2>/dev/null; then
+            :
+        elif python "$diag_script" --error "Install.command failed with exit $exit_code" --step "install" 2>/dev/null; then
+            :
+        else
+            echo "  Submit a bug report:"
+            echo "  https://github.com/mariourquia/obsidian-connector/issues/new?labels=bug,installer"
+            echo ""
+        fi
+        echo ""
+        printf '\033[1mPress Enter to close this window.\033[0m\n'
+        read -r
+    fi
+}
+trap cleanup_on_error EXIT
+
 clear
 
 # ── Helpers ───────────────────────────────────────────────────────────
