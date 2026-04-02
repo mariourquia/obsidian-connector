@@ -17,6 +17,9 @@ if ($InstallDir -eq $PSScriptRoot) {
     $InstallDir = Split-Path $PSScriptRoot -Parent
 }
 
+# Detect non-interactive mode (Inno Setup /VERYSILENT, piped stdin, CI)
+$NonInteractive = (-not [Environment]::UserInteractive) -or ([Console]::IsInputRedirected) -or ($env:CI -eq "true")
+
 $ErrorActionPreference = 'Continue'
 
 # Global error trap: keep window open on any crash, generate diagnostic report
@@ -52,8 +55,10 @@ trap {
         Write-Host ""
     }
 
-    Write-Host "  Press Enter to close this window." -ForegroundColor White
-    Read-Host
+    if (-not $NonInteractive) {
+        Write-Host "  Press Enter to close this window." -ForegroundColor White
+        Read-Host
+    }
     exit 1
 }
 
@@ -86,8 +91,10 @@ if (-not (Test-Path (Join-Path $InstallDir "obsidian_connector")) -or
     Write-Red "  Could not find the Obsidian Connector files."
     Write-Host "  Expected at: $InstallDir"
     Write-Host ""
-    Write-Bold "  Press Enter to close this window."
-    Read-Host
+    if (-not $NonInteractive) {
+        Write-Bold "  Press Enter to close this window."
+        Read-Host
+    }
     exit 1
 }
 
@@ -117,8 +124,10 @@ if (-not $PythonCmd) {
     Write-Red "  Python 3.11+ not found."
     Write-Host "  Install from: https://www.python.org/downloads/"
     Write-Host ""
-    Write-Bold "  Press Enter to close this window."
-    Read-Host
+    if (-not $NonInteractive) {
+        Write-Bold "  Press Enter to close this window."
+        Read-Host
+    }
     exit 1
 }
 
@@ -229,8 +238,10 @@ if (-not $HasClaudeCode -and -not $HasClaudeDesktop -and -not $HasClaudeHome) {
     Write-Host "  After installing, re-run this script or register manually:"
     Write-Dim  "    claude plugin add `"$InstallDir`""
     Write-Host ""
-    Write-Bold "  Press Enter to close this window."
-    Read-Host
+    if (-not $NonInteractive) {
+        Write-Bold "  Press Enter to close this window."
+        Read-Host
+    }
     exit 0
 }
 
@@ -523,5 +534,7 @@ $skillCount = (Get-ChildItem (Join-Path $InstallDir "skills") -Directory -ErrorA
 Write-Dim "  Installed to: $InstallDir"
 Write-Dim "  Skills: $skillCount | MCP tools: 62 | CLI: obsx"
 Write-Host ""
-Write-Bold "  Press Enter to close this window."
-Read-Host
+if (-not $NonInteractive) {
+    Write-Bold "  Press Enter to close this window."
+    Read-Host
+}
