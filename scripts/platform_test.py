@@ -12,10 +12,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from obsidian_connector.platform import current_os, scheduler_type
 
+# Platform-mocked tests use Path.home() which returns native OS paths.
+# Tests that assert Unix paths (e.g., /home/user, ~/Library) fail on Windows
+# because Path.home() returns C:\Users\... regardless of sys.platform patch.
+_SKIP_CROSS_PLATFORM = sys.platform == "win32"
+
 
 def test_macos_paths():
-    if sys.platform == "win32":
-        print("SKIP: test_macos_paths (running on Windows)")
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_macos_paths (cross-platform mocking unreliable on Windows)")
         return
     with patch("sys.platform", "darwin"):
         import importlib
@@ -30,8 +35,8 @@ def test_macos_paths():
 
 
 def test_linux_paths():
-    if sys.platform == "win32":
-        print("SKIP: test_linux_paths (running on Windows)")
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_paths (cross-platform mocking unreliable on Windows)")
         return
     with patch("sys.platform", "linux"):
         import importlib
@@ -152,6 +157,9 @@ def test_uninstall_schedule_returns_bool():
 # ------------------------------------------------------------------
 
 def test_generate_systemd_unit(tmp_path):
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_generate_systemd_unit (Linux-only)")
+        return
     """Verify systemd unit generation produces valid service and timer content."""
     from obsidian_connector.platform import _generate_systemd_unit
     service, timer = _generate_systemd_unit(
@@ -173,6 +181,9 @@ def test_generate_systemd_unit(tmp_path):
 
 
 def test_generate_systemd_unit_evening(tmp_path):
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_generate_systemd_unit_evening (Linux-only)")
+        return
     """Verify systemd unit generation with different workflow and time."""
     from obsidian_connector.platform import _generate_systemd_unit
     service, timer = _generate_systemd_unit(
@@ -190,6 +201,9 @@ def test_generate_systemd_unit_evening(tmp_path):
 
 
 def test_install_systemd_mocked(tmp_path):
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_install_systemd_mocked (Linux-only)")
+        return
     """Verify _install_systemd writes unit files and calls systemctl."""
     from obsidian_connector.platform import _install_systemd
     mock_home = tmp_path / "home"
@@ -221,6 +235,9 @@ def test_install_systemd_mocked(tmp_path):
 
 
 def test_uninstall_systemd_mocked(tmp_path):
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_uninstall_systemd_mocked (Linux-only)")
+        return
     """Verify _uninstall_systemd removes unit files and calls systemctl."""
     from obsidian_connector.platform import _uninstall_systemd
     mock_home = tmp_path / "home"
@@ -250,6 +267,9 @@ def test_uninstall_systemd_mocked(tmp_path):
 
 
 def test_install_systemd_failure_returns_false(tmp_path):
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_install_systemd_failure_returns_false (Linux-only)")
+        return
     """Verify _install_systemd returns False on subprocess failure."""
     import subprocess as sp
     from obsidian_connector.platform import _install_systemd
