@@ -24,7 +24,7 @@ from obsidian_connector.project_sync import (
 # Constants
 # ---------------------------------------------------------------------------
 
-_DEFAULT_VAULT_NAME = "creation"
+_DEFAULT_VAULT_NAME = "My Vault"
 
 _SCAFFOLD_DIRS = [
     "projects",
@@ -73,10 +73,10 @@ def _render_initial_dashboard(repos: list[RepoEntry]) -> str:
 
     return (
         f"---\n"
-        f"title: Creation Dashboard\n"
+        f"title: Dashboard\n"
         f"tags: [dashboard, index]\n"
         f"---\n\n"
-        f"# Creation Dashboard\n\n"
+        f"# Dashboard\n\n"
         f"> Run `/sync-vault` or `obsx sync-projects` to populate project data.\n\n"
         f"## Quick Links\n\n"
         f"- [[Running TODO]] -- canonical open items across all projects\n"
@@ -325,12 +325,22 @@ def interactive_init(
     print("  " + "=" * 42)
     print()
 
-    # 1. Vault path
-    suggested_vault = default_vault_path or str(
-        Path.home() / "Library" / "Mobile Documents"
-        / "iCloud~md~obsidian" / "Documents" / _DEFAULT_VAULT_NAME
-        / _DEFAULT_VAULT_NAME
-    )
+    # 1. Vault path -- platform-aware default
+    if default_vault_path:
+        suggested_vault = default_vault_path
+    else:
+        import sys
+        if sys.platform == "darwin":
+            # macOS: iCloud Obsidian directory is standard
+            suggested_vault = str(
+                Path.home() / "Library" / "Mobile Documents"
+                / "iCloud~md~obsidian" / "Documents" / _DEFAULT_VAULT_NAME
+            )
+        else:
+            # Linux/Windows: use ~/Documents/Obsidian
+            suggested_vault = str(
+                Path.home() / "Documents" / "Obsidian" / _DEFAULT_VAULT_NAME
+            )
     vault_input = input(f"  Vault path [{suggested_vault}]: ").strip()
     vault_path = vault_input if vault_input else suggested_vault
 

@@ -28,53 +28,41 @@ REPO_ROOT = SCRIPT_DIR.parent
 PKG_DIR = REPO_ROOT / "obsidian_connector"
 SKILLS_DIR = REPO_ROOT / "skills"
 
+# Ensure repo root is importable so product_registry can be loaded.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from obsidian_connector.product_registry import get_registry  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# Actual counts from code
+# Actual counts from code -- delegated to product_registry
 # ---------------------------------------------------------------------------
+
+_registry = get_registry(REPO_ROOT)
+
 
 def count_mcp_tools() -> int:
-    path = PKG_DIR / "mcp_server.py"
-    if not path.is_file():
-        return 0
-    return path.read_text(encoding="utf-8").count("@mcp.tool")
+    return _registry.mcp_tool_count
 
 
 def count_cli_commands() -> int:
-    path = PKG_DIR / "cli.py"
-    if not path.is_file():
-        return 0
-    return path.read_text(encoding="utf-8").count("add_parser")
+    return _registry.cli_subcommand_count
 
 
 def count_skills() -> int:
-    if not SKILLS_DIR.is_dir():
-        return 0
-    return len(list(SKILLS_DIR.glob("*/SKILL.md")))
+    return _registry.skill_count
 
 
 def count_presets() -> int:
-    path = PKG_DIR / "vault_presets.py"
-    if not path.is_file():
-        return 0
-    content = path.read_text(encoding="utf-8")
-    return content.count("VaultPreset(")
+    return _registry.preset_count
 
 
 def count_modules() -> int:
-    if not PKG_DIR.is_dir():
-        return 0
-    return len([f for f in PKG_DIR.glob("*.py") if f.name != "__pycache__"])
+    return _registry.module_count
 
 
 def get_version() -> str:
-    path = REPO_ROOT / "pyproject.toml"
-    if not path.is_file():
-        return ""
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("version"):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return ""
+    return _registry.version
 
 
 # ---------------------------------------------------------------------------

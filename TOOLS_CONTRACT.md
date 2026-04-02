@@ -142,6 +142,33 @@ These tools read vault `.md` files directly and work without Obsidian running.
 |---|---|---|
 | `obsidian_index_status` | `vault?` | JSON with index age and staleness flag |
 
+### Idea routing (v0.5.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_float_idea` | `idea`, `project?`, `vault?` | JSON `{file, project, idea, timestamp}` |
+| `obsidian_incubate_project` | `name`, `description`, `why?`, `tags?`, `related_projects?`, `vault?` | JSON `{file, name, description}` |
+| `obsidian_incubating` | `vault?` | JSON array of project inception cards |
+| `obsidian_idea_files` | `vault?` | JSON array of `{file, project, idea_count}` |
+
+### Vault factory (v0.5.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_create_vault` | `name`, `description?`, `seed_topics?`, `vault_root?`, `preset?` | JSON `{vault_path, name, preset, seed_topics}` |
+| `obsidian_seed_vault` | `vault_path`, `title`, `content`, `tags?`, `folder?` | JSON `{file, title, folder}` |
+| `obsidian_vault_presets` | *(none)* | JSON `{presets[], count}` |
+| `obsidian_list_vaults` | *(none)* | JSON `{vaults[], count}` |
+| `obsidian_discard_vault` | `vault_path`, `confirm?` | JSON `{vault_path, status}` |
+
+### Vault guardian (v0.5.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_mark_auto_generated` | `vault?` | JSON result of files marked |
+| `obsidian_detect_unorganized` | `vault?` | JSON `{suggestions[], count}` |
+| `obsidian_organize_file` | `file_name`, `target_folder`, `vault?` | JSON result of file move |
+
 **Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
 shell out to `obsidian` or `python main.py` from within an MCP-connected session.
 
@@ -150,7 +177,10 @@ shell out to `obsidian` or `python main.py` from within an MCP-connected session
 The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 `obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
 
-### Commands (65 total)
+### CLI subcommands (65 add_parser registrations, including 6 parent groups)
+
+Parent groups (`graduate`, `drafts`, `vaults`, `templates`, `schedule`, `project`)
+are not directly runnable -- they contain the sub-subcommands listed below.
 
 | Command | Description | Mutating |
 |---|---|---|
@@ -189,6 +219,30 @@ The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 | `log-session` | Write a structured session log entry | yes |
 | `running-todo` | Show the running TODO state | no |
 | `init` | Initialize a new vault for project tracking | yes |
+| `rollback` | Restore vault files from a snapshot | yes |
+| `drafts list` | List all agent drafts | no |
+| `drafts approve` | Move a draft to a target folder | yes |
+| `drafts reject` | Archive a draft as rejected | yes |
+| `drafts clean` | Auto-archive stale drafts | yes |
+| `vaults list` | List all registered vaults | no |
+| `vaults add` | Register a new vault | yes |
+| `vaults remove` | Unregister a vault | yes |
+| `vaults default` | Set a vault as the default | yes |
+| `templates list` | List all templates in the vault | no |
+| `templates init` | Seed _templates/ from built-in templates | yes |
+| `templates check` | Show outdated templates | no |
+| `schedule list` | List all configured schedules | no |
+| `schedule preview` | Show what a schedule would run | no |
+| `schedule status` | Show health of all schedules | no |
+| `schedule run` | Execute a named schedule now | yes |
+| `schedule fire` | Fire an event trigger | yes |
+| `schedule tools` | List available automation tools | no |
+| `report` | Generate a vault report | no |
+| `stats` | Show session telemetry stats | no |
+| `project health` | Show health scores for all projects | no |
+| `project changelog` | Generate a project changelog | no |
+| `project packet` | Generate a weekly project packet | no |
+| `index-status` | Show index age and staleness | no |
 
 ## Canonical JSON envelope
 
@@ -333,6 +387,9 @@ the Obsidian desktop app or its CLI:
 - Graph: `obsidian_neighborhood`, `obsidian_vault_structure`, `obsidian_backlinks`, `obsidian_rebuild_index`
 - Thinking: `obsidian_ghost`, `obsidian_drift`, `obsidian_trace`, `obsidian_ideas`
 - Workflow OS: `obsidian_my_world`, `obsidian_today`, `obsidian_close_day`, `obsidian_open_loops`, `obsidian_graduate_candidates`, `obsidian_graduate_execute`, `obsidian_delegations`, `obsidian_context_load`, `obsidian_check_in`
+- Idea routing: `obsidian_float_idea`, `obsidian_incubate_project`, `obsidian_incubating`, `obsidian_idea_files`
+- Vault factory: `obsidian_create_vault`, `obsidian_seed_vault`, `obsidian_vault_presets`, `obsidian_list_vaults`, `obsidian_discard_vault`
+- Vault guardian: `obsidian_mark_auto_generated`, `obsidian_detect_unorganized`, `obsidian_organize_file`
 - System: `obsidian_doctor`, `obsidian_uninstall`
 
 ### Platform-specific behavior notes
@@ -416,18 +473,39 @@ obsidian-connector/
   config.json                      Project-level defaults
   pyproject.toml                   Package metadata (console scripts: obsx)
   TOOLS_CONTRACT.md                This file
-  obsidian_connector/
-    __init__.py                    Public API re-exports (92 symbols)
-    cli.py                         CLI entry point (62 subcommands)
+  obsidian_connector/              38 modules
+    __init__.py                    Public API re-exports
+    __main__.py                    Module entry point
+    cli.py                         CLI entry point (65 subcommands)
     mcp_server.py                  MCP server (62 tools for Claude Desktop)
-    uninstall.py                   Safe two-mode uninstaller (CLI + MCP)
+    client.py                      Core CLI wrapper + batch reads
+    client_fallback.py             Adapter: auto file_backend fallback when CLI unavailable
+    file_backend.py                CLI-less vault access via direct file reads
     workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
     thinking.py                    Thinking tools: ghost, drift, trace, ideas
     graph.py                       Graph indexing: links, tags, frontmatter, NoteIndex
     index_store.py                 SQLite-backed persistent index (incremental updates)
+    write_manager.py               Atomic writes, snapshots, rollback, file locks
+    watcher.py                     Filesystem watcher for incremental re-index
+    draft_manager.py               Draft lifecycle: list, approve, reject, auto-archive
+    vault_registry.py              Named vault registry with profiles and policies
+    vault_factory.py               Vault discovery, creation, research topic seeding
+    vault_presets.py               13 vault preset templates
+    vault_guardian.py              Auto-generated file marking, unorganized note detection
+    vault_init.py                  Vault initialization wizard
+    idea_router.py                 Idea routing to project idea files
+    retrieval.py                   Hybrid search: lexical + semantic + graph + recency
+    embeddings.py                  Local embedding index (sentence-transformers, optional)
+    template_engine.py             Template loading, variable substitution, inheritance
+    scheduler.py                   Schedule config, workflow chaining, event triggers
+    automation.py                  Event-triggered automation: tool registry, chain runner
+    reports.py                     Report generation: weekly, monthly, vault health
+    telemetry.py                   Local-only session telemetry (zero network calls)
+    project_intelligence.py        Project health scores, changelogs, weekly packets
+    project_sync.py                Project sync engine: git state, dashboard, TODO, sessions
+    uninstall.py                   Safe two-mode uninstaller (CLI + MCP)
     audit.py                       Append-only audit log
     cache.py                       In-memory TTL cache
-    client.py                      Core CLI wrapper + batch reads
     config.py                      Layered config + vault path resolution
     doctor.py                      Health-check diagnostics (cross-platform)
     envelope.py                    Canonical JSON envelope builder
