@@ -416,7 +416,7 @@ if [ "$SKIP_SIGN" = false ]; then
     echo "Notarize for full Gatekeeper bypass:"
     echo "  xcrun notarytool submit $DIST_DIR/$DMG_NAME.dmg \\"
     echo "    --apple-id YOUR_APPLE_ID \\"
-    echo "    --team-id $APPLE_TEAM_ID \\"
+    echo "    --team-id \$APPLE_TEAM_ID \\"
     echo "    --password APP_SPECIFIC_PASSWORD \\"
     echo "    --wait"
     echo "  xcrun stapler staple $DIST_DIR/$DMG_NAME.dmg"
