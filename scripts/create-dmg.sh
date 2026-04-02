@@ -85,11 +85,8 @@ rsync -rlpt \
     --exclude='*.egg-info' \
     --exclude='AGENTS.md' \
     --exclude='Makefile' \
-    --exclude='templates' \
     --exclude='tools' \
     --exclude='dev' \
-    --exclude='hooks' \
-    --exclude='main.py' \
     "$REPO_ROOT/" "$STAGING_DIR/$DMG_NAME/.content/"
 
 chflags hidden "$STAGING_DIR/$DMG_NAME/.content" 2>/dev/null || true
@@ -345,7 +342,7 @@ cat > "$STAGING_DIR/$DMG_NAME/README.txt" << README
     ║                                                  ║
     ╚══════════════════════════════════════════════════╝
 
-    29 MCP tools · 29 CLI commands · 4 skills
+    62 MCP tools · 65 CLI commands · 17 skills
     Search, read, graph analysis, thinking tools,
     daily workflows, and more.
 

@@ -52,42 +52,49 @@ WelcomeLabel2=This will install Obsidian Connector v{#AppVersion} on your comput
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Files -- explicit whitelist
+;
+; Root-level skills/, hooks/, .claude-plugin/, .mcp.json are symlinks
+; pointing into src/. On Windows CI, symlinks may not resolve. We
+; reference src/ paths directly as the canonical source of truth,
+; with root-level fallbacks for local dev builds where symlinks work.
 ; ──────────────────────────────────────────────────────────────────────
 
 [Files]
-; Python package
+; Python package (always at root)
 Source: "{#SourceDir}\obsidian_connector\*"; DestDir: "{app}\obsidian_connector"; Flags: ignoreversion recursesubdirs createallsubdirs
-; CLI wrappers
+; CLI wrappers (always at root)
 Source: "{#SourceDir}\bin\*"; DestDir: "{app}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Skills
-Source: "{#SourceDir}\skills\*"; DestDir: "{app}\skills"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; Skills (canonical: src/skills/, fallback: skills/ symlink)
+Source: "{#SourceDir}\src\skills\*"; DestDir: "{app}\skills"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 ; Portable skills
-Source: "{#SourceDir}\portable\*"; DestDir: "{app}\portable"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Hooks
-Source: "{#SourceDir}\hooks\*"; DestDir: "{app}\hooks"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Plugin manifest
-Source: "{#SourceDir}\.claude-plugin\*"; DestDir: "{app}\.claude-plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
-; MCP config
-Source: "{#SourceDir}\.mcp.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\portable\*"; DestDir: "{app}\portable"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+; Hooks (canonical: src/hooks/)
+Source: "{#SourceDir}\src\hooks\*"; DestDir: "{app}\hooks"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+; Plugin manifest (canonical: src/plugin/)
+Source: "{#SourceDir}\src\plugin\plugin.json"; DestDir: "{app}\.claude-plugin"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\src\plugin\marketplace.json"; DestDir: "{app}\.claude-plugin"; Flags: ignoreversion skipifsourcedoesntexist
+; MCP config (canonical: src/plugin/.mcp.json)
+Source: "{#SourceDir}\src\plugin\.mcp.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; Scheduling
-Source: "{#SourceDir}\scheduling\*"; DestDir: "{app}\scheduling"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\scheduling\*"; DestDir: "{app}\scheduling"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 ; Templates
-Source: "{#SourceDir}\templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 ; Install scripts
 Source: "{#SourceDir}\scripts\Install.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
-Source: "{#SourceDir}\scripts\install.sh"; DestDir: "{app}\scripts"; Flags: ignoreversion
-Source: "{#SourceDir}\scripts\setup.sh"; DestDir: "{app}\scripts"; Flags: ignoreversion
+Source: "{#SourceDir}\scripts\install.sh"; DestDir: "{app}\scripts"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\scripts\setup.sh"; DestDir: "{app}\scripts"; Flags: ignoreversion skipifsourcedoesntexist
 ; Package metadata
 Source: "{#SourceDir}\pyproject.toml"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\main.py"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\config.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\main.py"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\config.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; Root docs
 Source: "{#SourceDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\PRIVACY.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\SECURITY.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\CONTRIBUTING.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\PRIVACY.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\SECURITY.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\CONTRIBUTING.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Post-install: create venv and install package
