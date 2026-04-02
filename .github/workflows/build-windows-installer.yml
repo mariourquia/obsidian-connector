@@ -108,6 +108,7 @@ jobs:
           retention-days: 30
 
       - name: Attach to GitHub Release
+        continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -116,11 +117,11 @@ jobs:
           $ver = $env:APP_VERSION
           $exe = "dist\obsidian-connector-v$ver-setup.exe"
           $sha = "dist\obsidian-connector-v$ver-setup.exe.sha256"
-          $releaseCheck = gh release view "v$ver" 2>&1
+          # Try to upload -- may fail if release doesn't exist yet (created by parallel workflow)
+          gh release upload "v$ver" $exe $sha --clobber 2>&1
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Attaching to release v$ver..."
-            gh release upload "v$ver" $exe $sha --clobber
             Write-Host "Attached to release v$ver"
           } else {
-            Write-Host "No release found for v$ver -- skipping attachment"
+            Write-Host "::warning::Could not attach to release v$ver -- upload artifacts are available as build artifacts"
+            exit 0
           }
