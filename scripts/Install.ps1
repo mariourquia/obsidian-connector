@@ -1,281 +1,215 @@
-# -----------------------------------------------------------------------
-# obsidian-connector Windows installer (PowerShell)
+# ──────────────────────────────────────────────────────────────────────
+# Obsidian Connector installer for Windows
 #
-# One-command setup: creates the Python venv, installs the package,
-# and configures Claude Desktop to use the MCP server.
+# Called by the Inno Setup installer after file copy, or run standalone:
+#   powershell -ExecutionPolicy Bypass -File Install.ps1 -InstallDir "C:\path\to\plugin"
 #
-# Usage:
-#   .\scripts\Install.ps1              # from repo root (interactive)
-#   powershell -File scripts\Install.ps1
-#   .\scripts\Install.ps1 -NonInteractive -InstallSkills  # silent mode
-# -----------------------------------------------------------------------
+# 1. Creates Python venv and installs the package
+# 2. Detects Claude Code CLI and registers as plugin
+# 3. Detects Claude Desktop and configures MCP server
+# ──────────────────────────────────────────────────────────────────────
 
 param(
-    [switch]$NonInteractive,
-    [switch]$InstallSchedule,
-    [switch]$InstallSkills
+    [string]$InstallDir = $PSScriptRoot
 )
 
-$ErrorActionPreference = "Stop"
+if ($InstallDir -eq $PSScriptRoot) {
+    $InstallDir = Split-Path $PSScriptRoot -Parent
+}
 
-# -- Helpers ------------------------------------------------------------
+$ErrorActionPreference = 'Continue'
 
-function Write-Bold { param([string]$Text) Write-Host $Text -ForegroundColor White }
-function Write-Success { param([string]$Text) Write-Host $Text -ForegroundColor Green }
-function Write-Dim { param([string]$Text) Write-Host $Text -ForegroundColor DarkGray }
-function Write-Err { param([string]$Text) Write-Host "ERROR: $Text" -ForegroundColor Red }
+function Write-Green  { param([string]$Text) Write-Host $Text -ForegroundColor Green }
+function Write-Blue   { param([string]$Text) Write-Host $Text -ForegroundColor Blue }
+function Write-Yellow { param([string]$Text) Write-Host $Text -ForegroundColor Yellow }
+function Write-Red    { param([string]$Text) Write-Host $Text -ForegroundColor Red }
+function Write-Bold   { param([string]$Text) Write-Host $Text -ForegroundColor White }
+function Write-Dim    { param([string]$Text) Write-Host $Text -ForegroundColor DarkGray }
 
-# -- Locate repo root ---------------------------------------------------
+Write-Host ""
+Write-Blue @"
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
+  ___  _         _    _ _                ___
+ / _ \| |__  ___(_) _| (_) __ _ _ __    / __\___  _ __  _ __   ___| |_ ___  _ __
+| | | | '_ \/ __| |/ _` | |/ _` | '_ \ / /  / _ \| '_ \| '_ \ / _ \ __/ _ \| '__|
+| |_| | |_) \__ \ | (_| | | (_| | | | / /__| (_) | | | | | | |  __/ || (_) | |
+ \___/|_.__/|___/_|\__,_|_|\__,_|_| |_\____/\___/|_| |_|_| |_|\___|\__\___/|_|
 
-Write-Bold "obsidian-connector installer (Windows)"
-Write-Dim "repo: $RepoRoot"
+"@
+
+Write-Bold  "  Obsidian Connector Installer"
+Write-Dim   "  62 MCP tools | 17 skills | 13 presets"
+Write-Host  ""
+
+# ── Verify files exist ──────────────────────────────────────────────
+
+if (-not (Test-Path (Join-Path $InstallDir "obsidian_connector")) -or
+    -not (Test-Path (Join-Path $InstallDir "pyproject.toml"))) {
+    Write-Red "  Could not find the Obsidian Connector files."
+    Write-Host "  Expected at: $InstallDir"
+    Write-Host ""
+    Write-Bold "  Press Enter to close this window."
+    Read-Host
+    exit 1
+}
+
+Write-Green "  Files found at: $InstallDir"
 Write-Host ""
 
-# -- Step 1: Check Python -----------------------------------------------
+# ── Step 1: Python check ───────────────────────────────────────────
 
-Write-Bold "[1/4] Checking Python..."
+Write-Bold "  Step 1: Checking Python..."
 
-$PythonExe = $null
-$Candidates = @("python3", "python", "py")
-
-foreach ($candidate in $Candidates) {
-    try {
-        $version = & $candidate -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-        if ($version) {
-            $parts = $version.Split(".")
-            $major = [int]$parts[0]
-            $minor = [int]$parts[1]
-            if ($major -ge 3 -and $minor -ge 11) {
-                $PythonExe = $candidate
+$PythonCmd = $null
+foreach ($cmd in @("python3", "python", "py")) {
+    $found = Get-Command $cmd -ErrorAction SilentlyContinue
+    if ($found) {
+        try {
+            $ver = & $cmd --version 2>&1
+            if ($ver -match "3\.\d+") {
+                $PythonCmd = $cmd
+                Write-Green "  Python found: $ver"
                 break
             }
-        }
-    }
-    catch {
-        # Candidate not found, try next
+        } catch {}
     }
 }
 
-if (-not $PythonExe) {
-    Write-Err "Python 3.11+ is required but not found."
-    Write-Host "  Install from https://www.python.org/downloads/ and re-run this script."
+if (-not $PythonCmd) {
+    Write-Red "  Python 3.11+ not found."
+    Write-Host "  Install from: https://www.python.org/downloads/"
+    Write-Host ""
+    Write-Bold "  Press Enter to close this window."
+    Read-Host
     exit 1
 }
 
-$PythonVersion = & $PythonExe --version 2>&1
-Write-Success "  Found $PythonExe ($PythonVersion)"
+# ── Step 2: Create venv and install ─────────────────────────────────
 
-# -- Step 2: Create venv and install -------------------------------------
+Write-Bold "  Step 2: Setting up Python environment..."
 
-Write-Bold "[2/4] Setting up Python environment..."
-
-$VenvDir = Join-Path $RepoRoot ".venv"
-$VenvPython = Join-Path $VenvDir "Scripts" "python.exe"
-$VenvPip = Join-Path $VenvDir "Scripts" "pip.exe"
-
+$VenvDir = Join-Path $InstallDir ".venv"
 if (-not (Test-Path $VenvDir)) {
-    & $PythonExe -m venv $VenvDir
-    Write-Dim "  Created .venv"
-}
-else {
-    Write-Dim "  .venv already exists"
-}
-
-try {
-    & $VenvPip install --quiet --upgrade pip
-    & $VenvPip install --quiet -r (Join-Path $RepoRoot "requirements-lock.txt")
-    & $VenvPip install --quiet --no-deps -e $RepoRoot
-    Write-Success "  Installed obsidian-connector"
-}
-catch {
-    Write-Err "Failed to install package: $_"
-    exit 1
+    & $PythonCmd -m venv $VenvDir
+    Write-Green "  Virtual environment created"
+} else {
+    Write-Green "  Virtual environment already exists"
 }
 
-# -- Step 3: Configure Claude Desktop -----------------------------------
-
-Write-Bold "[3/4] Configuring Claude Desktop..."
-
-$ClaudeConfigDir = Join-Path $env:APPDATA "Claude"
-if (-not $env:APPDATA) {
-    $ClaudeConfigDir = Join-Path $HOME "AppData" "Roaming" "Claude"
-}
-$ClaudeConfig = Join-Path $ClaudeConfigDir "claude_desktop_config.json"
-
-$ClaudeConfigured = $false
-
-try {
-    if (-not (Test-Path $ClaudeConfigDir)) {
-        New-Item -ItemType Directory -Path $ClaudeConfigDir -Force | Out-Null
-    }
-
-    $ServerEntry = @{
-        command = $VenvPython
-        args    = @("-u", "-m", "obsidian_connector.mcp_server")
-        cwd     = $RepoRoot
-        env     = @{
-            PYTHONPATH = $RepoRoot
-        }
-    }
-
-    if (Test-Path $ClaudeConfig) {
-        $config = Get-Content $ClaudeConfig -Raw | ConvertFrom-Json
-        if (-not $config.mcpServers) {
-            $config | Add-Member -NotePropertyName "mcpServers" -NotePropertyValue @{} -Force
-        }
-
-        # Convert to hashtable for manipulation
-        $servers = @{}
-        if ($config.mcpServers -is [PSCustomObject]) {
-            $config.mcpServers.PSObject.Properties | ForEach-Object {
-                $servers[$_.Name] = $_.Value
-            }
-        }
-
-        $servers["obsidian-connector"] = $ServerEntry
-        $config.mcpServers = $servers
-
-        $config | ConvertTo-Json -Depth 10 | Set-Content $ClaudeConfig -Encoding UTF8
-        Write-Success "  Claude Desktop configured (updated existing)"
-    }
-    else {
-        $config = @{
-            mcpServers = @{
-                "obsidian-connector" = $ServerEntry
-            }
-        }
-        $config | ConvertTo-Json -Depth 10 | Set-Content $ClaudeConfig -Encoding UTF8
-        Write-Success "  Claude Desktop configured (created new)"
-    }
-
-    $ClaudeConfigured = $true
-}
-catch {
-    Write-Dim "  Could not auto-configure Claude Desktop: $_"
-    Write-Dim "  See manual instructions below."
+$PipPath = Join-Path $VenvDir "Scripts\pip.exe"
+if (Test-Path $PipPath) {
+    & $PipPath install -e $InstallDir --quiet 2>&1 | Out-Null
+    Write-Green "  Package installed"
+} else {
+    Write-Yellow "  Could not find pip in venv. Try: $PythonCmd -m venv $VenvDir"
 }
 
-# -- Step 4: Verify -----------------------------------------------------
-
-Write-Bold "[4/4] Verifying installation..."
-
-try {
-    $ImportCheck = & $VenvPython -c "import obsidian_connector; print('  Package OK')" 2>&1
-    Write-Host $ImportCheck
-    Write-Success "  Installation verified"
-}
-catch {
-    Write-Err "Package import failed. Check the output above for errors."
-    exit 1
-}
-
-# -- Done ---------------------------------------------------------------
+# ── Step 3: Register with Claude Code ───────────────────────────────
 
 Write-Host ""
-Write-Host ("=" * 60)
-Write-Success "  Installation complete!"
-Write-Host ("=" * 60)
-Write-Host ""
+Write-Bold "  Step 3: Registering with Claude..."
 
-if ($ClaudeConfigured) {
-    Write-Bold "Next steps:"
-    Write-Host "  1. Make sure Obsidian is running"
-    Write-Host "  2. Restart Claude Desktop"
-    Write-Host "  3. The Obsidian tools will appear automatically"
-}
-else {
-    Write-Bold "Almost done -- manual step needed:"
-    Write-Host ""
-    Write-Host "  Add this to: $ClaudeConfig"
-    Write-Host ""
-    Write-Host '  {'
-    Write-Host '    "mcpServers": {'
-    Write-Host '      "obsidian-connector": {'
-    Write-Host "        `"command`": `"$VenvPython`","
-    Write-Host '        "args": ["-u", "-m", "obsidian_connector.mcp_server"],'
-    Write-Host "        `"cwd`": `"$RepoRoot`","
-    Write-Host '        "env": {'
-    Write-Host "          `"PYTHONPATH`": `"$RepoRoot`""
-    Write-Host '        }'
-    Write-Host '      }'
-    Write-Host '    }'
-    Write-Host '  }'
-    Write-Host ""
-    Write-Bold "Then:"
-    Write-Host "  1. Make sure Obsidian is running"
-    Write-Host "  2. Restart Claude Desktop"
-    Write-Host "  3. The Obsidian tools will appear automatically"
+$HasClaudeCode = $false
+$HasClaudeDesktop = $false
+$InstalledSomewhere = $false
+
+# Check for Claude Code CLI
+$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+if (-not $claudeCmd) {
+    $npmClaudePath = Join-Path $env:APPDATA "npm\claude.cmd"
+    if (Test-Path $npmClaudePath) {
+        $claudeCmd = Get-Item $npmClaudePath
+    }
 }
 
-# -- Optional: Scheduled Task -------------------------------------------
+if ($claudeCmd) {
+    $HasClaudeCode = $true
+    Write-Green "  Claude Code CLI found"
 
-Write-Host ""
-Write-Bold "Optional: Scheduled Task"
-Write-Dim "Set up a daily scheduled task to run workflows automatically."
-Write-Host ""
-
-if (-not $NonInteractive) {
-    $InstallSchedule = (Read-Host "  Install scheduled daily briefing (Windows Task Scheduler)? [y/N]") -match "^[Yy]$"
-}
-if ($InstallSchedule) {
     try {
-        $TaskName = "obsidian-connector-morning"
-        $ScriptPath = Join-Path $RepoRoot "scheduling" "run_scheduled.py"
-        $TaskAction = "`"$VenvPython`" `"$ScriptPath`" morning"
-
-        schtasks /CREATE /SC DAILY /TN $TaskName /TR $TaskAction /ST "08:00" /F 2>&1 | Out-Null
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-Success "  Scheduled daily briefing installed (08:00 daily)"
-            Write-Dim "  Task name: $TaskName"
-            Write-Dim "  Uninstall: schtasks /DELETE /TN $TaskName /F"
+        if ($claudeCmd.Source) {
+            $output = & $claudeCmd.Source plugin add $InstallDir 2>&1
+        } else {
+            $output = & claude plugin add $InstallDir 2>&1
         }
-        else {
-            Write-Dim "  Task creation failed. You may need to run as Administrator."
+        if ($LASTEXITCODE -eq 0 -or $null -eq $LASTEXITCODE) {
+            Write-Green "  Plugin registered with Claude Code (skills + hooks + MCP tools)"
+            $InstalledSomewhere = $true
+        } else {
+            Write-Yellow "  'plugin add' returned non-zero. Try: claude --plugin-dir `"$InstallDir`""
+            $InstalledSomewhere = $true
         }
+    } catch {
+        Write-Yellow "  'plugin add' not available. Use: claude --plugin-dir `"$InstallDir`""
+        $InstalledSomewhere = $true
     }
-    catch {
-        Write-Dim "  Could not create scheduled task: $_"
-    }
-}
-else {
-    Write-Dim "  Skipped scheduling"
+} else {
+    Write-Dim "  Claude Code CLI not found (optional)"
 }
 
-# -- Optional: Skills ---------------------------------------------------
+# ── Step 4: Register with Claude Desktop ────────────────────────────
+
+$DesktopConfigPath = Join-Path $env:APPDATA "Claude\claude_desktop_config.json"
+if (Test-Path $DesktopConfigPath) {
+    $HasClaudeDesktop = $true
+    Write-Green "  Claude Desktop found"
+
+    try {
+        $config = Get-Content $DesktopConfigPath -Raw | ConvertFrom-Json
+        if (-not $config.mcpServers) {
+            $config | Add-Member -MemberType NoteProperty -Name mcpServers -Value @{} -Force
+        }
+
+        $pythonPath = Join-Path $VenvDir "Scripts\python.exe"
+        $config.mcpServers."obsidian-connector" = @{
+            command = $pythonPath
+            args = @("-m", "obsidian_connector.mcp_server")
+            env = @{
+                PYTHONPATH = $InstallDir
+            }
+        }
+
+        # Backup existing config
+        $backupPath = "${DesktopConfigPath}.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        Copy-Item $DesktopConfigPath $backupPath
+
+        $config | ConvertTo-Json -Depth 10 | Set-Content $DesktopConfigPath -Encoding UTF8
+        Write-Green "  MCP server registered in Claude Desktop config"
+        Write-Dim  "  Config backed up to: $(Split-Path $backupPath -Leaf)"
+        $InstalledSomewhere = $true
+    } catch {
+        Write-Yellow "  Could not update Claude Desktop config: $_"
+        Write-Dim  "  Manual: add obsidian-connector to claude_desktop_config.json"
+    }
+} else {
+    Write-Dim "  Claude Desktop not found (optional)"
+}
 
 Write-Host ""
-if (-not $NonInteractive) {
-    $InstallSkills = (Read-Host "  Install Claude Code skills (/morning, /evening, /idea, /weekly)? [y/N]") -match "^[Yy]$"
-}
-if ($InstallSkills) {
-    $CommandsDir = Join-Path $RepoRoot ".claude" "commands"
-    if (-not (Test-Path $CommandsDir)) {
-        New-Item -ItemType Directory -Path $CommandsDir -Force | Out-Null
+
+# ── Summary ─────────────────────────────────────────────────────────
+
+if ($InstalledSomewhere) {
+    Write-Green "  Installation complete!"
+    Write-Host ""
+    if ($HasClaudeCode) {
+        Write-Host "  Claude Code: Try /capture, /ritual, /sync in any conversation"
     }
-    $SkillsDir = Join-Path $RepoRoot "skills"
-    $Copied = 0
-    if (Test-Path $SkillsDir) {
-        Get-ChildItem -Path $SkillsDir -Filter "*.md" | ForEach-Object {
-            Copy-Item $_.FullName -Destination $CommandsDir
-            $Copied++
-        }
+    if ($HasClaudeDesktop) {
+        Write-Host "  Claude Desktop: Restart Desktop to load 62 MCP tools"
     }
-    if ($Copied -gt 0) {
-        Write-Success "  Installed $Copied skill(s) to .claude/commands/"
-    }
-    else {
-        Write-Dim "  No skill files found in skills/"
-    }
-}
-else {
-    Write-Dim "  Skipped skills"
+} else {
+    Write-Yellow "  Neither Claude Code nor Claude Desktop detected."
+    Write-Host ""
+    Write-Host "  After installing Claude Code or Desktop:"
+    Write-Host "    Claude Code:    claude plugin add `"$InstallDir`""
+    Write-Host "    Claude Desktop: Add to claude_desktop_config.json"
 }
 
 Write-Host ""
-Write-Dim "CLI available at: $RepoRoot\bin\obsx"
-Write-Dim "Health check:     $VenvPython -m obsidian_connector.cli doctor"
+$skillCount = (Get-ChildItem (Join-Path $InstallDir "skills") -Directory -ErrorAction SilentlyContinue | Measure-Object).Count
+Write-Dim "  Installed to: $InstallDir"
+Write-Dim "  Skills: $skillCount | MCP tools: 62 | CLI: obsx"
 Write-Host ""
+Write-Bold "  Press Enter to close this window."
+Read-Host
