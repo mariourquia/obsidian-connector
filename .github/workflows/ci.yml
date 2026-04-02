@@ -48,12 +48,9 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/graduate_test.py
           coverage run --append --source=obsidian_connector scripts/delegation_test.py
           coverage run --append --source=obsidian_connector scripts/import_cycle_test.py
-          coverage run --append --source=obsidian_connector scripts/platform_test.py || true  # some platform-mocked tests fail in CI
-          coverage run --append --source=obsidian_connector scripts/audit_permissions_test.py || true  # POSIX permissions not enforced on Windows
           coverage run --append --source=obsidian_connector scripts/uninstall_test.py
           coverage run --append --source=obsidian_connector scripts/mcp_tool_contract_test.py
           coverage run --append --source=obsidian_connector scripts/cli_parse_test.py
-          coverage run --append --source=obsidian_connector scripts/file_backend_test.py || true  # path separator differences on Windows
           coverage run --append --source=obsidian_connector scripts/new_modules_test.py
           coverage run --append --source=obsidian_connector scripts/write_manager_test.py
           coverage run --append --source=obsidian_connector scripts/watcher_test.py
@@ -75,6 +72,9 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/escaping_test.py || true
           coverage run --append --source=obsidian_connector scripts/thinking_deep_test.py || true
           coverage run --append --source=obsidian_connector scripts/edge_case_test.py || true
+          coverage run --append --source=obsidian_connector scripts/platform_test.py || true
+          coverage run --append --source=obsidian_connector scripts/audit_permissions_test.py || true
+          coverage run --append --source=obsidian_connector scripts/file_backend_test.py || true
       - name: Coverage report
         if: always()
         shell: bash
