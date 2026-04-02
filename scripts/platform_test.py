@@ -472,6 +472,9 @@ def test_obsidian_binary_candidates():
 # ------------------------------------------------------------------
 
 def test_linux_claude_config_path_xdg():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_claude_config_path_xdg (Linux-only)")
+        return
     """Verify claude_desktop_config_path respects XDG_CONFIG_HOME on Linux."""
     import obsidian_connector.platform as plat
     with patch("sys.platform", "linux"), \
@@ -487,6 +490,9 @@ def test_linux_claude_config_path_xdg():
 
 
 def test_linux_claude_config_path_default():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_claude_config_path_default (Linux-only)")
+        return
     """Verify claude_desktop_config_path falls back to ~/.config on Linux."""
     import obsidian_connector.platform as plat
     with patch("sys.platform", "linux"), \
@@ -500,6 +506,9 @@ def test_linux_claude_config_path_default():
 
 
 def test_linux_obsidian_json_path_xdg():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_obsidian_json_path_xdg (Linux-only)")
+        return
     """Verify obsidian_app_json_path respects XDG_CONFIG_HOME on Linux."""
     import obsidian_connector.platform as plat
     with patch("sys.platform", "linux"), \
@@ -514,6 +523,9 @@ def test_linux_obsidian_json_path_xdg():
 
 
 def test_linux_obsidian_json_path_default():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_obsidian_json_path_default (Linux-only)")
+        return
     """Verify obsidian_app_json_path falls back to ~/.config on Linux."""
     import obsidian_connector.platform as plat
     with patch("sys.platform", "linux"), \
@@ -527,6 +539,9 @@ def test_linux_obsidian_json_path_default():
 
 
 def test_linux_scheduler_dir_xdg():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_scheduler_dir_xdg (Linux-only)")
+        return
     """Verify schedule_config_dir returns systemd user dir under XDG on Linux."""
     import obsidian_connector.platform as plat
     with patch("sys.platform", "linux"), \
@@ -540,6 +555,9 @@ def test_linux_scheduler_dir_xdg():
 
 
 def test_linux_platform_paths_complete():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_platform_paths_complete (Linux-only)")
+        return
     """Verify all PlatformPaths fields are populated on Linux."""
     import obsidian_connector.platform as plat
     with patch("sys.platform", "linux"), \
@@ -556,6 +574,9 @@ def test_linux_platform_paths_complete():
 
 
 def test_linux_vault_detection_xdg(tmp_path):
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_vault_detection_xdg (Linux-only)")
+        return
     """Verify vault detection works with XDG-based obsidian.json."""
     # Create a fake obsidian.json at a custom XDG path
     xdg_dir = tmp_path / "xdg_config"
@@ -800,6 +821,9 @@ def test_workflows_path_operations_safe():
 # ------------------------------------------------------------------
 
 def test_linux_install_script_exists():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_install_script_exists (Linux-only)")
+        return
     """Verify scripts/install-linux.sh exists and has required content."""
     install_script = Path(__file__).parent.parent / "scripts" / "install-linux.sh"
     assert install_script.exists(), "scripts/install-linux.sh must exist"
@@ -811,6 +835,9 @@ def test_linux_install_script_exists():
 
 
 def test_linux_install_script_executable():
+    if _SKIP_CROSS_PLATFORM:
+        print("SKIP: test_linux_install_script_executable (Linux-only)")
+        return
     """Verify install-linux.sh has executable permission."""
     install_script = Path(__file__).parent.parent / "scripts" / "install-linux.sh"
     assert install_script.exists()
