@@ -4,6 +4,22 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-02
+
+### Added
+- **Installer smoke tests** (`installer_smoke_test.py`): Validates 6 post-install conditions (plugin cache, installed_plugins.json, settings.json, Desktop config, MCP server import, version consistency) on Windows + macOS CI runners. Runs on every PR that touches installer files.
+- **Release gating** (`verify-release.yml`): Downloads draft release assets, runs installers on platform-specific CI runners, promotes to live only on all-pass. Creates GitHub issue on failure. No asset reaches users without automated verification.
+- **Error reporting** (`diagnostic_report.py`): On installer failure, collects system diagnostics (OS, Python, Node, Claude CLI, plugin state) and generates a pre-filled GitHub issue URL. One click to report.
+- **Windows Desktop MCP diagnostics**: Install.ps1 now reads back `claude_desktop_config.json` after writing, validates the registered Python command path exists on disk, and prints actionable troubleshooting output if missing.
+
+### Fixed
+- **Install.ps1 error trap**: Replaced 6-line basic trap with 33-line version that calls diagnostic_report.py, falls back to issues URL, and never masks the original error.
+- **Install.command error handling**: Added EXIT trap with diagnostic collection.
+- **20+ CI fixes since v0.7.0**: Cross-platform test isolation (Windows path separators, POSIX permissions), lockfile sync, pip-audit for editable packages, automation test timing flakiness.
+
+### Security
+- SECURITY.md updated (support matrix needs refresh -- see Known Limitations).
+
 ## [0.7.0] - 2026-04-02
 
 ### Added
