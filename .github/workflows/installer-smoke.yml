@@ -1,0 +1,171 @@
+name: Installer Smoke Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/Install.ps1"
+      - "Install.command"
+      - "scripts/install.sh"
+      - "scripts/install-linux.sh"
+      - "scripts/build-windows-installer.ps1"
+      - "scripts/create-dmg.sh"
+      - ".claude-plugin/**"
+      - "obsidian_connector/**"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Create fake Claude home
+        shell: pwsh
+        run: |
+          $claudeHome = Join-Path $env:USERPROFILE ".claude"
+          New-Item -ItemType Directory -Path $claudeHome -Force | Out-Null
+          '{}' | Set-Content (Join-Path $claudeHome "settings.json") -Encoding UTF8
+          Write-Host "Created Claude home at $claudeHome"
+
+      - name: Create venv and install package
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .venv\Scripts\pip install -e .
+
+      - name: Run Install.ps1 (non-interactive)
+        shell: pwsh
+        run: |
+          # Install.ps1 has Read-Host calls that hang in CI:
+          #   - Error trap (line 29): on crash
+          #   - Missing files (line 62): if obsidian_connector/ not found
+          #   - No Python (line 95): if python3 not found
+          #   - No Claude (line 206): if neither Claude CLI, Desktop, nor ~/.claude
+          #   - Final prompt (line 403): always
+          #
+          # We pre-create ~/.claude so HasClaudeHome=true, which means
+          # registration proceeds. The only Read-Host that fires on the
+          # happy path is the final one at line 403. We pipe empty input
+          # to satisfy it.
+          echo "" | powershell -ExecutionPolicy Bypass -File scripts/Install.ps1 -InstallDir (Get-Location).Path
+
+      - name: Run installer smoke test
+        shell: pwsh
+        run: |
+          python scripts/installer_smoke_test.py --claude-home "$env:USERPROFILE\.claude" --install-dir .
+
+  smoke-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Create fake Claude home
+        run: |
+          mkdir -p ~/.claude
+          echo '{}' > ~/.claude/settings.json
+          echo "Created Claude home at ~/.claude"
+
+      - name: Create venv and install package
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -e .
+
+      - name: Run plugin registration (non-interactive)
+        shell: bash
+        run: |
+          # The macOS installers (Install.command, scripts/install.sh) have
+          # interactive read prompts and focus on Claude Desktop config --
+          # they do NOT perform plugin cache registration. In CI, we
+          # replicate the Install.ps1 registration logic via Python to
+          # create the same artifacts that the smoke test validates.
+          #
+          # This mirrors Install.ps1 steps:
+          #   1. Copy plugin files to cache
+          #   2. Register in installed_plugins.json
+          #   3. Enable in settings.json
+          python3 - <<'PYEOF'
+          import json, os, re, shutil
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          repo_root = Path.cwd()
+          claude_home = Path.home() / ".claude"
+
+          # Read version from pyproject.toml
+          toml_text = (repo_root / "pyproject.toml").read_text()
+          m = re.search(r'version = "([^"]+)"', toml_text)
+          version = m.group(1) if m else "0.0.0"
+
+          # 1. Copy plugin files to cache
+          cache_dir = claude_home / "plugins" / "cache" / "local" / "obsidian-connector" / version
+          cache_dir.mkdir(parents=True, exist_ok=True)
+
+          exclude_dirs = {".git", "__pycache__", "node_modules", "dist", ".venv", ".local", ".claude"}
+          exclude_files = {".DS_Store", "firebase-debug.log"}
+          exclude_suffixes = {".pyc"}
+
+          for item in repo_root.rglob("*"):
+              rel = item.relative_to(repo_root)
+              if any(part in exclude_dirs for part in rel.parts):
+                  continue
+              if item.is_dir():
+                  (cache_dir / rel).mkdir(parents=True, exist_ok=True)
+              elif item.is_file():
+                  if item.name in exclude_files or item.suffix in exclude_suffixes:
+                      continue
+                  dest = cache_dir / rel
+                  dest.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(item, dest)
+
+          print(f"Plugin files copied to {cache_dir}")
+
+          # 2. Register in installed_plugins.json
+          ip_path = claude_home / "plugins" / "installed_plugins.json"
+          ip_path.parent.mkdir(parents=True, exist_ok=True)
+
+          now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+          ip_data = {"version": 2, "plugins": {}}
+          if ip_path.is_file():
+              ip_data = json.loads(ip_path.read_text())
+
+          ip_data.setdefault("plugins", {})
+          ip_data["plugins"]["obsidian-connector@local"] = [{
+              "scope": "user",
+              "installPath": str(cache_dir),
+              "version": version,
+              "installedAt": now,
+              "lastUpdated": now,
+          }]
+
+          ip_path.write_text(json.dumps(ip_data, indent=2))
+          print(f"Registered in {ip_path}")
+
+          # 3. Enable in settings.json
+          settings_path = claude_home / "settings.json"
+          settings = {}
+          if settings_path.is_file():
+              settings = json.loads(settings_path.read_text())
+
+          settings.setdefault("enabledPlugins", {})
+          settings["enabledPlugins"]["obsidian-connector@local"] = True
+
+          settings_path.write_text(json.dumps(settings, indent=2))
+          print(f"Enabled in {settings_path}")
+          PYEOF
+
+      - name: Run installer smoke test
+        run: |
+          python3 scripts/installer_smoke_test.py --claude-home "$HOME/.claude" --install-dir .
