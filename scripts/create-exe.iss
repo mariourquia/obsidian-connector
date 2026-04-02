@@ -95,10 +95,10 @@ Source: "{#SourceDir}\CONTRIBUTING.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
 Filename: "powershell.exe"; \
-    Parameters: "-ExecutionPolicy Bypass -NoProfile -File ""{app}\scripts\Install.ps1"" -InstallDir ""{app}"""; \
+    Parameters: "-ExecutionPolicy Bypass -NoProfile -File ""{app}\scripts\Install.ps1"" -InstallDir ""{app}"" -NonInteractive"; \
     Description: "Configure Obsidian Connector (venv + Claude registration)"; \
-    StatusMsg: "Setting up Obsidian Connector..."; \
-    Flags: postinstall shellexec waituntilterminated
+    StatusMsg: "Setting up Python environment and registering with Claude..."; \
+    Flags: postinstall runhidden waituntilterminated
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Uninstall
