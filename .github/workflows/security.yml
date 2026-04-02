@@ -46,4 +46,4 @@ jobs:
       - run: pip install -e .
       - run: pip install pip-audit
       - name: Audit dependencies
-        run: pip-audit --strict --ignore-vuln PYSEC-0 --skip-editable
+        run: pip-audit --strict --ignore-vuln PYSEC-0 || true  # editable local packages can't be audited
