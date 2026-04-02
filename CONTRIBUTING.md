@@ -12,20 +12,36 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+## Repository structure
+
+- `src/` -- human-authored plugin content (skills, hooks, manifest, MCP config, bin wrappers)
+- `obsidian_connector/` -- Python package (stays at top level for PyPI)
+- `config/` -- target profiles and skill portability classification
+- `tools/` -- TypeScript build pipeline (build, validate, diff, doctor, package)
+- `builds/` -- generated build output (gitignored)
+- `tests/` -- pytest suite including build system tests
+
+Edit skills and hooks in `src/`. Edit the Python package in `obsidian_connector/`. Never edit files in `builds/` -- they are regenerated on each build.
+
 ## Development workflow
 
 1. Create a branch from `main`: `git checkout -b feature/your-feature`
 2. Make your changes
-3. Run tests: see [Testing](#testing)
-4. Open a pull request against `main`
+3. Build: `npx tsx tools/build.ts --target all`
+4. Validate: `npx tsx tools/validate.ts --target all`
+5. Test: `python3 -m pytest tests/test_build_system.py -v`
+6. Open a pull request against `main`
 
 ## Testing
 
-Tests live in `scripts/` and run without pytest. Most tests work without
-Obsidian running -- they test pure Python logic with temp directories.
-
 ```bash
-# All unit tests (no Obsidian required)
+# Build system tests (requires builds/ to exist)
+npx tsx tools/build.ts --target claude-code
+npx tsx tools/build.ts --target claude-desktop
+npx tsx tools/build.ts --target portable
+python3 -m pytest tests/test_build_system.py -v
+
+# Python unit tests (no Obsidian required)
 python3 scripts/cache_test.py
 python3 scripts/audit_test.py
 python3 scripts/escaping_test.py
@@ -42,6 +58,9 @@ python3 scripts/checkin_test.py
 
 # MCP server launch
 bash scripts/mcp_launch_smoke.sh
+
+# Build health check
+npx tsx tools/doctor.ts
 ```
 
 ## Adding a new tool

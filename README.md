@@ -44,13 +44,13 @@ Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prom
 
 Five surfaces, pick the one that fits:
 
-| Surface | Command | What you get |
-|---------|---------|-------------|
-| **Claude Code plugin** | `claude --plugin-dir /path/to/obsidian-connector` | Skills + hooks + 62 MCP tools |
-| **Claude Desktop** | `./scripts/install.sh` | 62 MCP tools via `claude_desktop_config.json` |
-| **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer (configures Claude Desktop) |
-| **CLI** | `pip install -e .` then `obsx` | 65 CLI commands |
-| **Python API** | `from obsidian_connector import ...` | Programmatic vault access |
+| Surface | Artifact | What you get |
+|---------|----------|-------------|
+| **Claude Code plugin** | `obsidian-connector-claude-code.zip` | 17 skills + hooks + 62 MCP tools |
+| **Claude Desktop** | `obsidian-connector-desktop.zip` | 62 MCP tools via MCP config |
+| **Portable** (Codex/OpenCode/Gemini) | `obsidian-connector-portable.zip` | 5 knowledge reference skills |
+| **macOS DMG** | Download from [Releases](https://github.com/mariourquia/obsidian-connector/releases) | Double-click installer |
+| **CLI / Python API** | `pip install obsidian-connector` | 65 CLI commands + Python API |
 
 ### Requirements
 

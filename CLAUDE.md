@@ -22,9 +22,32 @@ Read files in this order (progressive disclosure):
 2. `TOOLS_CONTRACT.md` -- JSON envelope schema, typed errors, command reference
 3. `docs/index.md` -> leaf docs (only as needed)
 
+## Build system
+
+Plugin artifacts live in `src/` (skills, hooks, manifest, MCP config, bin). Python package stays at `obsidian_connector/`. Build pipeline in `tools/` (TypeScript, tsx).
+
+```bash
+npx tsx tools/build.ts --target all          # Build all targets to builds/
+npx tsx tools/build.ts --target claude-code   # Build specific target
+npx tsx tools/validate.ts --target all        # Validate build output
+npx tsx tools/diff.ts --target portable       # Show source-to-build diff
+npx tsx tools/doctor.ts                       # Environment health check
+npx tsx tools/package.ts --target all         # Create dist/ archives
+```
+
+Targets: `claude-code`, `claude-desktop`, `portable`, `pypi`. Config in `config/targets/`. Skill portability in `config/defaults/skill-portability.yaml`.
+
+Symlinks (`skills/`, `hooks/`, `bin/`, `.mcp.json`, `.claude-plugin/plugin.json`) point into `src/` so `claude --plugin-dir .` works during development.
+
 ## Available local commands
 
 ```bash
+# Build system
+npx tsx tools/build.ts --target all          # Build all targets
+npx tsx tools/validate.ts --target all       # Validate builds
+python3 -m pytest tests/test_build_system.py -v  # Build system tests (23 tests)
+
+# Python tests
 python3 scripts/smoke_test.py           # Core function smoke tests
 python3 scripts/cache_test.py           # Cache module tests
 python3 scripts/import_cycle_test.py    # Import cycle regression

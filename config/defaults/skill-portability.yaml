@@ -1,0 +1,24 @@
+# Skill portability classification
+# portable: no MCP tool dependencies, static knowledge reference
+# non_portable: calls obsidian_* MCP tools, workflow-dependent
+
+portable_skills:
+  - obsidian-markdown
+  - obsidian-bases
+  - json-canvas
+  - obsidian-cli
+  - defuddle
+
+non_portable_skills:
+  - morning
+  - evening
+  - weekly
+  - idea
+  - ritual
+  - capture
+  - float
+  - explore
+  - sync
+  - sync-vault
+  - new-vault
+  - init-vault

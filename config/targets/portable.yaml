@@ -1,0 +1,22 @@
+name: portable
+description: Portable skills for Codex, OpenCode, Gemini, and other agent systems
+
+skills:
+  include: portable_only
+  normalize: true
+  transformations:
+    - strip_mcp_references
+    - add_portable_header
+
+hooks:
+  include: false
+
+manifest:
+  include_mcp: false
+  include_plugin: false
+
+python_package:
+  include: false
+
+bin:
+  include: false
