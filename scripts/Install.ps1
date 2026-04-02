@@ -19,6 +19,16 @@ if ($InstallDir -eq $PSScriptRoot) {
 
 $ErrorActionPreference = 'Continue'
 
+# Global error trap: keep window open on any crash
+trap {
+    Write-Host ""
+    Write-Host "  An error occurred: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Press Enter to close this window." -ForegroundColor White
+    Read-Host
+    exit 1
+}
+
 function Write-Green  { param([string]$Text) Write-Host $Text -ForegroundColor Green }
 function Write-Blue   { param([string]$Text) Write-Host $Text -ForegroundColor Blue }
 function Write-Yellow { param([string]$Text) Write-Host $Text -ForegroundColor Yellow }
@@ -143,9 +153,9 @@ if (-not $ClaudePath) {
     }
 }
 
-# Method 4: Check ~/.claude config dir (proof Claude Code was used, even if binary moved)
-$ClaudeConfigDir = Join-Path $env:USERPROFILE ".claude"
-$HasClaudeConfig = Test-Path $ClaudeConfigDir
+# Check ~/.claude dir -- exists if either Claude Code or Claude Desktop was used
+$ClaudeHome = Join-Path $env:USERPROFILE ".claude"
+$HasClaudeHome = Test-Path $ClaudeHome
 
 if ($ClaudePath) {
     $HasClaudeCode = $true
@@ -155,13 +165,12 @@ if ($ClaudePath) {
     } catch {
         Write-Green "  Claude Code CLI found at: $ClaudePath"
     }
-} elseif ($HasClaudeConfig) {
-    $HasClaudeCode = $true
-    Write-Green "  Claude Code detected (~/.claude exists)"
-    Write-Yellow "  CLI binary not in PATH -- will register plugin via config file"
 } else {
-    Write-Yellow "  Claude Code CLI not found (optional)"
+    Write-Yellow "  Claude Code CLI not found"
     Write-Dim  "  Install: irm https://claude.ai/install.ps1 | iex"
+    if ($HasClaudeHome) {
+        Write-Dim  "  (~/.claude exists -- will register plugin there)"
+    }
 }
 
 # Check for Claude Desktop -- check directory existence (not just config file)
@@ -181,12 +190,12 @@ if (Test-Path $ClaudeDesktopDir) {
 }
 
 # Bail early if neither found
-if (-not $HasClaudeCode -and -not $HasClaudeDesktop) {
+if (-not $HasClaudeCode -and -not $HasClaudeDesktop -and -not $HasClaudeHome) {
     Write-Host ""
     Write-Red "  Neither Claude Code nor Claude Desktop was found."
     Write-Host ""
     Write-Host "  Install one of these first:"
-    Write-Host "    Claude Code:    npm install -g @anthropic-ai/claude-code"
+    Write-Host "    Claude Code:    irm https://claude.ai/install.ps1 | iex"
     Write-Host "    Claude Desktop: https://claude.ai/download"
     Write-Host ""
     Write-Host "  After installing, re-run this script or register manually:"
@@ -198,11 +207,10 @@ if (-not $HasClaudeCode -and -not $HasClaudeDesktop) {
 }
 
 # Register plugin via ~/.claude/ plugin cache (works for both Claude Code and Desktop)
-# This is the reliable method -- doesn't require the claude binary in PATH
-if ($HasClaudeCode -or $HasClaudeDesktop) {
+# Register via ~/.claude/ plugin cache (works for Claude Code + Desktop)
+# Triggers if we found Claude CLI, Desktop dir, OR ~/.claude exists
+if ($HasClaudeCode -or $HasClaudeDesktop -or $HasClaudeHome) {
     Write-Blue "  Registering plugin in Claude plugin system..."
-
-    $ClaudeHome = Join-Path $env:USERPROFILE ".claude"
     $PluginVersion = (Get-Content (Join-Path $InstallDir "pyproject.toml") | Select-String 'version = "([^"]+)"').Matches.Groups[1].Value
     if (-not $PluginVersion) { $PluginVersion = "0.7.0" }
     $PluginCachePath = Join-Path $ClaudeHome "plugins\cache\local\obsidian-connector\$PluginVersion"
