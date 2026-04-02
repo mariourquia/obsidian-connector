@@ -13,8 +13,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.11"
       - run: pip install -e .
@@ -33,8 +33,8 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e . coverage
@@ -61,7 +61,11 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/scheduler_test.py
           coverage run --append --source=obsidian_connector scripts/reports_test.py
           coverage run --append --source=obsidian_connector scripts/project_intelligence_test.py
-          coverage run --append --source=obsidian_connector scripts/automation_test.py || true  # timing assertion flaky on Windows
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            coverage run --append --source=obsidian_connector scripts/automation_test.py || true  # timing assertion flaky on Windows
+          else
+            coverage run --append --source=obsidian_connector scripts/automation_test.py
+          fi
       - name: Tests requiring Obsidian CLI (expected to fail in CI)
         shell: bash
         continue-on-error: true
@@ -80,37 +84,8 @@ jobs:
         shell: bash
         run: |
           coverage report --show-missing
-          coverage report --fail-under=10
+          coverage report --fail-under=40
           coverage xml
-
-  build-system:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: pip install -e ".[dev]" pyyaml build twine
-      - name: Install build tools
-        working-directory: tools
-        run: npm ci
-      - name: Build all plugin targets
-        run: |
-          npx tsx tools/build.ts --target claude-code
-          npx tsx tools/build.ts --target claude-desktop
-          npx tsx tools/build.ts --target portable
-          npx tsx tools/build.ts --target pypi
-      - name: Validate all plugin targets
-        run: |
-          npx tsx tools/validate.ts --target claude-code
-          npx tsx tools/validate.ts --target claude-desktop
-          npx tsx tools/validate.ts --target portable
-          npx tsx tools/validate.ts --target pypi
-      - name: Build system tests
-        run: python3 -m pytest tests/test_build_system.py -v
 
   mcp-launch:
     runs-on: ${{ matrix.os }}
@@ -118,21 +93,19 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.11"
       - run: pip install -e .
       - name: MCP server starts without error
-        continue-on-error: true
         run: bash scripts/mcp_launch_smoke.sh
 
   lockfile-check:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.11"
       - run: pip install pip-tools

@@ -6,9 +6,6 @@
  *   add_portable_header  -- prepend portability notice
  */
 
-/** Pattern matching MCP tool references in skill content */
-const MCP_TOOL_PATTERN = /\bobsidian_\w+/g;
-
 /** Lines that are pure MCP tool invocations or references */
 const MCP_LINE_PATTERNS = [
   /^\s*-\s*`?obsidian_\w+`?/,          // bullet list tool references
@@ -23,7 +20,7 @@ export function stripMcpReferences(content: string): string {
     .split("\n")
     .filter((line) => !MCP_LINE_PATTERNS.some((p) => p.test(line)))
     .join("\n")
-    .replace(MCP_TOOL_PATTERN, "");
+    .replace(/`obsidian_\w+`/g, "");
 }
 
 export function addPortableHeader(content: string): string {

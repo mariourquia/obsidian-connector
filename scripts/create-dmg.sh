@@ -69,55 +69,28 @@ rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR/$DMG_NAME" "$DIST_DIR"
 
 # ── Copy project files into hidden .content/ ──────────────────────────
-# Prefer validated build artifacts from builds/claude-desktop/ when the
-# build pipeline has been run. Fall back to the raw source tree for dev
-# builds where someone hasn't run `npx tsx tools/build.ts`.
 
 mkdir -p "$STAGING_DIR/$DMG_NAME/.content"
-
-BUILD_DIR="$REPO_ROOT/builds/claude-desktop"
-
-if [ -d "$BUILD_DIR" ]; then
-    echo "Using built artifacts from builds/claude-desktop/"
-    rsync -rlpt \
-        --exclude='__pycache__' \
-        --exclude='*.pyc' \
-        --exclude='.DS_Store' \
-        "$BUILD_DIR/" "$STAGING_DIR/$DMG_NAME/.content/"
-
-    # Install.command lives at repo root and is needed by the .app launcher
-    cp "$REPO_ROOT/Install.command" "$STAGING_DIR/$DMG_NAME/.content/"
-    cp "$REPO_ROOT/LICENSE" "$STAGING_DIR/$DMG_NAME/.content/" 2>/dev/null || true
-    # Copy scripts/ for post-install (Install.ps1, etc.)
-    if [ -d "$REPO_ROOT/scripts" ]; then
-        rsync -rlpt \
-            --exclude='__pycache__' \
-            --exclude='*.pyc' \
-            "$REPO_ROOT/scripts/" "$STAGING_DIR/$DMG_NAME/.content/scripts/"
-    fi
-else
-    echo "No builds/claude-desktop/ found, falling back to source tree"
-    rsync -rlpt \
-        --exclude='.venv' \
-        --exclude='.git' \
-        --exclude='.claude' \
-        --exclude='.claude-plugin' \
-        --exclude='dist' \
-        --exclude='__pycache__' \
-        --exclude='*.pyc' \
-        --exclude='.DS_Store' \
-        --exclude='firebase-debug.log' \
-        --exclude='vault-context-drafts' \
-        --exclude='*.egg-info' \
-        --exclude='AGENTS.md' \
-        --exclude='Makefile' \
-        --exclude='templates' \
-        --exclude='tools' \
-        --exclude='dev' \
-        --exclude='hooks' \
-        --exclude='main.py' \
-        "$REPO_ROOT/" "$STAGING_DIR/$DMG_NAME/.content/"
-fi
+rsync -rlpt \
+    --exclude='.venv' \
+    --exclude='.git' \
+    --exclude='.claude' \
+    --exclude='.claude-plugin' \
+    --exclude='dist' \
+    --exclude='__pycache__' \
+    --exclude='*.pyc' \
+    --exclude='.DS_Store' \
+    --exclude='firebase-debug.log' \
+    --exclude='vault-context-drafts' \
+    --exclude='*.egg-info' \
+    --exclude='AGENTS.md' \
+    --exclude='Makefile' \
+    --exclude='templates' \
+    --exclude='tools' \
+    --exclude='dev' \
+    --exclude='hooks' \
+    --exclude='main.py' \
+    "$REPO_ROOT/" "$STAGING_DIR/$DMG_NAME/.content/"
 
 chflags hidden "$STAGING_DIR/$DMG_NAME/.content" 2>/dev/null || true
 
@@ -332,10 +305,12 @@ osascript -e 'display notification "Copying files to ~/obsidian-connector..." wi
 cp -R "$CONTENT_DIR" "$INSTALL_DIR"
 
 # Open Terminal and run the installer from the writable copy
+# Escape single quotes in path for AppleScript safety
+ESCAPED_DIR=$(printf '%s' "$INSTALL_DIR/Install.command" | sed "s/'/'\\\\''/g")
 osascript << EOF
 tell application "Terminal"
     activate
-    do script "clear && bash '$INSTALL_DIR/Install.command'"
+    do script "clear && bash '${ESCAPED_DIR}'"
 end tell
 EOF
 LAUNCHER

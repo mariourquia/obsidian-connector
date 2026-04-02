@@ -12,55 +12,71 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-## Repository structure
-
-- `src/` -- human-authored plugin content (skills, hooks, manifest, MCP config, bin wrappers)
-- `obsidian_connector/` -- Python package (stays at top level for PyPI)
-- `config/` -- target profiles and skill portability classification
-- `tools/` -- TypeScript build pipeline (build, validate, diff, doctor, package)
-- `builds/` -- generated build output (gitignored)
-- `tests/` -- pytest suite including build system tests
-
-Edit skills and hooks in `src/`. Edit the Python package in `obsidian_connector/`. Never edit files in `builds/` -- they are regenerated on each build.
-
 ## Development workflow
 
 1. Create a branch from `main`: `git checkout -b feature/your-feature`
 2. Make your changes
-3. Build: `npx tsx tools/build.ts --target all`
-4. Validate: `npx tsx tools/validate.ts --target all`
-5. Test: `python3 -m pytest tests/test_build_system.py -v`
-6. Open a pull request against `main`
+3. Run tests: see [Testing](#testing)
+4. Open a pull request against `main`
 
 ## Testing
 
+Tests live in `scripts/` and run without pytest. Most tests work without
+Obsidian running -- they test pure Python logic with temp directories.
+
+### Unit tests (no Obsidian required)
+
 ```bash
-# Build system tests (requires builds/ to exist)
-npx tsx tools/build.ts --target claude-code
-npx tsx tools/build.ts --target claude-desktop
-npx tsx tools/build.ts --target portable
-python3 -m pytest tests/test_build_system.py -v
+python3 scripts/audit_test.py               # Audit logging
+python3 scripts/audit_permissions_test.py    # Audit directory permissions
+python3 scripts/automation_test.py           # Event-triggered automation
+python3 scripts/cache_test.py               # TTL cache
+python3 scripts/cli_parse_test.py           # CLI argument parsing
+python3 scripts/delegation_test.py          # Delegation detection
+python3 scripts/draft_manager_test.py       # Draft lifecycle
+python3 scripts/edge_case_test.py           # Edge case handling
+python3 scripts/escaping_test.py            # Argument escaping
+python3 scripts/file_backend_test.py        # CLI-less file backend
+python3 scripts/graduate_test.py            # Graduate pipeline
+python3 scripts/graph_test.py               # Graph indexing
+python3 scripts/import_cycle_test.py        # Import cycle regression
+python3 scripts/index_test.py               # SQLite index store
+python3 scripts/installer_smoke_test.py     # Installer validation
+python3 scripts/mcp_tool_contract_test.py   # MCP tool contract
+python3 scripts/new_modules_test.py         # New module validation
+python3 scripts/perf_test.py                # Performance benchmarks
+python3 scripts/platform_test.py            # Cross-platform paths
+python3 scripts/project_intelligence_test.py # Project health scores
+python3 scripts/project_sync_test.py        # Project sync + vault init
+python3 scripts/reports_test.py             # Report generation
+python3 scripts/retrieval_test.py           # Hybrid search
+python3 scripts/scheduler_test.py           # Scheduler config
+python3 scripts/template_test.py            # Template engine
+python3 scripts/thinking_deep_test.py       # Thinking tools
+python3 scripts/thinking_tools_test.py      # Thinking tools (extended)
+python3 scripts/uninstall_test.py           # Uninstall artifact removal
+python3 scripts/vault_registry_test.py      # Vault registry
+python3 scripts/watcher_test.py             # Filesystem watcher
+python3 scripts/workflow_os_test.py         # Workflow OS operations
+python3 scripts/write_manager_test.py       # Atomic writes
+```
 
-# Python unit tests (no Obsidian required)
-python3 scripts/cache_test.py
-python3 scripts/audit_test.py
-python3 scripts/escaping_test.py
-python3 scripts/graph_test.py
-python3 scripts/index_test.py
-python3 scripts/graduate_test.py
-python3 scripts/thinking_deep_test.py
-python3 scripts/delegation_test.py
+### Integration tests (Obsidian must be running)
 
-# Integration tests (Obsidian must be running)
-python3 scripts/smoke_test.py
-python3 scripts/workflow_test.py
-python3 scripts/checkin_test.py
+```bash
+python3 scripts/smoke_test.py               # Core function smoke tests
+python3 scripts/integration_test.py          # End-to-end integration
+python3 scripts/workflow_test.py             # Workflow operations
+python3 scripts/checkin_test.py              # Check-in workflow
+bash scripts/mcp_launch_smoke.sh             # MCP server launch
+```
 
-# MCP server launch
-bash scripts/mcp_launch_smoke.sh
+### Build system tests
 
-# Build health check
-npx tsx tools/doctor.ts
+```bash
+npx tsx tools/build.ts --target all          # Build all targets
+npx tsx tools/validate.ts --target all       # Validate build output
+npx tsx tools/doctor.ts                      # Build environment check
 ```
 
 ## Adding a new tool

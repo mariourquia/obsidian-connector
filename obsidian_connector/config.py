@@ -36,12 +36,18 @@ def _find_config_file() -> Path | None:
 
 
 def _load_config_file() -> dict:
-    """Read and parse config.json.  Returns ``{}`` when not found."""
+    """Read and parse config.json.  Returns ``{}`` when not found or malformed."""
     path = _find_config_file()
     if path is None:
         return {}
-    with open(path) as f:
-        return json.load(f)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return {}
+        return data
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 @dataclass
@@ -57,6 +63,14 @@ class ConnectorConfig:
     vault_path: Path | None = None
     index_db_path: Path = field(default_factory=lambda: _DEFAULT_INDEX_DB)
     context_files: list[str] = field(default_factory=list)
+
+
+def _safe_int(value: object, default: int) -> int:
+    """Convert *value* to int, returning *default* on failure."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
 
 
 def load_config() -> ConnectorConfig:
@@ -77,10 +91,10 @@ def load_config() -> ConnectorConfig:
     return ConnectorConfig(
         obsidian_bin=obsidian_bin,
         default_vault=os.getenv("OBSIDIAN_VAULT") or file_cfg.get("default_vault"),
-        timeout_seconds=int(os.getenv("OBSIDIAN_TIMEOUT") or file_cfg.get("timeout_seconds", 30)),
+        timeout_seconds=_safe_int(os.getenv("OBSIDIAN_TIMEOUT") or file_cfg.get("timeout_seconds", 30), 30),
         daily_note_behavior=file_cfg.get("daily_note_behavior", "append"),
         default_folders=file_cfg.get("default_folders", {}),
-        cache_ttl=int(os.getenv("OBSIDIAN_CACHE_TTL") or file_cfg.get("cache_ttl", 0)),
+        cache_ttl=_safe_int(os.getenv("OBSIDIAN_CACHE_TTL") or file_cfg.get("cache_ttl", 0), 0),
         vault_path=vault_path,
         index_db_path=index_db_path,
         context_files=file_cfg.get("context_files", []),

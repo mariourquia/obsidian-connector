@@ -45,20 +45,13 @@ Symlinks (`skills/`, `hooks/`, `bin/`, `.mcp.json`, `.claude-plugin/plugin.json`
 # Build system
 npx tsx tools/build.ts --target all          # Build all targets
 npx tsx tools/validate.ts --target all       # Validate builds
-python3 -m pytest tests/test_build_system.py -v  # Build system tests (23 tests)
+npx tsx tools/doctor.ts                      # Build environment check
 
-# Python tests
-python3 scripts/smoke_test.py           # Core function smoke tests
-python3 scripts/cache_test.py           # Cache module tests
-python3 scripts/import_cycle_test.py    # Import cycle regression
-python3 scripts/platform_test.py        # Cross-platform path tests
-python3 scripts/mcp_tool_contract_test.py # MCP tool contract tests
-python3 scripts/cli_parse_test.py       # CLI argument parsing tests
-python3 scripts/audit_permissions_test.py # Audit dir permissions
-bash scripts/mcp_launch_smoke.sh        # MCP server launch test
-python3 scripts/project_sync_test.py   # Project sync + vault init tests (56 assertions)
-./bin/obsx doctor                       # Health check (Obsidian connectivity)
+# Quick health check
+./bin/obsx doctor                            # Obsidian connectivity + env
 ```
+
+Full test catalog in `CONTRIBUTING.md`.
 
 ## Rules
 
@@ -67,16 +60,13 @@ python3 scripts/project_sync_test.py   # Project sync + vault init tests (56 ass
 
 ## Key modules
 
-- `client.py` -- low-level Obsidian CLI wrapper
-- `platform.py` -- cross-platform path resolution, scheduling, notifications (macOS/Linux/Windows)
-- `errors.py` -- canonical exception hierarchy (ObsidianCLIError base class)
+See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
+
+- `client.py` -- low-level Obsidian CLI wrapper (+ `client_fallback.py` for direct file I/O)
 - `mcp_server.py` -- FastMCP tool definitions (62 tools)
 - `cli.py` -- argparse CLI (65 commands)
-- `project_sync.py` -- project sync engine (git state, dashboard, TODO, sessions)
-- `vault_init.py` -- vault initialization wizard
 - `workflows.py` -- composed multi-step operations
-- `config.py` -- vault/index configuration (uses platform.py for OS paths)
-- `audit.py` -- mutation audit logging (0o700 directory permissions)
+- `config.py` -- vault/index configuration, vault path resolution
 
 ## Adding new commands
 

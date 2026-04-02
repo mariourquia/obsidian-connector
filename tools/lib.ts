@@ -119,7 +119,16 @@ export function readVersionSources(): VersionSources {
   };
 
   return {
-    pyproject: read("pyproject.toml", /version\s*=\s*"([^"]+)"/),
+    pyproject: (() => {
+      try {
+        const content = readFileSync(join(ROOT, "pyproject.toml"), "utf-8");
+        const projectSection = content.match(/\[project\]([\s\S]*?)(?=\n\[|$)/);
+        const versionMatch = projectSection?.[1]?.match(/version\s*=\s*"([^"]+)"/);
+        return versionMatch?.[1] ?? null;
+      } catch {
+        return null;
+      }
+    })(),
     plugin_json: read("src/plugin/plugin.json", /"version"\s*:\s*"([^"]+)"/),
     product_registry: read(
       "obsidian_connector/product_registry.py",

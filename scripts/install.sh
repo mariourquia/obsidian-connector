@@ -139,7 +139,8 @@ CONF
 
     # Config exists -- update or add obsidian-connector entry
     # Pass paths via environment variables to prevent shell injection
-    if VENV_PYTHON="$VENV_PYTHON" REPO_ROOT="$REPO_ROOT" CLAUDE_CONFIG="$CLAUDE_CONFIG" \
+    local config_result
+    if config_result=$(VENV_PYTHON="$VENV_PYTHON" REPO_ROOT="$REPO_ROOT" CLAUDE_CONFIG="$CLAUDE_CONFIG" \
     "$REPO_ROOT/.venv/bin/python3" -c "
 import json, os
 venv_python = os.environ['VENV_PYTHON']
@@ -169,7 +170,7 @@ else:
         json.dump(cfg, f, indent=2)
         f.write('\n')
     print('added')
-" 2>/dev/null; then
+" 2>&1); then
         local result
         result=$(CLAUDE_CONFIG="$CLAUDE_CONFIG" "$REPO_ROOT/.venv/bin/python3" -c "
 import json, os
@@ -184,7 +185,14 @@ print('present' if 'obsidian-connector' in cfg.get('mcpServers', {}) else 'missi
         fi
     fi
 
-    dim "  Could not auto-configure. See manual instructions below."
+    echo ""
+    if echo "$config_result" | grep -q "JSONDecodeError"; then
+        red "  Your claude_desktop_config.json has a syntax error."
+        dim "  Common cause: trailing commas in JSON."
+        dim "  Fix the file manually, then re-run this installer."
+    else
+        dim "  Could not auto-configure. See manual instructions below."
+    fi
     return 1
 }
 
