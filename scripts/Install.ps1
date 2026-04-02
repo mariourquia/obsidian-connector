@@ -22,7 +22,7 @@ $NonInteractive = (-not [Environment]::UserInteractive) -or ([Console]::IsInputR
 
 $ErrorActionPreference = 'Continue'
 
-# Global error trap: keep window open on any crash, generate diagnostic report
+# Global error trap: keep window open on any crash, send telemetry
 trap {
     Write-Host ""
     Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
@@ -32,29 +32,13 @@ trap {
     Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
 
-    # Try to run diagnostic report generator
-    $diagScript = Join-Path $InstallDir "scripts" "diagnostic_report.py"
-    $escapedError = ($_.Exception.Message) -replace '"', '\"'
-    $diagRan = $false
-    try {
-        if (Test-Path $diagScript) {
-            & python3 $diagScript --error "$escapedError" --step "install" 2>$null
-            if ($LASTEXITCODE -eq 0) { $diagRan = $true }
-        }
-    } catch {}
-    if (-not $diagRan) {
-        try {
-            & python $diagScript --error "$escapedError" --step "install" 2>$null
-            if ($LASTEXITCODE -eq 0) { $diagRan = $true }
-        } catch {}
-    }
+    Send-InstallerTelemetry -StepFailed "unhandled_exception" -ErrorMsg $_.Exception.Message
 
-    if (-not $diagRan) {
-        Write-Host "  Submit a bug report:" -ForegroundColor Yellow
-        Write-Host "  https://github.com/mariourquia/obsidian-connector/issues/new?labels=bug,installer" -ForegroundColor Cyan
-        Write-Host ""
-    }
-
+    Write-Host "  An anonymous error report was sent to help improve the installer." -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  You can also submit a bug report:" -ForegroundColor Yellow
+    Write-Host "  https://github.com/mariourquia/obsidian-connector/issues/new?labels=bug,installer" -ForegroundColor Cyan
+    Write-Host ""
     if (-not $NonInteractive) {
         Write-Host "  Press Enter to close this window." -ForegroundColor White
         Read-Host
@@ -68,6 +52,53 @@ function Write-Yellow { param([string]$Text) Write-Host $Text -ForegroundColor Y
 function Write-Red    { param([string]$Text) Write-Host $Text -ForegroundColor Red }
 function Write-Bold   { param([string]$Text) Write-Host $Text -ForegroundColor White }
 function Write-Dim    { param([string]$Text) Write-Host $Text -ForegroundColor DarkGray }
+
+# ── Telemetry (PowerShell-native, no Python dependency) ────────────
+
+$TelemetryUrl = "https://cre-skills-feedback-api.vercel.app/api/installer-telemetry"
+$PluginNameConst = "obsidian-connector"
+$InstallerVersionConst = "0.7.2"
+
+function Send-InstallerTelemetry {
+    param(
+        [string]$StepFailed,
+        [string]$ErrorMsg,
+        [string]$PrereqsJson = "{}"
+    )
+    try {
+        $idSource = "$env:COMPUTERNAME-$env:USERNAME"
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($idSource))
+        $installHash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLower()
+
+        $eventSeed = "$StepFailed-$ErrorMsg-$(Get-Date -Format 'yyyyMMddHHmmssffff')"
+        $eventBytes = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($eventSeed))
+        $eventId = "it_" + [System.BitConverter]::ToString($eventBytes).Replace("-", "").ToLower().Substring(0, 16)
+
+        $truncatedMsg = $ErrorMsg
+        if ($ErrorMsg.Length -gt 2000) { $truncatedMsg = $ErrorMsg.Substring(0, 2000) }
+
+        $body = @{
+            id              = $eventId
+            plugin_name     = $PluginNameConst
+            plugin_version  = $InstallerVersionConst
+            installer_type  = "ps1"
+            os              = "windows"
+            os_version      = [System.Environment]::OSVersion.Version.ToString()
+            arch            = $env:PROCESSOR_ARCHITECTURE
+            step_failed     = $StepFailed
+            error_message   = $truncatedMsg
+            prereqs         = $PrereqsJson | ConvertFrom-Json
+            install_id_hash = $installHash
+        } | ConvertTo-Json -Depth 5 -Compress
+
+        Invoke-RestMethod -Uri $TelemetryUrl -Method POST -Body $body `
+            -ContentType "application/json" -TimeoutSec 5 `
+            -ErrorAction SilentlyContinue | Out-Null
+    } catch {
+        # Telemetry is best-effort -- never block installation
+    }
+}
 
 Write-Host ""
 Write-Blue @"
@@ -106,29 +137,141 @@ Write-Host ""
 Write-Bold "  Step 1: Checking Python..."
 
 $PythonCmd = $null
+
 foreach ($cmd in @("python3", "python", "py")) {
     $found = Get-Command $cmd -ErrorAction SilentlyContinue
-    if ($found) {
-        try {
-            $ver = & $cmd --version 2>&1
-            if ($ver -match "3\.\d+") {
+    if (-not $found) { continue }
+
+    # Reject Windows Store stub (WindowsApps directory)
+    if ($found.Source -match 'WindowsApps') {
+        Write-Dim "  Skipping Windows Store stub: $($found.Source)"
+        continue
+    }
+
+    try {
+        $ver = & $cmd --version 2>&1
+        if ($ver -match "Python 3\.(\d+)") {
+            $minor = [int]$Matches[1]
+            if ($minor -ge 11) {
                 $PythonCmd = $cmd
                 Write-Green "  Python found: $ver"
                 break
+            } else {
+                Write-Dim "  $ver found but 3.11+ required"
+            }
+        }
+    } catch {
+        Write-Dim "  $cmd found but --version failed"
+    }
+}
+
+# Try py launcher with -3 flag
+if (-not $PythonCmd) {
+    $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
+    if ($pyLauncher -and $pyLauncher.Source -notmatch 'WindowsApps') {
+        try {
+            $ver = & py -3 --version 2>&1
+            if ($ver -match "Python 3\.(\d+)" -and [int]$Matches[1] -ge 11) {
+                $PythonCmd = "py"
+                Write-Green "  Python found via launcher: $ver"
             }
         } catch {}
     }
 }
 
+# Check common install locations
 if (-not $PythonCmd) {
-    Write-Red "  Python 3.11+ not found."
-    Write-Host "  Install from: https://www.python.org/downloads/"
-    Write-Host ""
-    if (-not $NonInteractive) {
-        Write-Bold "  Press Enter to close this window."
-        Read-Host
+    foreach ($path in @(
+        "${env:LOCALAPPDATA}\Programs\Python\Python314\python.exe",
+        "${env:LOCALAPPDATA}\Programs\Python\Python313\python.exe",
+        "${env:LOCALAPPDATA}\Programs\Python\Python312\python.exe",
+        "${env:LOCALAPPDATA}\Programs\Python\Python311\python.exe",
+        "C:\Python314\python.exe",
+        "C:\Python313\python.exe",
+        "C:\Python312\python.exe",
+        "C:\Python311\python.exe",
+        "${env:ProgramFiles}\Python312\python.exe",
+        "${env:ProgramFiles}\Python311\python.exe"
+    )) {
+        if (Test-Path $path) {
+            try {
+                $ver = & $path --version 2>&1
+                if ($ver -match "Python 3\.(\d+)" -and [int]$Matches[1] -ge 11) {
+                    $PythonCmd = $path
+                    Write-Green "  Python found at: $path ($ver)"
+                    break
+                }
+            } catch {}
+        }
     }
-    exit 1
+}
+
+# Auto-install if still not found
+if (-not $PythonCmd) {
+    Write-Yellow "  Python 3.11+ not found. Attempting to install..."
+
+    $installed = $false
+
+    # Try winget
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($winget) {
+        Write-Dim "  Installing Python 3.12 via winget..."
+        & winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+
+        foreach ($cmd in @("python3", "python")) {
+            $found = Get-Command $cmd -ErrorAction SilentlyContinue
+            if ($found -and $found.Source -notmatch 'WindowsApps') {
+                try {
+                    $ver = & $cmd --version 2>&1
+                    if ($ver -match "Python 3\.(\d+)" -and [int]$Matches[1] -ge 11) {
+                        $PythonCmd = $cmd
+                        $installed = $true
+                        Write-Green "  Python installed via winget: $ver"
+                        break
+                    }
+                } catch {}
+            }
+        }
+    }
+
+    # Try chocolatey
+    if (-not $installed) {
+        $choco = Get-Command choco -ErrorAction SilentlyContinue
+        if ($choco) {
+            Write-Dim "  Installing Python 3.12 via chocolatey..."
+            & choco install python312 -y --no-progress 2>&1 | Out-Null
+            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+
+            foreach ($cmd in @("python3", "python")) {
+                $found = Get-Command $cmd -ErrorAction SilentlyContinue
+                if ($found -and $found.Source -notmatch 'WindowsApps') {
+                    try {
+                        $ver = & $cmd --version 2>&1
+                        if ($ver -match "Python 3\.(\d+)" -and [int]$Matches[1] -ge 11) {
+                            $PythonCmd = $cmd
+                            $installed = $true
+                            Write-Green "  Python installed via chocolatey: $ver"
+                            break
+                        }
+                    } catch {}
+                }
+            }
+        }
+    }
+
+    if (-not $PythonCmd) {
+        Write-Red "  Python 3.11+ could not be installed automatically."
+        Write-Host "  Install from: https://www.python.org/downloads/"
+        Write-Host ""
+        Send-InstallerTelemetry -StepFailed "python_install" `
+            -ErrorMsg "Python 3.11+ not found and auto-install failed"
+        if (-not $NonInteractive) {
+            Write-Bold "  Press Enter to close this window."
+            Read-Host
+        }
+        exit 1
+    }
 }
 
 # ── Step 2: Create venv and install ─────────────────────────────────
@@ -137,8 +280,18 @@ Write-Bold "  Step 2: Setting up Python environment..."
 
 $VenvDir = Join-Path $InstallDir ".venv"
 if (-not (Test-Path $VenvDir)) {
-    & $PythonCmd -m venv $VenvDir
-    Write-Green "  Virtual environment created"
+    try {
+        & $PythonCmd -m venv $VenvDir
+        Write-Green "  Virtual environment created"
+    } catch {
+        Write-Red "  Failed to create virtual environment: $_"
+        Send-InstallerTelemetry -StepFailed "venv_create" -ErrorMsg "$_"
+        if (-not $NonInteractive) {
+            Write-Bold "  Press Enter to close this window."
+            Read-Host
+        }
+        exit 1
+    }
 } else {
     Write-Green "  Virtual environment already exists"
 }
@@ -148,7 +301,8 @@ if (Test-Path $PipPath) {
     & $PipPath install -e $InstallDir --quiet 2>&1 | Out-Null
     Write-Green "  Package installed"
 } else {
-    Write-Yellow "  Could not find pip in venv. Try: $PythonCmd -m venv $VenvDir"
+    Write-Yellow "  Could not find pip in venv"
+    Send-InstallerTelemetry -StepFailed "pip_missing" -ErrorMsg "pip.exe not found at $PipPath"
 }
 
 # ── Step 3: Register with Claude Code ───────────────────────────────
@@ -238,6 +392,7 @@ if (-not $HasClaudeCode -and -not $HasClaudeDesktop -and -not $HasClaudeHome) {
     Write-Host "  After installing, re-run this script or register manually:"
     Write-Dim  "    claude plugin add `"$InstallDir`""
     Write-Host ""
+    Send-InstallerTelemetry -StepFailed "no_claude" -ErrorMsg "Neither Claude Code nor Claude Desktop found"
     if (-not $NonInteractive) {
         Write-Bold "  Press Enter to close this window."
         Read-Host
@@ -332,6 +487,7 @@ if ($HasClaudeCode -or $HasClaudeDesktop -or $HasClaudeHome) {
 
     } catch {
         Write-Yellow "  Could not register plugin automatically: $_"
+        Send-InstallerTelemetry -StepFailed "plugin_registration" -ErrorMsg "$_"
         Write-Host ""
         Write-Host "  Manual install:"
         Write-Dim  "    claude plugin add `"$InstallDir`""
@@ -510,6 +666,7 @@ else:
 
     } catch {
         Write-Yellow "  Could not update Claude Desktop config: $_"
+        Send-InstallerTelemetry -StepFailed "desktop_mcp_config" -ErrorMsg "$_"
         Write-Dim  "  Manual: add obsidian-connector to claude_desktop_config.json"
     }
 } else {
