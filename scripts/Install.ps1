@@ -113,39 +113,55 @@ $HasClaudeCode = $false
 $HasClaudeDesktop = $false
 $InstalledSomewhere = $false
 
-# Check for Claude Code CLI -- PATH first, then known install locations
-$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+# Check for Claude Code CLI
+# Official install paths per Anthropic docs:
+#   Windows native: $env:USERPROFILE\.local\bin\claude.exe
+#   npm global:     $env:APPDATA\npm\claude.cmd
+#   Homebrew:       /opt/homebrew/bin/claude (macOS only)
+#   WinGet:         same as native
 $ClaudePath = $null
-if ($claudeCmd) {
+
+# Method 1: PATH lookup
+$found = Get-Command claude -ErrorAction SilentlyContinue
+if ($found) {
+    $ClaudePath = $found.Source
+}
+
+# Method 2: Official Windows install location (native installer / WinGet)
+if (-not $ClaudePath) {
+    $nativePath = Join-Path $env:USERPROFILE ".local\bin\claude.exe"
+    if (Test-Path $nativePath) {
+        $ClaudePath = $nativePath
+    }
+}
+
+# Method 3: npm global install
+if (-not $ClaudePath) {
+    $npmPath = Join-Path $env:APPDATA "npm\claude.cmd"
+    if (Test-Path $npmPath) {
+        $ClaudePath = $npmPath
+    }
+}
+
+# Method 4: Check ~/.claude config dir (proof Claude Code was used, even if binary moved)
+$ClaudeConfigDir = Join-Path $env:USERPROFILE ".claude"
+$HasClaudeConfig = Test-Path $ClaudeConfigDir
+
+if ($ClaudePath) {
     $HasClaudeCode = $true
-    $ClaudePath = $claudeCmd.Source
     try {
-        $ver = & claude --version 2>$null
+        $ver = & $ClaudePath --version 2>$null
         Write-Green "  Claude Code CLI found: $ver"
     } catch {
-        Write-Green "  Claude Code CLI found"
+        Write-Green "  Claude Code CLI found at: $ClaudePath"
     }
+} elseif ($HasClaudeConfig) {
+    $HasClaudeCode = $true
+    Write-Green "  Claude Code detected (~/.claude exists)"
+    Write-Yellow "  CLI binary not in PATH -- will register plugin via config file"
 } else {
-    # Check known install locations on Windows
-    $searchPaths = @(
-        (Join-Path $env:APPDATA "npm\claude.cmd"),
-        (Join-Path $env:LOCALAPPDATA "Programs\claude\claude.exe"),
-        (Join-Path $env:LOCALAPPDATA "Claude\claude.exe"),
-        (Join-Path $env:PROGRAMFILES "Claude\claude.exe"),
-        (Join-Path ${env:PROGRAMFILES(x86)} "Claude\claude.exe")
-    )
-    foreach ($candidatePath in $searchPaths) {
-        if ($candidatePath -and (Test-Path $candidatePath)) {
-            $HasClaudeCode = $true
-            $ClaudePath = $candidatePath
-            Write-Green "  Claude Code CLI found at: $candidatePath"
-            break
-        }
-    }
-    if (-not $HasClaudeCode) {
-        Write-Yellow "  Claude Code CLI not found (optional)"
-        Write-Dim  "  If installed, ensure 'claude' is in your PATH"
-    }
+    Write-Yellow "  Claude Code CLI not found (optional)"
+    Write-Dim  "  Install: irm https://claude.ai/install.ps1 | iex"
 }
 
 # Check for Claude Desktop -- check directory existence (not just config file)
@@ -184,21 +200,30 @@ if (-not $HasClaudeCode -and -not $HasClaudeDesktop) {
 # Register with Claude Code
 if ($HasClaudeCode) {
     Write-Blue "  Registering with Claude Code..."
-    try {
-        if ($ClaudePath) {
+
+    if ($ClaudePath) {
+        # We have the binary -- use `claude plugin add`
+        try {
             $output = & $ClaudePath plugin add $InstallDir 2>&1
-        } else {
-            $output = & claude plugin add $InstallDir 2>&1
-        }
-        if ($LASTEXITCODE -eq 0 -or $null -eq $LASTEXITCODE) {
-            Write-Green "  Plugin registered with Claude Code (skills + hooks + MCP tools)"
+            if ($LASTEXITCODE -eq 0 -or $null -eq $LASTEXITCODE) {
+                Write-Green "  Plugin registered with Claude Code"
+                $InstalledSomewhere = $true
+            } else {
+                Write-Yellow "  'plugin add' returned non-zero."
+                Write-Dim  "  Fallback: claude --plugin-dir `"$InstallDir`""
+                $InstalledSomewhere = $true
+            }
+        } catch {
+            Write-Yellow "  'plugin add' failed. Use: claude --plugin-dir `"$InstallDir`""
             $InstalledSomewhere = $true
-        } else {
-            Write-Yellow "  'plugin add' returned non-zero. Try: claude --plugin-dir `"$InstallDir`""
-            $InstalledSomewhere = $true
         }
-    } catch {
-        Write-Yellow "  'plugin add' not available. Use: claude --plugin-dir `"$InstallDir`""
+    } else {
+        # No binary found but ~/.claude exists -- tell user how to register
+        Write-Yellow "  Claude Code binary not in PATH."
+        Write-Host "  After opening a terminal with Claude Code, run:"
+        Write-Host "    claude plugin add `"$InstallDir`""
+        Write-Host "  Or start Claude Code with:"
+        Write-Host "    claude --plugin-dir `"$InstallDir`""
         $InstalledSomewhere = $true
     }
     Write-Host ""
