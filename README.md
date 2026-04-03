@@ -453,7 +453,8 @@ Each sync captures:
 - **Audit log**: Every mutation is logged to `~/.obsidian-connector/logs/YYYY-MM-DD.jsonl`.
 - **Agent drafts**: `graduate_execute` writes to `Inbox/Agent Drafts/` with provenance frontmatter (`source: agent`, `status: draft`). Agents read, humans approve.
 - **Path traversal protection**: Direct vault reads validate paths stay within the vault root.
-- **No network calls**: Everything runs locally via IPC. No telemetry, no analytics.
+- **Local runtime**: All runtime operations use local IPC. No vault data or prompts leave the machine.
+- **Installer telemetry**: The macOS and Windows installers send a single anonymous event (platform, version, pass/fail) to help diagnose installation failures. No personal data is included. See [PRIVACY.md](PRIVACY.md) for details.
 
 See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
@@ -474,6 +475,39 @@ update the config.
 ```bash
 ./bin/obsx doctor
 ```
+
+### Windows known issues
+
+**Update Claude Code first.** Older versions of Claude Code on Windows have a bug where
+colons in MCP log directory paths cause plugin MCP servers to fail silently
+([anthropics/claude-code#13679](https://github.com/anthropics/claude-code/issues/13679)).
+Update to the latest version before installing:
+
+```powershell
+npm i -g @anthropic-ai/claude-code@latest
+# or: irm https://claude.ai/install.ps1 | iex
+```
+
+**Cowork marketplace empty on Windows.** The Cowork plugin marketplace may not load
+because `plugins.claude.ai` does not resolve via DNS on some Windows configurations.
+This is an Anthropic infrastructure issue
+([anthropics/claude-code#28853](https://github.com/anthropics/claude-code/issues/28853)).
+The plugin still works in the Code tab and CLI.
+
+**Plugin installed but not showing.** If the installer completed but skills don't
+appear, verify the plugin is enabled in `~/.claude/settings.json`:
+
+```json
+{
+  "enabledPlugins": {
+    "obsidian-connector@local": true
+  }
+}
+```
+
+The installer writes this automatically, but some Claude Code versions have a bug where
+`enabledPlugins` is not populated
+([anthropics/claude-code#20661](https://github.com/anthropics/claude-code/issues/20661)).
 
 ## AI agent integration
 

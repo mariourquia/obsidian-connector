@@ -43,7 +43,7 @@ if ($NonInteractive) {
 
 $TelemetryUrl = "https://cre-skills-feedback-api.vercel.app/api/installer-telemetry"
 $PluginNameConst = "obsidian-connector"
-$InstallerVersionConst = "0.8.1"
+$InstallerVersionConst = "0.8.2"
 $TotalSteps = 6
 
 # ── Timing ───────────────────────────────────────────────────────────
@@ -826,12 +826,18 @@ if ($HasClaudeDesktop) {
         if (-not (Test-Path $pythonExe)) {
             Write-Yellow "  Venv python not found at: $pythonExe"
             Write-Dim  "  Using system Python instead"
-            $pythonExe = $PythonCmd
+            # Resolve to absolute path -- MCP config needs a full path
+            $resolved = Get-Command $PythonCmd -ErrorAction SilentlyContinue
+            if ($resolved) {
+                $pythonExe = $resolved.Source
+            } else {
+                $pythonExe = $PythonCmd
+            }
         }
 
         $tempScript = Join-Path $env:TEMP "obsidian_connector_setup_desktop.py"
         @"
-import json, shutil, os, sys
+import json, shutil, os, sys, platform
 from datetime import datetime
 
 config_path = sys.argv[1]
@@ -853,11 +859,20 @@ else:
 if 'mcpServers' not in config:
     config['mcpServers'] = {}
 
-config['mcpServers']['obsidian-connector'] = {
-    'command': python_exe,
-    'args': ['-m', 'obsidian_connector.mcp_server'],
-    'env': {'PYTHONPATH': install_dir}
-}
+# Windows: use cmd /c wrapper for reliable stdio MCP communication
+# This prevents issues with non-absolute paths and .cmd wrappers
+if platform.system() == 'Windows':
+    config['mcpServers']['obsidian-connector'] = {
+        'command': 'cmd',
+        'args': ['/c', python_exe, '-m', 'obsidian_connector.mcp_server'],
+        'env': {'PYTHONPATH': install_dir}
+    }
+else:
+    config['mcpServers']['obsidian-connector'] = {
+        'command': python_exe,
+        'args': ['-m', 'obsidian_connector.mcp_server'],
+        'env': {'PYTHONPATH': install_dir}
+    }
 
 with open(config_path, 'w', encoding='utf-8') as f:
     json.dump(config, f, indent=2)
@@ -1007,15 +1022,50 @@ if (Test-Path $venvPy) {
         Write-Red "  Package import check failed: $_"
         $verifyFails++
     }
+
+    # Check 2b: MCP server can initialize (quick smoke test)
+    try {
+        $mcpCheck = & $venvPy -c "from obsidian_connector.mcp_server import mcp; print('MCP_OK')" 2>&1
+        if ("$mcpCheck" -match "MCP_OK") {
+            Write-Green "  MCP server import: OK"
+        } else {
+            Write-Yellow "  MCP server import issue: $mcpCheck"
+        }
+    } catch {
+        Write-Yellow "  MCP server import check skipped: $_"
+    }
 }
 
-# Check 3: Plugin cache (if registered)
+# Check 3: Plugin cache and .claude-plugin/plugin.json
 if ($InstalledSomewhere) {
     $cacheDir = Join-Path (Join-Path $env:USERPROFILE ".claude") "plugins\cache\local\obsidian-connector"
     if (Test-Path $cacheDir) {
         Write-Green "  Plugin cache: OK"
+        # Verify .claude-plugin/plugin.json exists in cache (required for Desktop Code tab)
+        $cacheVersionDirs = Get-ChildItem $cacheDir -Directory -ErrorAction SilentlyContinue
+        foreach ($vdir in $cacheVersionDirs) {
+            $cpj = Join-Path $vdir.FullName ".claude-plugin\plugin.json"
+            if (Test-Path $cpj) {
+                Write-Green "  .claude-plugin/plugin.json in cache: OK"
+            } else {
+                Write-Yellow "  .claude-plugin/plugin.json missing in cache -- skills won't load in Desktop Code tab"
+                $verifyFails++
+            }
+        }
     } else {
         Write-Yellow "  Plugin cache not found (non-fatal)"
+    }
+
+    # Check 4: settings.json has plugin enabled
+    $settingsCheck = Join-Path (Join-Path $env:USERPROFILE ".claude") "settings.json"
+    if (Test-Path $settingsCheck) {
+        $sContent = Get-Content $settingsCheck -Raw
+        if ($sContent -match "obsidian-connector") {
+            Write-Green "  settings.json: plugin enabled"
+        } else {
+            Write-Red "  settings.json: plugin not in enabledPlugins"
+            $verifyFails++
+        }
     }
 }
 
