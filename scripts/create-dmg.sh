@@ -342,6 +342,10 @@ cat > "$STAGING_DIR/$DMG_NAME/README.txt" << README
     ║                                                  ║
     ╚══════════════════════════════════════════════════╝
 
+    Alternative: Marketplace install
+      claude plugin marketplace add mariourquia/obsidian-connector
+      claude plugin install obsidian-connector@obsidian-connector
+
     62 MCP tools · 65 CLI commands · 17 skills
     Search, read, graph analysis, thinking tools,
     daily workflows, and more.
