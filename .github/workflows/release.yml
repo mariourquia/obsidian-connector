@@ -259,6 +259,35 @@ jobs:
               --output-certificate "${f}.cert"
           done
 
+      - name: Generate release notes with install instructions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Generate GitHub's auto-notes into a temp file
+          gh api "repos/${REPO}/releases/generate-notes" \
+            -f tag_name="$TAG_NAME" \
+            --jq '.body' > /tmp/auto-notes.md 2>/dev/null || echo "" > /tmp/auto-notes.md
+
+          cat > /tmp/release-notes.md << 'HEADER'
+          ## Install
+
+          **Marketplace (recommended):**
+          ```
+          claude plugin marketplace add mariourquia/obsidian-connector
+          claude plugin install obsidian-connector@obsidian-connector
+          ```
+
+          **Installer:** Download the DMG (macOS) or EXE (Windows) from the assets below.
+
+          See [README](https://github.com/mariourquia/obsidian-connector#install) for all install methods.
+
+          HEADER
+
+          # Append auto-generated notes
+          cat /tmp/auto-notes.md >> /tmp/release-notes.md
+
       - name: Create release and upload assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -291,5 +320,5 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.sig" \
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.cert" \
             --title "$TAG_NAME" \
-            --generate-notes \
+            --notes-file /tmp/release-notes.md \
 

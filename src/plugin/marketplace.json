@@ -1,18 +1,17 @@
 {
-  "name": "obsidian-connector-marketplace",
+  "name": "obsidian-connector",
   "owner": {
     "name": "Mario Urquia",
     "email": "60152193+mariourquia@users.noreply.github.com"
   },
   "metadata": {
-    "description": "Obsidian vault access for Claude via MCP",
-    "schemaVersion": "1.0.0"
+    "description": "Obsidian vault access for Claude -- 62 MCP tools, 17 skills, search, read, graph analysis, daily workflows"
   },
   "plugins": [
     {
       "name": "obsidian-connector",
       "source": ".",
-      "description": "Access your Obsidian vault from Claude. Search notes, read content, log decisions, manage tasks, and think with your notes.",
+      "description": "Access your Obsidian vault from Claude. Search notes, read content, log decisions, manage tasks, and think with your notes -- all through MCP tools and Claude Code skills.",
       "version": "0.8.1",
       "category": "productivity",
       "keywords": [
@@ -30,6 +29,5 @@
       "repository": "https://github.com/mariourquia/obsidian-connector",
       "license": "MIT"
     }
-  ],
-  "version": "0.8.1"
+  ]
 }
