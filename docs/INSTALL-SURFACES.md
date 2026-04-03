@@ -11,6 +11,7 @@ obsidian-connector can be installed several ways. Each method gives you differen
 | EXE installer (Windows) | Full plugin + Claude Desktop MCP registration | Non-technical users on Windows |
 | Manual install | Full plugin via `claude --plugin-dir` | Developers |
 | MCP-only (Desktop config) | 62 MCP tools only | Chat tab users who don't need skills |
+| Cowork | MCP tools + skills (same SKILL.md format) | Cowork sessions with vault access |
 
 ## Install via marketplace (recommended)
 
@@ -50,7 +51,7 @@ Full experience: all 17 skills available via `/`, hooks fire on session events, 
 62 MCP tools only (the MCP server registered in `claude_desktop_config.json`). No skills, no hooks.
 
 ### Cowork tab
-If you install the marketplace plugin, the MCP tools are available. Skills/hooks are not supported in Cowork.
+If you install the marketplace plugin, the MCP tools are available. Skills use the same SKILL.md format recognized by Claude Code, Claude Desktop Code tab, and Cowork. However, hooks do not fire in Cowork. In practice, the 62 MCP tools are the primary value in Cowork since they let Claude interact with your vault directly.
 
 ## Glossary
 
