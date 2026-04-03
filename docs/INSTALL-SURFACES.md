@@ -1,96 +1,80 @@
 # Install Surfaces
 
-## What This Project Is
+obsidian-connector can be installed several ways. Each method gives you different capabilities depending on which Claude surface you use.
 
-Obsidian Connector bridges your Obsidian vault and Claude. It works as an **MCP server** (gives Claude tools to read, write, and search your vault) and as a **skill set** (gives Claude structured workflows like morning briefings, evening reflections, and weekly reviews). Everything runs locally -- your vault never leaves your machine.
+## Quick reference
 
-## Choose Your Install Method
+| Install method | What you get | Best for |
+|---|---|---|
+| Marketplace install | Full plugin: 17 skills, hooks, 62 MCP tools | Claude Code users (CLI or Desktop Code tab) |
+| DMG installer (macOS) | Full plugin + Claude Desktop MCP registration | Non-technical users on macOS |
+| EXE installer (Windows) | Full plugin + Claude Desktop MCP registration | Non-technical users on Windows |
+| Manual install | Full plugin via `claude --plugin-dir` | Developers |
+| MCP-only (Desktop config) | 62 MCP tools only | Chat tab users who don't need skills |
 
-| If you... | Use this | What you get |
-|-----------|----------|--------------|
-| Use Claude Code (CLI) | `claude plugin install obsidian-connector` | 17 skills + hooks + 62 MCP tools |
-| Use Claude Desktop | Add marketplace (paste repo URL) | 62 MCP tools |
-| Want a one-click macOS install | Download .dmg from Releases | 62 MCP tools in Claude Desktop |
-| Want a one-click Windows install | Download .exe from Releases | 62 MCP tools + plugin registration |
-| Use another AI agent (Codex, Gemini) | Download portable zip | 5 knowledge reference skills |
-| Are a Python developer | `pip install obsidian-connector` | Python API + 65 CLI commands |
+## Install via marketplace (recommended)
 
-## What Is a Marketplace Repo?
+This repo is a self-contained marketplace. Add it and install the plugin:
 
-Claude Desktop has an "Add marketplace" feature in **Settings > Extensions**. When you paste a GitHub repo URL, Claude Desktop looks for `.claude-plugin/marketplace.json` inside that repo to discover what it provides. This repo supports that flow -- paste `https://github.com/mariourquia/obsidian-connector` and Claude Desktop registers the MCP server automatically.
-
-## What Are Skills vs MCP Tools?
-
-**MCP tools** (62): Individual operations Claude can call -- search notes, read a note, write a draft, check your calendar, list open tasks, analyze your vault graph, and more. Available in both Claude Desktop and Claude Code.
-
-**Skills** (17): Structured workflows that tell Claude *how* to use the tools. The morning briefing skill reads your daily note, surfaces open loops, checks delegations, and writes a summary. The evening reflection skill reviews what you accomplished and suggests what to carry forward. Skills are a Claude Code feature and are only available there.
-
-## What Are Presets and Workflows?
-
-**Presets** (13): Pre-configured vault structures. Run `obsx init` or `obsx create-vault --preset journaling` to set up your vault for project tracking, research, journaling, creative writing, and more. Each preset creates starter notes, templates, and a directory structure.
-
-**Workflows**: Multi-step routines that combine several tools into a coherent process. Morning briefing, evening reflection, weekly review, idea capture, and project sync. In Claude Code these are triggered via skills (e.g., `/morning`). In Claude Desktop you can ask Claude to run them manually step by step.
-
-## What Appears After Installation
-
-**In Claude Desktop**: 62 MCP tools appear in the tools panel (the hammer icon in the input area). You can ask Claude to search your vault, read notes, create drafts, run check-ins, and more. Claude sees your vault contents only when you explicitly ask it to use a tool.
-
-**In Claude Code**: 17 skills appear as slash commands (`/morning`, `/evening`, `/capture`, `/sync`, etc.). A SessionStart hook automatically suggests workflows based on time of day. A Stop hook syncs your vault when a session ends. All 62 MCP tools are also available.
-
-## How the Installer Works
-
-The macOS (.dmg) and Windows (.exe) installers handle everything:
-
-1. Copy the Python package to your machine
-2. Create a Python virtual environment
-3. Register the MCP server in Claude Desktop's config (`claude_desktop_config.json`)
-4. Register the plugin in Claude Code's plugin system (if Claude Code is installed)
-5. You restart Claude Desktop and the tools appear
-
-No terminal, no git, no pip commands required.
-
-## Privacy
-
-Everything runs locally. Your vault stays on your machine. Claude only sees note content when you explicitly ask it to use a tool -- it cannot browse your vault on its own. No data is sent to external servers. The only network call is optional anonymous telemetry on installer failures (no vault content, no personal data, can be disabled).
-
-## How to Verify It Worked
-
-**Claude Desktop:**
-
-1. Restart Claude Desktop
-2. Open a new conversation
-3. Ask: "Search my Obsidian vault for recent notes"
-4. Claude should use the `obsidian_search` tool
-
-**Claude Code:**
-
-1. Start a new session -- the SessionStart hook prints a greeting
-2. Run `/morning` or `/evening` to confirm skills load
-3. Ask Claude to use any obsidian tool
-
-**CLI:**
-
-```bash
-obsx doctor
+```
+/plugin marketplace add mariourquia/obsidian-connector
+/plugin install obsidian-connector@obsidian-connector
 ```
 
-A passing result confirms Obsidian connectivity and vault resolution.
+Or from the terminal:
+```bash
+claude plugin marketplace add mariourquia/obsidian-connector
+claude plugin install obsidian-connector@obsidian-connector
+```
 
-## Uninstall
+This gives you the full experience: 17 skills (e.g., /capture, /ritual, /sync), hooks, and 62 MCP tools.
 
-| Surface | How to remove |
-|---------|---------------|
-| Claude Code | `claude plugin remove obsidian-connector` |
-| Claude Desktop | Remove the `obsidian-connector` entry from `claude_desktop_config.json` |
-| pip | `pip uninstall obsidian-connector` |
-| Full cleanup | `obsx uninstall` (removes config, cache, audit logs) |
+## Install via DMG or EXE
 
-Config file locations:
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Linux: `~/.config/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+Download from the [latest release](https://github.com/mariourquia/obsidian-connector/releases/latest).
 
-## Feedback and Issues
+The installer:
+1. Copies the plugin to your system
+2. Registers it with the Claude Code plugin system (skills + hooks + MCP)
+3. Registers the MCP server with Claude Desktop (for the Chat tab)
+4. Creates a Python virtual environment for the MCP server
 
-- GitHub Issues: https://github.com/mariourquia/obsidian-connector/issues
-- The installer collects anonymous failure reports to improve reliability (no vault content, no personal data)
+After install, restart Claude Desktop.
+
+## What appears in Claude Desktop
+
+### Code tab
+Full experience: all 17 skills available via `/`, hooks fire on session events, 62 MCP tools available.
+
+### Chat tab
+62 MCP tools only (the MCP server registered in `claude_desktop_config.json`). No skills, no hooks.
+
+### Cowork tab
+If you install the marketplace plugin, the MCP tools are available. Skills/hooks are not supported in Cowork.
+
+## Glossary
+
+| Term | What it means here |
+|---|---|
+| **Plugin** | The full obsidian-connector package: skills, hooks, MCP tools, CLI |
+| **Marketplace** | This GitHub repo serves as its own marketplace for plugin discovery |
+| **MCP server** | The Python process that provides 62 tools to Claude Desktop/Code |
+| **Skills** | Claude Code slash commands (e.g., /capture, /ritual, /sync) |
+| **Hooks** | Automatic behaviors on session start/stop |
+| **Connector** | Cowork term for MCP-like integrations -- not directly applicable here |
+
+## Troubleshooting
+
+### Skills not appearing
+- Make sure you installed via marketplace or DMG/EXE, not just MCP config
+- Open the **Code tab** in Claude Desktop (not Chat or Cowork)
+- Run `/plugin` to verify the plugin is enabled
+
+### MCP tools not appearing in Chat tab
+- Check `~/Library/Application Support/Claude/claude_desktop_config.json` has an `obsidian-connector` entry
+- Restart Claude Desktop completely (Cmd+Q, reopen)
+- Run `obsx doctor` to check connectivity
+
+### Nothing works
+- Run `/plugin marketplace update` then `/plugin install obsidian-connector@obsidian-connector`
+- If using the DMG installer, try running `Install.command` again

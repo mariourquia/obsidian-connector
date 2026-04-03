@@ -42,7 +42,7 @@ Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prom
 
 ## Install
 
-Six surfaces. Pick the one that fits your setup.
+This repo is a self-contained Claude marketplace. Pick the method that fits your setup.
 
 ### Requirements
 
@@ -50,28 +50,27 @@ Six surfaces. Pick the one that fits your setup.
 - Python 3.11+ ([download](https://www.python.org/downloads/))
 - macOS, Linux, or Windows
 
-| Surface | Best for | What you get |
-|---------|----------|-------------|
-| Claude Code plugin | CLI users | 17 skills + hooks + 62 MCP tools |
-| Claude Desktop marketplace | Desktop users | 62 MCP tools via MCP config |
-| Claude Desktop manual config | Desktop users (fallback) | 62 MCP tools via MCP config |
-| macOS DMG | Non-technical macOS users | Double-click installer |
-| Windows EXE | Non-technical Windows users | Installer wizard |
-| pip install | Python developers | 65 CLI commands + Python API |
+| Method | Best for | What you get |
+|--------|----------|-------------|
+| **Marketplace install** | Claude Code users (CLI or Desktop Code tab) | Full: 17 skills + hooks + 62 MCP tools |
+| **macOS DMG** | Non-technical macOS users | Full plugin + Desktop MCP registration |
+| **Windows EXE** | Non-technical Windows users | Full plugin + Desktop MCP registration |
+| **Cowork upload** | Cowork tab users | Skills + MCP tools (no hooks) |
+| **Manual MCP config** | Chat tab only | 62 MCP tools only |
+| **pip install** | Python developers | 65 CLI commands + Python API |
 
-> New to this project? See [Install Surfaces](docs/INSTALL-SURFACES.md) for a detailed guide on which method to choose.
+> See [Install Surfaces](docs/INSTALL-SURFACES.md) for a detailed comparison of all methods.
 
-### a. Claude Code (recommended for CLI users)
+### a. Marketplace Install (recommended)
 
-```bash
-claude plugin install obsidian-connector
-```
-
-Or point at a local clone:
+From Claude Code CLI or the Desktop Code tab:
 
 ```bash
-claude --plugin-dir /path/to/obsidian-connector
+claude plugin marketplace add mariourquia/obsidian-connector
+claude plugin install obsidian-connector@obsidian-connector
 ```
+
+Or interactively: type `/plugin` in Claude Code, select **Add plugin**, and search for `obsidian-connector`.
 
 After installing, run the setup script to create the Python environment:
 
@@ -79,21 +78,19 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you 62 MCP tools, 17 skills (`/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/capture`, `/ritual`, `/new-vault`, `/sync`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`), and a SessionStart hook that suggests workflows based on time of day.
+This gives you 62 MCP tools, 17 skills (`/capture`, `/ritual`, `/sync`, `/explore`, `/float`, `/morning`, `/evening`, `/idea`, `/weekly`, and more), and a SessionStart hook that suggests workflows based on time of day.
 
 > **Note:** Plugin mode (`.mcp.json`) uses Unix venv paths. On Windows, use `scripts/Install.ps1` instead.
 
-### b. Claude Desktop -- Add Marketplace (recommended for Desktop users)
+### b. Installer (macOS DMG / Windows EXE)
 
-1. Open Claude Desktop
-2. Go to **Settings > Extensions > Add marketplace**
-3. Paste: `https://github.com/mariourquia/obsidian-connector`
-4. Click **Add**
-5. Restart Claude Desktop
+Download from the [latest release](https://github.com/mariourquia/obsidian-connector/releases/latest). The installer auto-detects Claude Desktop and Claude Code, configures both, creates the Python venv, and registers the MCP server. Restart Claude Desktop after installation.
 
-Claude Desktop reads the `.claude-plugin/marketplace.json` from this repo and registers the MCP server. After restart, 62 Obsidian tools appear in the tools panel.
+### c. Cowork Tab
 
-### c. Claude Desktop -- Manual config (if marketplace does not work)
+In the Claude Desktop Cowork tab, click **Customize** > **Browse plugins** to find obsidian-connector. Skills and MCP tools work in Cowork. Hooks are Code-tab only.
+
+### d. Manual MCP Config (Chat tab fallback)
 
 **macOS / Linux:**
 
