@@ -59,7 +59,7 @@ This repo is a self-contained Claude marketplace. Pick the method that fits your
 | **Manual MCP config** | Chat tab only | 62 MCP tools only |
 | **pip install** | Python developers | 65 CLI commands + Python API |
 
-> See [Install Surfaces](docs/INSTALL-SURFACES.md) for a detailed comparison of all methods.
+> See [Install Surfaces](docs/INSTALL.md) for a detailed comparison of all methods.
 
 ### a. Marketplace Install (recommended)
 
@@ -206,7 +206,7 @@ obsx doctor
 
 A passing result confirms Obsidian connectivity and vault resolution.
 
-See [docs/INSTALL-SURFACES.md](docs/INSTALL-SURFACES.md) for a detailed breakdown of what each install surface provides and how to uninstall.
+See [docs/INSTALL.md](docs/INSTALL.md) for a detailed breakdown of what each install surface provides and how to uninstall.
 
 ## What's under the hood
 
