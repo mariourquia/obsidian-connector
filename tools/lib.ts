@@ -68,6 +68,7 @@ export type SkillPortability = z.infer<typeof SkillPortabilitySchema>;
 export const VALID_TARGETS = [
   "claude-code",
   "claude-desktop",
+  "cowork",
   "portable",
   "pypi",
 ] as const;

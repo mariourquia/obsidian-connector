@@ -1,0 +1,20 @@
+name: cowork
+description: Cowork-compatible skills package for Claude Desktop Cowork tab
+
+skills:
+  include: all
+  normalize: false
+
+hooks:
+  include: true
+  variant: portable
+
+manifest:
+  include_mcp: false
+  include_plugin: true
+
+python_package:
+  include: false
+
+bin:
+  include: false

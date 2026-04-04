@@ -57,9 +57,11 @@ jobs:
         run: |
           npx tsx tools/build.ts --target claude-code
           npx tsx tools/build.ts --target claude-desktop
+          npx tsx tools/build.ts --target cowork
           npx tsx tools/build.ts --target portable
           npx tsx tools/validate.ts --target claude-code
           npx tsx tools/validate.ts --target claude-desktop
+          npx tsx tools/validate.ts --target cowork
           npx tsx tools/validate.ts --target portable
           python3 -m pytest tests/test_build_system.py -v
 
@@ -67,6 +69,7 @@ jobs:
         run: |
           npx tsx tools/package.ts --target claude-code
           npx tsx tools/package.ts --target claude-desktop
+          npx tsx tools/package.ts --target cowork
           npx tsx tools/package.ts --target portable
 
       - name: Build source archive
@@ -231,6 +234,7 @@ jobs:
           sha256sum obsidian-connector-${TAG_NAME}.tar.gz \
                     obsidian-connector-${TAG_NAME}.zip \
                     obsidian-connector-claude-code-v${CLEAN_VERSION}.zip \
+                    obsidian-connector-cowork-v${CLEAN_VERSION}.zip \
                     obsidian-connector-desktop-v${CLEAN_VERSION}.zip \
                     obsidian-connector-portable-v${CLEAN_VERSION}.zip \
                     obsidian-connector-${TAG_NAME}.dmg \
@@ -249,6 +253,7 @@ jobs:
           for f in "obsidian-connector-${TAG_NAME}.tar.gz" \
                    "obsidian-connector-${TAG_NAME}.zip" \
                    "obsidian-connector-claude-code-v${CLEAN_VERSION}.zip" \
+                   "obsidian-connector-cowork-v${CLEAN_VERSION}.zip" \
                    "obsidian-connector-desktop-v${CLEAN_VERSION}.zip" \
                    "obsidian-connector-portable-v${CLEAN_VERSION}.zip" \
                    "obsidian-connector-${TAG_NAME}.dmg" \
@@ -298,6 +303,7 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.tar.gz" \
             "final-assets/obsidian-connector-${TAG_NAME}.zip" \
             "final-assets/obsidian-connector-claude-code-v${CLEAN_VERSION}.zip" \
+            "final-assets/obsidian-connector-cowork-v${CLEAN_VERSION}.zip" \
             "final-assets/obsidian-connector-desktop-v${CLEAN_VERSION}.zip" \
             "final-assets/obsidian-connector-portable-v${CLEAN_VERSION}.zip" \
             "final-assets/obsidian-connector-${TAG_NAME}.dmg" \
@@ -309,6 +315,8 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.zip.cert" \
             "final-assets/obsidian-connector-claude-code-v${CLEAN_VERSION}.zip.sig" \
             "final-assets/obsidian-connector-claude-code-v${CLEAN_VERSION}.zip.cert" \
+            "final-assets/obsidian-connector-cowork-v${CLEAN_VERSION}.zip.sig" \
+            "final-assets/obsidian-connector-cowork-v${CLEAN_VERSION}.zip.cert" \
             "final-assets/obsidian-connector-desktop-v${CLEAN_VERSION}.zip.sig" \
             "final-assets/obsidian-connector-desktop-v${CLEAN_VERSION}.zip.cert" \
             "final-assets/obsidian-connector-portable-v${CLEAN_VERSION}.zip.sig" \
