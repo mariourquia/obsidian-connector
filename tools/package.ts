@@ -29,6 +29,7 @@ function zipDirectory(sourceDir: string, outZip: string): void {
 const ARCHIVE_NAMES: Record<TargetName, (version: string) => string> = {
   "claude-code": (v) => `obsidian-connector-claude-code-v${v}.zip`,
   "claude-desktop": (v) => `obsidian-connector-desktop-v${v}.zip`,
+  "cowork": (v) => `obsidian-connector-cowork-v${v}.zip`,
   "portable": (v) => `obsidian-connector-portable-v${v}.zip`,
   "pypi": (_v) => "", // PyPI artifacts already named by python -m build
 };
