@@ -43,7 +43,7 @@ if ($NonInteractive) {
 
 $TelemetryUrl = "https://cre-skills-feedback-api.vercel.app/api/installer-telemetry"
 $PluginNameConst = "obsidian-connector"
-$InstallerVersionConst = "0.8.2"
+$InstallerVersionConst = "0.8.3"
 $TotalSteps = 6
 
 # ── Timing ───────────────────────────────────────────────────────────
