@@ -2524,6 +2524,190 @@ def obsidian_index_status(vault: str | None = None) -> str:
         )
 
 
+# ---------------------------------------------------------------------------
+# v0.6.0 Graphify Knowledge Graph
+# ---------------------------------------------------------------------------
+
+def _resolve_graphify_path(vault: str | None) -> str:
+    from obsidian_connector.config import resolve_vault_path
+    vault_p = resolve_vault_path(vault)
+    return str(vault_p / "graphify-out" / "graph.json")
+
+
+@mcp.tool(
+    title="Graphify: Query Graph",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_graphify_query(
+    question: str,
+    mode: str = "bfs",
+    depth: int = 3,
+    token_budget: int = 2000,
+    vault: str | None = None,
+) -> str:
+    """Search the knowledge graph using BFS or DFS.
+
+    Args:
+        question: Natural language question or keyword search
+        mode: "bfs" (broad context) or "dfs" (trace a specific path)
+        depth: Traversal depth (min 1, max 6, default 3)
+        token_budget: Max output tokens
+    """
+    try:
+        from obsidian_connector.graphify.serve import _load_graph, _score_nodes, _bfs, _dfs, _subgraph_to_text
+        depth = min(max(1, depth), 6)
+        G = _load_graph(_resolve_graphify_path(vault))
+        terms = [t.lower() for t in question.split() if len(t) > 2]
+        scored = _score_nodes(G, terms)
+        start_nodes = [nid for _, nid in scored[:3]]
+        if not start_nodes:
+            return "No matching nodes found in graph."
+        nodes, edges = _dfs(G, start_nodes, depth) if mode == "dfs" else _bfs(G, start_nodes, depth)
+        header = f"Traversal: {mode.upper()} depth={depth} | Start: {[G.nodes[n].get('label', n) for n in start_nodes]} | {len(nodes)} nodes found\n\n"
+        return header + _subgraph_to_text(G, nodes, edges, token_budget)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Graphify: Get Node Details",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_graphify_node(
+    label: str,
+    vault: str | None = None,
+) -> str:
+    """Get full details for a specific node by label or ID.
+
+    Args:
+        label: Node label or ID to look up
+    """
+    try:
+        from obsidian_connector.graphify.serve import _load_graph
+        G = _load_graph(_resolve_graphify_path(vault))
+        label_lower = label.lower()
+        matches = [(nid, d) for nid, d in G.nodes(data=True)
+                   if label_lower in d.get("label", "").lower() or label_lower == str(nid).lower()]
+        if not matches:
+            return f"No node matching '{label}' found."
+        nid, d = matches[0]
+        return "\n".join([
+            f"Node: {d.get('label', nid)}",
+            f"  ID: {nid}",
+            f"  Source: {d.get('source_file', '')} {d.get('source_location', '')}",
+            f"  Type: {d.get('file_type', '')}",
+            f"  Community: {d.get('community', '')}",
+            f"  Degree: {G.degree(nid)}",
+        ])
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Graphify: Get Neighbors",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_graphify_neighbors(
+    label: str,
+    relation_filter: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """Get all direct neighbors of a node with edge details.
+
+    Args:
+        label: Node label to look up
+        relation_filter: Optional substring to filter relation types
+    """
+    try:
+        from obsidian_connector.graphify.serve import _load_graph, _find_node
+        G = _load_graph(_resolve_graphify_path(vault))
+        matches = _find_node(G, label)
+        if not matches:
+            return f"No node matching '{label}' found."
+        nid = matches[0]
+        lines = [f"Neighbors of {G.nodes[nid].get('label', nid)}:"]
+        rel_f = relation_filter.lower() if relation_filter else ""
+        for neighbor in G.neighbors(nid):
+            d = G.edges[nid, neighbor]
+            rel = d.get("relation", "")
+            if rel_f and rel_f not in rel.lower():
+                continue
+            lines.append(f"  --> {G.nodes[neighbor].get('label', neighbor)} [{rel}] [{d.get('confidence', '')}]")
+        return "\n".join(lines)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Graphify: Shortest Path",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_graphify_shortest_path(
+    source: str,
+    target: str,
+    max_hops: int = 8,
+    vault: str | None = None,
+) -> str:
+    """Find the shortest path between two concepts in the knowledge graph.
+
+    Args:
+        source: Source concept label
+        target: Target concept label
+        max_hops: Maximum hops to consider
+    """
+    try:
+        import networkx as nx
+        from obsidian_connector.graphify.serve import _load_graph, _score_nodes
+        G = _load_graph(_resolve_graphify_path(vault))
+        src_scored = _score_nodes(G, [t.lower() for t in source.split()])
+        tgt_scored = _score_nodes(G, [t.lower() for t in target.split()])
+        if not src_scored:
+            return f"No node matching source '{source}' found."
+        if not tgt_scored:
+            return f"No node matching target '{target}' found."
+        src_nid, tgt_nid = src_scored[0][1], tgt_scored[0][1]
+        try:
+            path_nodes = nx.shortest_path(G, src_nid, tgt_nid)
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return f"No path found between '{G.nodes[src_nid].get('label', src_nid)}' and '{G.nodes[tgt_nid].get('label', tgt_nid)}'."
+        hops = len(path_nodes) - 1
+        if hops > max_hops:
+            return f"Path exceeds max_hops={max_hops} ({hops} hops found)."
+        segments = []
+        for i in range(len(path_nodes) - 1):
+            u, v = path_nodes[i], path_nodes[i + 1]
+            edata = G.edges[u, v]
+            rel = edata.get("relation", "")
+            conf = edata.get("confidence", "")
+            conf_str = f" [{conf}]" if conf else ""
+            if i == 0:
+                segments.append(G.nodes[u].get("label", str(u)))
+            segments.append(f"--{rel}{conf_str}--> {G.nodes[v].get('label', str(v))}")
+        return f"Shortest path ({hops} hops):\n  " + " ".join(segments)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
 def main() -> None:
     """Run the MCP server.
 

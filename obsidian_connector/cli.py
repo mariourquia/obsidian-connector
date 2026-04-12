@@ -1491,6 +1491,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("index-status", help="Show index age and staleness.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
+    # -- graphify ----------------------------------------------------------
+    p = sub.add_parser("graphify", help="Knowledge graph engine (intercepted early). Run 'obsx graphify --help' for details.")
+
     return parser
 
 
@@ -1504,6 +1507,24 @@ def _resolve_json(args: argparse.Namespace) -> bool:
 # ---------------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # Early intercept for graphify commands
+    if argv and argv[0] == "graphify":
+        from obsidian_connector.graphify.__main__ import main as graphify_main
+        # Re-write sys.argv so graphify parser works properly
+        sys.argv = [sys.argv[0] + " graphify"] + argv[1:]
+        try:
+            graphify_main()
+            return 0
+        except SystemExit as e:
+            return e.code or 0
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return 1
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

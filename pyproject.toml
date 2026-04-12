@@ -12,7 +12,31 @@ requires-python = ">=3.11"
 authors = [
     { name = "Mario Urquia", email = "60152193+mariourquia@users.noreply.github.com" },
 ]
-dependencies = ["mcp>=1.0.0,<2.0.0"]
+dependencies = [
+    "mcp>=1.0.0,<2.0.0",
+    "networkx",
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
+    "tree-sitter-go",
+    "tree-sitter-rust",
+    "tree-sitter-java",
+    "tree-sitter-c",
+    "tree-sitter-cpp",
+    "tree-sitter-ruby",
+    "tree-sitter-c-sharp",
+    "tree-sitter-kotlin",
+    "tree-sitter-scala",
+    "tree-sitter-php",
+    "tree-sitter-swift",
+    "tree-sitter-lua",
+    "tree-sitter-zig",
+    "tree-sitter-powershell",
+    "tree-sitter-elixir",
+    "tree-sitter-objc",
+    "tree-sitter-julia",
+]
 keywords = ["obsidian", "cli", "notes", "productivity", "automation", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -33,6 +57,11 @@ scheduling = ["pyyaml>=6.0,<7.0"]
 live = ["watchdog>=4.0,<5.0"]
 semantic = ["sentence-transformers>=3.0,<4.0"]
 dev = ["pytest>=8.0,<9.0"]
+graph-pdf = ["pypdf", "html2text"]
+graph-leiden = ["graspologic"]
+graph-office = ["python-docx", "openpyxl"]
+graph-video = ["faster-whisper", "yt-dlp"]
+graph-all = ["pypdf", "html2text", "graspologic", "python-docx", "openpyxl", "faster-whisper", "yt-dlp"]
 
 [project.scripts]
 obsidian-connector = "obsidian_connector.cli:main"
