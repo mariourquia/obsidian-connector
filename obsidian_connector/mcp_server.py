@@ -2777,6 +2777,254 @@ def obsidian_sync_commitments(
         return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
 
 
+# ---------------------------------------------------------------------------
+# Ix Memory commands (v0.9.0)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Ix: Map Workspace",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_ix_map(
+    path: str = ".",
+    vault: str | None = None,
+) -> str:
+    """Trigger Ix to map or re-index the workspace/folder.
+
+    This recursively parses code, tracing definitions, dependencies, and
+    system boundaries, saving the system map to the `.ix` directory.
+
+    Args:
+        path: Path to map (defaults to '.' current working directory)
+        vault: Target vault to map (overrides path if provided)
+    """
+    from obsidian_connector.ix_engine.runner import run_ix
+    from obsidian_connector.config import resolve_vault_path
+    import subprocess
+    import sys
+
+    try:
+        target_path = str(resolve_vault_path(vault)) if vault else path
+        from obsidian_connector.ix_engine.runner import IX_CLI_DIR, _setup_ix_if_needed
+        _setup_ix_if_needed()
+        main_js_path = IX_CLI_DIR / "dist" / "cli" / "main.js"
+        
+        result = subprocess.run(
+            ["node", str(main_js_path), "map", target_path],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return json.dumps({"ok": False, "error": result.stderr})
+        return json.dumps({"ok": True, "output": result.stdout})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Ix: Explain Concept",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_ix_explain(
+    entity: str,
+    vault: str | None = None,
+) -> str:
+    """Get an explanation of a codebase entity using the Ix system map.
+
+    Args:
+        entity: The name of the function, class, or service to explain
+        vault: Target vault context (optional)
+    """
+    from obsidian_connector.ix_engine.runner import IX_CLI_DIR, _setup_ix_if_needed
+    from obsidian_connector.config import resolve_vault_path
+    import subprocess
+
+    cwd = str(resolve_vault_path(vault)) if vault else "."
+    
+    try:
+        _setup_ix_if_needed()
+        main_js_path = IX_CLI_DIR / "dist" / "cli" / "main.js"
+        result = subprocess.run(
+            ["node", str(main_js_path), "explain", entity],
+            cwd=cwd,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return json.dumps({"ok": False, "error": result.stderr})
+        return json.dumps({"ok": True, "output": result.stdout})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Ix: Trace Flow",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_ix_trace(
+    flow: str,
+    vault: str | None = None,
+) -> str:
+    """Trace a control flow or data path through the system using Ix.
+
+    Args:
+        flow: The entrypoint or flow name to trace.
+        vault: Target vault context (optional).
+    """
+    from obsidian_connector.ix_engine.runner import IX_CLI_DIR, _setup_ix_if_needed
+    from obsidian_connector.config import resolve_vault_path
+    import subprocess
+
+    cwd = str(resolve_vault_path(vault)) if vault else "."
+    
+    try:
+        _setup_ix_if_needed()
+        main_js_path = IX_CLI_DIR / "dist" / "cli" / "main.js"
+        result = subprocess.run(
+            ["node", str(main_js_path), "trace", flow],
+            cwd=cwd,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return json.dumps({"ok": False, "error": result.stderr})
+        return json.dumps({"ok": True, "output": result.stdout})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Ix: Analyze Impact",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_ix_impact(
+    entity: str,
+    vault: str | None = None,
+) -> str:
+    """Analyze the downstream impact of changing a specific codebase entity.
+
+    Args:
+        entity: The target function, class, or module.
+        vault: Target vault context (optional).
+    """
+    from obsidian_connector.ix_engine.runner import IX_CLI_DIR, _setup_ix_if_needed
+    from obsidian_connector.config import resolve_vault_path
+    import subprocess
+
+    cwd = str(resolve_vault_path(vault)) if vault else "."
+    
+    try:
+        _setup_ix_if_needed()
+        main_js_path = IX_CLI_DIR / "dist" / "cli" / "main.js"
+        result = subprocess.run(
+            ["node", str(main_js_path), "impact", entity],
+            cwd=cwd,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return json.dumps({"ok": False, "error": result.stderr})
+        return json.dumps({"ok": True, "output": result.stdout})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Investigate Topic (Progressive Context)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_investigate(
+    topic: str,
+    vault: str | None = None,
+) -> str:
+    """Investigate a concept, feature, or code module using progressive disclosure.
+
+    This "Super Tool" combines local Obsidian search with Ix system mapping.
+    Instead of reading full files, it:
+    1. Semantically searches the vault for related notes & summarizes them.
+    2. Runs 'ix explain' on the topic to extract system architecture context.
+    3. Returns a compact, token-efficient bundle.
+
+    Args:
+        topic: The concept or code module to investigate.
+        vault: Target vault name (uses default if omitted).
+    """
+    import subprocess
+    from obsidian_connector.config import resolve_vault_path
+    from obsidian_connector.ix_engine.runner import IX_CLI_DIR, _setup_ix_if_needed
+    from obsidian_connector.research import find_prior_work
+    
+    try:
+        vault_path = resolve_vault_path(vault)
+        
+        # 1. Get knowledge from Obsidian Vault
+        try:
+            vault_results = find_prior_work(query=topic, top_n=3, vault_path=vault_path)
+            vault_summary = "\n".join([
+                f"- **{res['id']}** (Score: {res['score']:.2f})\n  Excerpts: {res['content'][:250]}..."
+                for res in vault_results
+            ])
+            if not vault_results:
+                vault_summary = "No relevant Obsidian notes found."
+        except Exception as e:
+            vault_summary = f"Vault search unavailable: {e}"
+
+        # 2. Get system context from Ix Engine
+        cwd = str(vault_path)
+        try:
+            _setup_ix_if_needed()
+            main_js_path = IX_CLI_DIR / "dist" / "cli" / "main.js"
+            ix_result = subprocess.run(
+                ["node", str(main_js_path), "explain", topic],
+                cwd=cwd,
+                capture_output=True,
+                text=True
+            )
+            if ix_result.returncode == 0 and ix_result.stdout.strip():
+                ix_summary = ix_result.stdout.strip()
+            else:
+                ix_summary = "No architectural map context found in Ix for this topic."
+        except Exception as e:
+            ix_summary = f"Ix mapping unavailable: {e}"
+
+        # 3. Combine and return
+        payload = (
+            f"=== INVESTIGATION REPORT: {topic} ===\n\n"
+            f"--- 1. KNOWLEDGE BASE (OBSIDIAN) ---\n{vault_summary}\n\n"
+            f"--- 2. SYSTEM MAP (IX ENGINE) ---\n{ix_summary}\n"
+        )
+        return json.dumps({"ok": True, "report": payload}, indent=2)
+
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
 def main() -> None:
     """Run the MCP server.
 

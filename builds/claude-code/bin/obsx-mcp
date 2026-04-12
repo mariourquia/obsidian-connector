@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# MCP server wrapper for obsidian-connector.
+# Launches the stdio MCP server using the project's venv Python.
+# Used by .mcp.json and claude_desktop_config.json.
+# Does not require venv activation or CLAUDE_PLUGIN_ROOT.
+
+# Resolve project root: walk up from script location to find pyproject.toml
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+while [ "$PROJECT_ROOT" != "/" ]; do
+    [ -f "$PROJECT_ROOT/pyproject.toml" ] && break
+    PROJECT_ROOT="$(dirname "$PROJECT_ROOT")"
+done
+
+if [ ! -f "$PROJECT_ROOT/pyproject.toml" ]; then
+    echo "Error: could not find project root (no pyproject.toml)" >&2
+    exit 1
+fi
+
+VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python3"
+if [ ! -x "$VENV_PYTHON" ]; then
+    echo "Error: venv not found at $PROJECT_ROOT/.venv/" >&2
+    echo "Run: python3 -m venv $PROJECT_ROOT/.venv && $PROJECT_ROOT/.venv/bin/pip install -e $PROJECT_ROOT" >&2
+    exit 1
+fi
+
+export PYTHONPATH="$PROJECT_ROOT"
+exec "$VENV_PYTHON" -u -m obsidian_connector.mcp_server "$@"
