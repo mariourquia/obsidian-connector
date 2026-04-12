@@ -39,3 +39,9 @@ lint-*.json
 staleness-report.json
 .harness/
 *.env.harness
+
+# Vendor scratch (graphify source import workspace)
+.tmp-graphify/
+
+# Build tools
+tools/node_modules/
