@@ -114,6 +114,14 @@ from obsidian_connector.project_intelligence import (
     project_health,
     project_packet,
 )
+from obsidian_connector.commitment_notes import (
+    ActionInput,
+    WriteResult as CommitmentWriteResult,
+    find_commitment_note,
+    render_commitment_note,
+    resolve_commitment_path,
+    write_commitment_note,
+)
 from obsidian_connector.errors import (
     ProtectedFolderError,
     RollbackError,
@@ -227,4 +235,11 @@ __all__ = [
     "project_changelog",
     "project_health",
     "project_packet",
+    # commitment notes (capture-service action representation)
+    "ActionInput",
+    "CommitmentWriteResult",
+    "find_commitment_note",
+    "render_commitment_note",
+    "resolve_commitment_path",
+    "write_commitment_note",
 ]

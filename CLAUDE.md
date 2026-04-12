@@ -67,6 +67,7 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 - `cli.py` -- argparse CLI (65 commands)
 - `workflows.py` -- composed multi-step operations
 - `config.py` -- vault/index configuration, vault path resolution
+- `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`)
 
 ## Adding new commands
 
