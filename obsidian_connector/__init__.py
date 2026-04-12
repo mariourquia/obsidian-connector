@@ -122,6 +122,15 @@ from obsidian_connector.commitment_notes import (
     resolve_commitment_path,
     write_commitment_note,
 )
+from obsidian_connector.commitment_dashboards import (
+    DASHBOARDS_DIR,
+    DashboardResult,
+    generate_commitments_dashboard,
+    generate_due_soon_dashboard,
+    generate_postponed_dashboard,
+    generate_waiting_on_me_dashboard,
+    update_all_dashboards,
+)
 from obsidian_connector.errors import (
     ProtectedFolderError,
     RollbackError,
@@ -242,4 +251,12 @@ __all__ = [
     "render_commitment_note",
     "resolve_commitment_path",
     "write_commitment_note",
+    # commitment dashboards
+    "DASHBOARDS_DIR",
+    "DashboardResult",
+    "generate_commitments_dashboard",
+    "generate_due_soon_dashboard",
+    "generate_postponed_dashboard",
+    "generate_waiting_on_me_dashboard",
+    "update_all_dashboards",
 ]
