@@ -69,6 +69,7 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 - `config.py` -- vault/index configuration, vault path resolution
 - `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`)
 - `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`)
+- `commitment_dashboards.py` -- generate/update four dashboard notes in `Dashboards/` from current commitment state (see `docs/implementation/commitment_dashboards.md`)
 
 ## Adding new commands
 
