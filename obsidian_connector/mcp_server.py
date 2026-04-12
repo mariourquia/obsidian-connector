@@ -2524,6 +2524,259 @@ def obsidian_index_status(vault: str | None = None) -> str:
         )
 
 
+# ---------------------------------------------------------------------------
+# Commitment commands (v0.9.0)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="List Commitments",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_commitments(
+    status: str | None = None,
+    project: str | None = None,
+    priority: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """List commitment notes in the vault.
+
+    Returns a JSON array of commitment summaries, each containing
+    ``action_id``, ``title``, ``status``, ``priority``, ``project``,
+    ``due_at``, ``postponed_until``, ``requires_ack``, and ``path``.
+
+    Args:
+        status: Filter by ``"open"`` or ``"done"``.  Omit for all.
+        project: Case-insensitive project name filter.
+        priority: Filter by ``"low"``, ``"normal"``, or ``"high"``.
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import list_commitments
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        items = list_commitments(vault_path, status=status, project=project, priority=priority)
+        return json.dumps({"ok": True, "count": len(items), "commitments": items}, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Get Commitment Status",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_commitment_status(action_id: str, vault: str | None = None) -> str:
+    """Return the current state of a single commitment by action ID.
+
+    Returns a JSON object with all frontmatter fields, or an error
+    envelope when the commitment is not found.
+
+    Args:
+        action_id: The ``action_id`` field from the commitment's frontmatter.
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import get_commitment
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        item = get_commitment(vault_path, action_id)
+        if item is None:
+            return json.dumps(
+                {"ok": False, "error": {"type": "NotFound", "message": f"commitment not found: {action_id!r}"}}
+            )
+        return json.dumps({"ok": True, "commitment": item}, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Mark Commitment Done",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_mark_done(
+    action_id: str,
+    completed_at: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """Mark a commitment as done and move it to the Done bucket.
+
+    Updates the commitment note's status to ``done``, relocates the file
+    from ``Commitments/Open/`` to ``Commitments/Done/``, and appends a
+    status-change entry to the follow-up log.
+
+    When ``OBSIDIAN_CAPTURE_SERVICE_URL`` is set, also PATCHes the remote
+    action.  The PATCH is best-effort and never rolls back the local write.
+
+    Args:
+        action_id: The ``action_id`` of the commitment to close.
+        completed_at: ISO 8601 completion timestamp.  Defaults to UTC now.
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import mark_commitment_done
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        result = mark_commitment_done(vault_path, action_id, completed_at=completed_at)
+        return json.dumps({"ok": True, **result}, indent=2)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": {"type": "NotFound", "message": str(exc)}})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Postpone Commitment",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_postpone(
+    action_id: str,
+    until: str,
+    vault: str | None = None,
+) -> str:
+    """Set or update the ``postponed_until`` date on a commitment.
+
+    The follow-up log records the postponement.  When service integration
+    is configured, the update is also PATCHed to the remote action.
+
+    Args:
+        action_id: The ``action_id`` of the commitment to postpone.
+        until: ISO 8601 timestamp indicating when it should resurface.
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import postpone_commitment
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        result = postpone_commitment(vault_path, action_id, postponed_until=until)
+        return json.dumps({"ok": True, **result}, indent=2)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": {"type": "NotFound", "message": str(exc)}})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Add Reason to Commitment",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_add_reason(
+    action_id: str,
+    reason: str,
+    vault: str | None = None,
+) -> str:
+    """Append a timestamped reason or note to a commitment's user-notes block.
+
+    The reason is stored in the user-editable region of the commitment note
+    and is preserved across future service syncs.
+
+    Args:
+        action_id: The ``action_id`` of the target commitment.
+        reason: Non-empty text to append (e.g. why it was postponed).
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import add_commitment_reason
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        result = add_commitment_reason(vault_path, action_id, reason)
+        return json.dumps({"ok": True, **result}, indent=2)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": {"type": "NotFound", "message": str(exc)}})
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="List Due Soon",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_due_soon(
+    within_days: int = 3,
+    vault: str | None = None,
+) -> str:
+    """List open commitments due within the next N days.
+
+    Results are sorted earliest-due first.  Each item includes an
+    ``overdue`` boolean when the due date is already past.
+
+    Args:
+        within_days: Look-ahead window in days (default 3).
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import list_due_soon
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        items = list_due_soon(vault_path, within_days=within_days)
+        return json.dumps({"ok": True, "count": len(items), "commitments": items}, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Sync Commitments from Service",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_sync_commitments(
+    service_url: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """Fetch open actions from obsidian-capture-service and write them as notes.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_URL`` and
+    ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from environment when parameters are
+    omitted.  When the service is unreachable, returns an error envelope
+    without touching the vault.
+
+    Args:
+        service_url: Base URL of the capture service (overrides env var).
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_ops import sync_commitments_from_service
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        result = sync_commitments_from_service(vault_path, service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
 def main() -> None:
     """Run the MCP server.
 

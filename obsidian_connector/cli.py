@@ -1104,6 +1104,109 @@ def _fmt_index_status(data: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_commitments(items: list[dict]) -> str:
+    """Human-readable commitment list."""
+    if not items:
+        return "No commitments found."
+    lines: list[str] = []
+    for c in items:
+        overdue_marker = " OVERDUE" if c.get("overdue") else ""
+        due = f"  due: {c['due_at']}" if c.get("due_at") else ""
+        lines.append(f"  [{c['status']}] {c['title']}{overdue_marker}")
+        lines.append(f"    id: {c['action_id']}  priority: {c['priority']}  project: {c['project'] or 'none'}")
+        if due:
+            lines.append(f"    {due.strip()}")
+        lines.append(f"    path: {c['path']}")
+    return "\n".join(lines)
+
+
+def _fmt_commitment_detail(c: dict) -> str:
+    """Human-readable single commitment detail."""
+    lines = [
+        f"{c['title']}",
+        f"  action_id:      {c['action_id']}",
+        f"  status:         {c['status']}",
+        f"  priority:       {c['priority']}",
+        f"  project:        {c['project'] or 'none'}",
+        f"  due_at:         {c['due_at'] or 'none'}",
+        f"  postponed_until:{c['postponed_until'] or 'none'}",
+        f"  requires_ack:   {'yes' if c['requires_ack'] else 'no'}",
+        f"  path:           {c['path']}",
+    ]
+    return "\n".join(lines)
+
+
+def _fmt_mark_done(result: dict) -> str:
+    """Human-readable mark-done output."""
+    lines = [
+        f"Marked done: {result['action_id']}",
+        f"  previous status: {result['previous_status']}",
+        f"  completed_at: {result['completed_at']}",
+        f"  path: {result['path']}",
+    ]
+    if result.get("moved_from"):
+        lines.append(f"  moved from: {result['moved_from']}")
+    if result.get("service_sync"):
+        sync = result["service_sync"]
+        status = "synced" if sync.get("ok") else f"failed ({sync.get('error', '?')})"
+        lines.append(f"  service sync: {status}")
+    return "\n".join(lines)
+
+
+def _fmt_postpone(result: dict) -> str:
+    """Human-readable postpone output."""
+    lines = [
+        f"Postponed: {result['action_id']}",
+        f"  until: {result['postponed_until']}",
+        f"  path: {result['path']}",
+    ]
+    if result.get("service_sync"):
+        sync = result["service_sync"]
+        status = "synced" if sync.get("ok") else f"failed ({sync.get('error', '?')})"
+        lines.append(f"  service sync: {status}")
+    return "\n".join(lines)
+
+
+def _fmt_add_reason(result: dict) -> str:
+    """Human-readable add-reason output."""
+    return (
+        f"Reason added to: {result['action_id']}\n"
+        f"  reason: {result['reason_added']}\n"
+        f"  at: {result['timestamp']}\n"
+        f"  path: {result['path']}"
+    )
+
+
+def _fmt_due_soon(items: list[dict], within_days: int = 3) -> str:
+    """Human-readable due-soon list."""
+    if not items:
+        return f"No open commitments due within {within_days} day(s)."
+    lines = [f"Due within {within_days} day(s): {len(items)} commitment(s)"]
+    for c in items:
+        overdue = " OVERDUE" if c.get("overdue") else ""
+        lines.append(f"  {c['due_at']}{overdue}  {c['title']}")
+        lines.append(f"    id: {c['action_id']}  priority: {c['priority']}")
+    return "\n".join(lines)
+
+
+def _fmt_sync_commitments(result: dict) -> str:
+    """Human-readable sync-commitments output."""
+    if not result.get("ok"):
+        return f"Sync failed: {result.get('error', 'unknown error')}"
+    lines = [
+        f"Synced {result.get('synced', 0)} commitment(s) from service.",
+        f"  source: {result.get('source_url', '?')}",
+    ]
+    errors = result.get("errors", [])
+    if errors:
+        lines.append(f"  errors ({len(errors)}):")
+        for e in errors[:5]:
+            lines.append(f"    {e}")
+        if len(errors) > 5:
+            lines.append(f"    ... and {len(errors) - 5} more")
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -1490,6 +1593,46 @@ def build_parser() -> argparse.ArgumentParser:
     # -- index-status ------------------------------------------------------
     p = sub.add_parser("index-status", help="Show index age and staleness.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- commitments -------------------------------------------------------
+    p = sub.add_parser("commitments", help="List commitment notes in the vault.")
+    p.add_argument("--status", choices=["open", "done"], default=None, help="Filter by status.")
+    p.add_argument("--project", default=None, help="Filter by project name (case-insensitive).")
+    p.add_argument("--priority", choices=["low", "normal", "high"], default=None, help="Filter by priority.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- commitment-status -------------------------------------------------
+    p = sub.add_parser("commitment-status", help="Show the current state of a commitment.")
+    p.add_argument("action_id", help="action_id from the commitment frontmatter.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- mark-done ---------------------------------------------------------
+    p = sub.add_parser("mark-done", help="Mark a commitment as done.")
+    p.add_argument("action_id", help="action_id of the commitment to close.")
+    p.add_argument("--completed-at", default=None, metavar="ISO_TIMESTAMP", help="Completion timestamp (default: now).")
+    p.add_argument("--dry-run", action="store_true", help="Show what would happen without writing.")
+
+    # -- postpone ----------------------------------------------------------
+    p = sub.add_parser("postpone", help="Set or update postponed_until on a commitment.")
+    p.add_argument("action_id", help="action_id of the commitment to postpone.")
+    p.add_argument("--until", required=True, metavar="ISO_TIMESTAMP", help="Resurface timestamp (ISO 8601).")
+    p.add_argument("--dry-run", action="store_true", help="Show what would happen without writing.")
+
+    # -- add-reason --------------------------------------------------------
+    p = sub.add_parser("add-reason", help="Append a timestamped reason to a commitment's notes.")
+    p.add_argument("action_id", help="action_id of the target commitment.")
+    p.add_argument("reason", help="Reason text to append.")
+    p.add_argument("--dry-run", action="store_true", help="Show what would happen without writing.")
+
+    # -- due-soon ----------------------------------------------------------
+    p = sub.add_parser("due-soon", help="List open commitments due within N days.")
+    p.add_argument("--within-days", type=int, default=3, metavar="N", help="Look-ahead window in days (default 3).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- sync-commitments --------------------------------------------------
+    p = sub.add_parser("sync-commitments", help="Sync commitments from obsidian-capture-service.")
+    p.add_argument("--service-url", default=None, help="Base URL of the capture service (overrides env var).")
+    p.add_argument("--dry-run", action="store_true", help="Show what would happen without writing.")
 
     return parser
 
@@ -2440,6 +2583,142 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 parser.parse_args(["project", "--help"])
                 return 0
+
+        elif args.command == "commitments":
+            from obsidian_connector.commitment_ops import list_commitments
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            items = list_commitments(
+                vault_path,
+                status=getattr(args, "status", None),
+                project=getattr(args, "project", None),
+                priority=getattr(args, "priority", None),
+            )
+            data = {"count": len(items), "commitments": items}
+            human = _fmt_commitments(items)
+
+        elif args.command == "commitment-status":
+            from obsidian_connector.commitment_ops import get_commitment
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            item = get_commitment(vault_path, args.action_id)
+            if item is None:
+                raise ValueError(f"commitment not found: {args.action_id!r}")
+            data = item
+            human = _fmt_commitment_detail(item)
+
+        elif args.command == "mark-done":
+            from obsidian_connector.commitment_ops import get_commitment, mark_commitment_done
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            dry = getattr(args, "dry_run", False)
+            log_action(
+                "mark-done",
+                {"action_id": args.action_id, "completed_at": getattr(args, "completed_at", None)},
+                vault,
+                dry_run=dry,
+            )
+            if dry:
+                item = get_commitment(vault_path, args.action_id)
+                if item is None:
+                    raise ValueError(f"commitment not found: {args.action_id!r}")
+                data = {"dry_run": True, "action_id": args.action_id, "would_set_status": "done"}
+                human = (
+                    f"[dry-run] Would mark done: {item['title']}\n"
+                    f"  action_id: {args.action_id}\n"
+                    f"  current status: {item['status']}"
+                )
+            else:
+                result = mark_commitment_done(
+                    vault_path,
+                    args.action_id,
+                    completed_at=getattr(args, "completed_at", None),
+                )
+                data = result
+                human = _fmt_mark_done(result)
+
+        elif args.command == "postpone":
+            from obsidian_connector.commitment_ops import get_commitment, postpone_commitment
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            dry = getattr(args, "dry_run", False)
+            log_action(
+                "postpone",
+                {"action_id": args.action_id, "until": args.until},
+                vault,
+                dry_run=dry,
+            )
+            if dry:
+                item = get_commitment(vault_path, args.action_id)
+                if item is None:
+                    raise ValueError(f"commitment not found: {args.action_id!r}")
+                data = {"dry_run": True, "action_id": args.action_id, "would_set_postponed_until": args.until}
+                human = (
+                    f"[dry-run] Would postpone: {item['title']}\n"
+                    f"  action_id: {args.action_id}\n"
+                    f"  until: {args.until}"
+                )
+            else:
+                result = postpone_commitment(vault_path, args.action_id, postponed_until=args.until)
+                data = result
+                human = _fmt_postpone(result)
+
+        elif args.command == "add-reason":
+            from obsidian_connector.commitment_ops import add_commitment_reason, get_commitment
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            dry = getattr(args, "dry_run", False)
+            log_action(
+                "add-reason",
+                {"action_id": args.action_id, "reason": args.reason},
+                vault,
+                dry_run=dry,
+                content=args.reason,
+            )
+            if dry:
+                item = get_commitment(vault_path, args.action_id)
+                if item is None:
+                    raise ValueError(f"commitment not found: {args.action_id!r}")
+                data = {"dry_run": True, "action_id": args.action_id, "would_add_reason": args.reason}
+                human = (
+                    f"[dry-run] Would add reason to: {item['title']}\n"
+                    f"  reason: {args.reason}"
+                )
+            else:
+                result = add_commitment_reason(vault_path, args.action_id, args.reason)
+                data = result
+                human = _fmt_add_reason(result)
+
+        elif args.command == "due-soon":
+            from obsidian_connector.commitment_ops import list_due_soon
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            items = list_due_soon(vault_path, within_days=args.within_days)
+            data = {"count": len(items), "commitments": items}
+            human = _fmt_due_soon(items, within_days=args.within_days)
+
+        elif args.command == "sync-commitments":
+            from obsidian_connector.commitment_ops import sync_commitments_from_service
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            dry = getattr(args, "dry_run", False)
+            if dry:
+                data = {"dry_run": True, "action": "sync_commitments"}
+                human = "[dry-run] Would fetch and write commitment notes from service."
+            else:
+                result = sync_commitments_from_service(
+                    vault_path,
+                    service_url=getattr(args, "service_url", None),
+                )
+                data = result
+                human = _fmt_sync_commitments(result)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore

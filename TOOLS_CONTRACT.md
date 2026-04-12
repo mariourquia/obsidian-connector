@@ -142,6 +142,22 @@ These tools read vault `.md` files directly and work without Obsidian running.
 |---|---|---|
 | `obsidian_index_status` | `vault?` | JSON with index age and staleness flag |
 
+### Commitment commands (v0.9.0)
+
+Commands operate on `Commitments/Open/` and `Commitments/Done/` in the vault.
+Mutating commands optionally sync status to `obsidian-capture-service` via
+`OBSIDIAN_CAPTURE_SERVICE_URL` + `OBSIDIAN_CAPTURE_SERVICE_TOKEN`.
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_commitments` | `status?`, `project?`, `priority?`, `vault?` | JSON `{ok, count, commitments[{action_id, title, status, priority, project, due_at, postponed_until, requires_ack, path}]}` |
+| `obsidian_commitment_status` | `action_id`, `vault?` | JSON `{ok, commitment{...}}` or `{ok: false, error: {type: "NotFound"}}` |
+| `obsidian_mark_done` | `action_id`, `completed_at?`, `vault?` | JSON `{ok, action_id, previous_status, status, completed_at, path, moved_from, service_sync?}` |
+| `obsidian_postpone` | `action_id`, `until`, `vault?` | JSON `{ok, action_id, status, postponed_until, path, service_sync?}` |
+| `obsidian_add_reason` | `action_id`, `reason`, `vault?` | JSON `{ok, action_id, reason_added, timestamp, path, status}` |
+| `obsidian_due_soon` | `within_days?`, `vault?` | JSON `{ok, count, commitments[...+overdue]}` sorted earliest-due first |
+| `obsidian_sync_commitments` | `service_url?`, `vault?` | JSON `{ok, synced, errors[], source_url}` or `{ok: false, error}` |
+
 ### Idea routing (v0.5.0)
 
 | MCP Tool | Parameters | Returns |
