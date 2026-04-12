@@ -1,0 +1,35 @@
+{
+  "name": "obsidian-connector-marketplace",
+  "owner": {
+    "name": "Mario Urquia",
+    "email": "60152193+mariourquia@users.noreply.github.com"
+  },
+  "metadata": {
+    "description": "Obsidian vault access for Claude via MCP",
+    "schemaVersion": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "obsidian-connector",
+      "source": ".",
+      "description": "Access your Obsidian vault from Claude. Search notes, read content, log decisions, manage tasks, and think with your notes.",
+      "version": "0.7.1",
+      "category": "productivity",
+      "keywords": [
+        "obsidian",
+        "notes",
+        "productivity",
+        "knowledge-management",
+        "mcp"
+      ],
+      "author": {
+        "name": "Mario Urquia",
+        "email": "60152193+mariourquia@users.noreply.github.com"
+      },
+      "homepage": "https://github.com/mariourquia/obsidian-connector",
+      "repository": "https://github.com/mariourquia/obsidian-connector",
+      "license": "MIT"
+    }
+  ],
+  "version": "0.7.1"
+}
