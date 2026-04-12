@@ -25,6 +25,7 @@ _SUITES = [
     "reports_test.py",
     "project_intelligence_test.py",
     "automation_test.py",
+    "commitment_notes_test.py",
 ]
 
 
