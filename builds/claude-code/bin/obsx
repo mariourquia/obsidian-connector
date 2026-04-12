@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Wrapper for obsidian-connector CLI.
+# Works from any shell (Desktop, Terminal, CI) without venv activation.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+while [ "$PROJECT_ROOT" != "/" ]; do
+    [ -f "$PROJECT_ROOT/pyproject.toml" ] && break
+    PROJECT_ROOT="$(dirname "$PROJECT_ROOT")"
+done
+
+exec "$PROJECT_ROOT/.venv/bin/python3" -m obsidian_connector.cli "$@"

@@ -1594,6 +1594,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("index-status", help="Show index age and staleness.")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
+    # -- ix (intercepted) --------------------------------------------------
+    p = sub.add_parser("ix", help="Ix codebase mapping engine (intercepted early). Run 'obsx ix --help' for details.")
+
+    # -- run (recipes) -----------------------------------------------------
+    p = sub.add_parser("run", help="Run a determinisic YAML workflow recipe from ~/.obsx/recipes/.")
+
     # -- commitments -------------------------------------------------------
     p = sub.add_parser("commitments", help="List commitment notes in the vault.")
     p.add_argument("--status", choices=["open", "done"], default=None, help="Filter by status.")
@@ -1647,6 +1653,30 @@ def _resolve_json(args: argparse.Namespace) -> bool:
 # ---------------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if argv and argv[0] == "run":
+        from obsidian_connector.recipes import run_recipe
+        try:
+            return run_recipe(argv[1], argv[2:]) if len(argv) > 1 else run_recipe("", [])
+        except SystemExit as e:
+            return e.code or 0
+            
+    # Early intercept for ix commands
+    if argv and argv[0] == "ix":
+        from obsidian_connector.ix_engine.runner import run_ix
+        # Re-write sys.argv so ix parser works properly
+        sys.argv = [sys.argv[0] + " ix"] + argv[1:]
+        try:
+            return run_ix(argv[1:])
+        except SystemExit as e:
+            return e.code or 0
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return 1
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

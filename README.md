@@ -254,6 +254,26 @@ Deep analysis of your notes and writing patterns.
 | `obsidian_trace` | Trace an idea's evolution across vault notes over time |
 | `obsidian_ideas` | Surface latent ideas from vault graph structure (orphans, clusters) |
 
+### Ix System Intelligence (Progressive Disclosure)
+
+Integrated from the [Ix project](https://github.com/ix-infrastructure/Ix), these tools allow the AI to map and trace your codebase or local system systematically rather than loading huge files blindly. The first run of an `ix` command will automatically initialize the Ix engine.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_ix_map` | Build a persistent system map (`.ix/`) from code and signals |
+| `obsidian_ix_explain` | Get a high-level explanation of any component |
+| `obsidian_ix_trace` | Trace how a flow moves through your system |
+| `obsidian_ix_impact` | Analyze the blast radius of a potential change |
+
+### Orchestrator (UX Chaining)
+
+To prevent tool fatigue, the connector supports deterministic YAML chaining. You can combine multiple subcommands (like searching, mapping with Ix, and logging) into a single recipe block.
+
+| Feature | What it does |
+|---|---|
+| `obsx run <recipe>` | Evaluates `~/.obsx/recipes/<recipe>.yml` step-by-step. |
+| `obsidian_investigate` | An MCP "Super-tool" that automatically chains `ix explain` and Obsidian graph searches locally before returning a highly compressed context payload to AI. |
+
 ### Workflow OS
 
 Daily workflow, open loop tracking, idea graduation, and delegation management.
@@ -346,6 +366,11 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx delegations --days 7
 ./bin/obsx context-load
 ./bin/obsx check-in                    # time-aware status + suggestion
+
+# ── Ix System Intel ──
+./bin/obsx ix map .                    # Index codebase map
+./bin/obsx ix explain auth             # Explain auth subsystem
+./bin/obsx ix trace login_route        # Trace flow and impact
 
 # ── Project Sync ──
 ./bin/obsx init                        # interactive vault setup wizard

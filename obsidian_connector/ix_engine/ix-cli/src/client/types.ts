@@ -1,0 +1,193 @@
+export interface CommitResult {
+  newRev: number;
+  status: "Ok" | "Idempotent" | "BaseRevMismatch";
+}
+
+export interface Factor {
+  value: number;
+  reason: string;
+}
+
+export interface ConfidenceBreakdown {
+  baseAuthority: Factor;
+  verification: Factor;
+  recency: Factor;
+  corroboration: Factor;
+  conflictPenalty: Factor;
+  intentAlignment: Factor;
+  score: number;
+}
+
+export interface Claim {
+  id: string;
+  entityId: string;
+  statement: string;
+  status: string;
+}
+
+export interface ScoredClaim {
+  claim: Claim;
+  confidence: ConfidenceBreakdown;
+  relevance: number;
+  finalScore: number;
+}
+
+export interface CompactConfidence {
+  score: number;
+  authority?: number;
+  factors?: Record<string, Factor>;
+}
+
+export interface CompactScoredClaim {
+  entityId: string;
+  field: string;
+  value: unknown;
+  score: number;
+  confidence: CompactConfidence;
+  path?: string;
+  lineRange?: [number, number];
+}
+
+export interface ConflictReport {
+  id: string;
+  claimA: string;
+  claimB: string;
+  reason: string;
+  recommendation: string;
+}
+
+export interface DecisionReport {
+  title: string;
+  rationale: string;
+  entityId?: string;
+  intentId?: string;
+  rev: number;
+}
+
+export interface IntentReport {
+  id: string;
+  statement: string;
+  status: string;
+  confidence: number;
+  parentIntent?: string;
+}
+
+export interface GraphNode {
+  id: string;
+  kind: string;
+  name: string;
+  attrs: Record<string, unknown>;
+  provenance: {
+    sourceUri: string;
+    sourceHash?: string;
+    extractor: string;
+    sourceType: string;
+    observedAt: string;
+  };
+  createdRev: number;
+  deletedRev?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  src: string;
+  dst: string;
+  predicate: string;
+  attrs: Record<string, unknown>;
+  createdRev: number;
+  deletedRev?: number;
+}
+
+export interface ContextMetadata {
+  query: string;
+  seedEntities: string[];
+  hopsExpanded: number;
+  asOfRev: number;
+  depth?: string;
+}
+
+export interface StructuredContext {
+  claims: ScoredClaim[];
+  compactClaims?: CompactScoredClaim[];
+  conflicts: ConflictReport[];
+  decisions: DecisionReport[];
+  intents: IntentReport[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  metadata: ContextMetadata;
+}
+
+export interface SearchResult {
+  nodes: GraphNode[];
+}
+
+export interface PatchSummary {
+  patch_id: string;
+  rev: number;
+  intent?: string;
+  source_uri?: string;
+  timestamp?: string;
+}
+
+export interface SkipReasons {
+  unchanged: number;
+  emptyFile: number;
+  parseError: number;
+  tooLarge: number;
+  minifiedLikely?: number;
+}
+
+export interface IngestResult {
+  filesProcessed: number;
+  patchesApplied: number;
+  filesSkipped?: number;
+  entitiesCreated: number;
+  latestRev: number;
+  skipReasons?: SkipReasons;
+}
+
+export interface HealthResponse {
+  status: string;
+  // Backend on-disk graph format version. When a client's expected version
+  // differs from this, it forces a clean re-ingest (e.g. absolute→relative
+  // source_uri migration changes every node ID).
+  schema_version?: number;
+}
+
+export interface PatchSource {
+  // uri is the provenance source URI. In the client-agnostic backend design it
+  // is a workspace-relative path (POSIX separators), not an absolute host path.
+  // The backend treats this as an opaque string key for joins/tombstones.
+  uri: string;
+  sourceHash?: string;
+  extractor: string;
+  sourceType: string;
+  // workspaceId uniquely identifies the workspace whose files produced this
+  // patch. Derived client-side as SHA-256 of the workspace root's absolute
+  // path. Backend stores it as an opaque attribute for future multi-workspace
+  // disambiguation; it does not interpret the value.
+  workspaceId?: string;
+}
+
+export interface PatchOp {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface GraphPatchPayload {
+  patchId: string;
+  actor: string;
+  timestamp: string;
+  source: PatchSource;
+  baseRev: number;
+  ops: PatchOp[];
+  replaces: string[];
+  intent?: string;
+}
+
+export interface PatchCommitResult {
+  status: string;
+  rev: number;
+}
