@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "{{INSTALL_PATH}}/.venv/bin/python3",
+      "args": [
+        "-u",
+        "-m",
+        "obsidian_connector.mcp_server"
+      ],
+      "cwd": "{{INSTALL_PATH}}",
+      "env": {
+        "PYTHONPATH": "{{INSTALL_PATH}}",
+        "OBSIDIAN_VAULT": ""
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "bin/obsx-mcp",
+      "args": [],
+      "env": {
+        "OBSIDIAN_VAULT": ""
+      }
+    }
+  }
+}
