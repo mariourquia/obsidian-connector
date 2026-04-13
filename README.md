@@ -385,6 +385,10 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx uninstall                   # preview what would be removed (dry-run)
 ./bin/obsx uninstall --force           # remove artifacts (prompts per item)
 
+# ── Configuration ──
+./bin/obsx setup-wizard                # guided first-run onboarding
+./bin/obsx menu                        # interactive config dashboard
+
 # ── Global flags (before subcommand) ──
 ./bin/obsx --json search "OKRs"        # JSON envelope output
 ./bin/obsx --vault "Work" search "q3"  # target specific vault

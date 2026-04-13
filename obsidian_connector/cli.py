@@ -1600,6 +1600,12 @@ def build_parser() -> argparse.ArgumentParser:
     # -- run (recipes) -----------------------------------------------------
     p = sub.add_parser("run", help="Run a determinisic YAML workflow recipe from ~/.obsx/recipes/.")
 
+    # -- menu (interactive dashboard) --------------------------------------
+    p = sub.add_parser("menu", help="Open the interactive configuration dashboard.")
+
+    # -- setup-wizard (first-run onboarding) -------------------------------
+    p = sub.add_parser("setup-wizard", help="Run the interactive setup wizard.")
+
     # -- commitments -------------------------------------------------------
     p = sub.add_parser("commitments", help="List commitment notes in the vault.")
     p.add_argument("--status", choices=["open", "done"], default=None, help="Filter by status.")
@@ -1677,10 +1683,24 @@ def main(argv: list[str] | None = None) -> int:
             traceback.print_exc()
             return 1
 
+    # Early intercept for menu / setup-wizard
+    if argv and argv[0] == "menu":
+        from obsidian_connector.ui_dashboard import run_menu
+        return run_menu()
+
+    if argv and argv[0] == "setup-wizard":
+        from obsidian_connector.ui_dashboard import run_wizard
+        return run_wizard()
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command is None:
+        # If no command given and this is the very first run, launch wizard
+        from obsidian_connector.ui_dashboard import is_first_run
+        if is_first_run():
+            from obsidian_connector.ui_dashboard import run_wizard
+            return run_wizard()
         parser.print_help()
         return 0
 
