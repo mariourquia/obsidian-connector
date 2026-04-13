@@ -70,6 +70,7 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 - `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`)
 - `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`)
 - `commitment_dashboards.py` -- generate/update four dashboard notes in `Dashboards/` from current commitment state (see `docs/implementation/commitment_dashboards.md`)
+- `entity_notes.py` -- idempotent writer for semantic-memory entity notes under `Entities/<Kind>/<slug>.md` with preserved user-notes fence (Task 15.A)
 
 ## Adding new commands
 
