@@ -131,6 +131,13 @@ from obsidian_connector.commitment_dashboards import (
     generate_waiting_on_me_dashboard,
     update_all_dashboards,
 )
+from obsidian_connector.entity_notes import (
+    EntityInput,
+    EntityWriteResult,
+    LinkedAction as EntityLinkedAction,
+    resolve_entity_path,
+    write_entity_note,
+)
 from obsidian_connector.errors import (
     ProtectedFolderError,
     RollbackError,
