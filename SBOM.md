@@ -1,7 +1,7 @@
 # Software Bill of Materials (SBOM)
 
-Generated: 2026-03-16
-Package: obsidian-connector v0.2.0
+Generated: 2026-04-13
+Package: obsidian-connector v0.9.0
 Python: >=3.11
 
 ## Audit Status
@@ -10,17 +10,26 @@ Python: >=3.11
 pip-audit: 0 known vulnerabilities
 ```
 
+Regenerate this section with: `pip-audit -r requirements.txt` (or against the
+installed environment).
+
 ## Direct Dependencies
 
-| Package | Version | License | Purpose |
-|---------|---------|---------|---------|
-| mcp | >=1.0.0,<2.0.0 | MIT | MCP server protocol |
+| Package | Version         | License | Purpose                             |
+|---------|-----------------|---------|-------------------------------------|
+| mcp     | >=1.0.0,<2.0.0  | MIT     | MCP server protocol                 |
+| pyyaml  | >=6.0.0         | MIT     | YAML parsing (frontmatter, manifests) |
 
 ## Optional Dependencies
 
-| Package | Version | License | Purpose | Install Extra |
-|---------|---------|---------|---------|---------------|
-| pyyaml | >=6.0,<7.0 | MIT | Schedule config parsing | `scheduling` |
+| Package                | Version         | License | Purpose                                   | Install Extra |
+|------------------------|-----------------|---------|-------------------------------------------|---------------|
+| pyyaml                 | >=6.0,<7.0      | MIT     | Schedule config parsing                   | `scheduling`  |
+| textual                | >=1.0.0         | MIT     | Interactive `obsx` TUI dashboard          | `tui`         |
+| watchdog               | >=4.0,<5.0      | Apache-2.0 | Filesystem watch for live sync         | `live`        |
+| sentence-transformers  | >=3.0,<4.0      | Apache-2.0 | Local embeddings for semantic search   | `semantic`    |
+| networkx               | >=3.0,<4.0      | BSD-3-Clause | Knowledge-graph build / cluster / analyze | `graphify` |
+| pytest                 | >=8.0,<9.0      | MIT     | Test runner                               | `dev`         |
 
 ## Transitive Runtime Dependencies (via mcp)
 

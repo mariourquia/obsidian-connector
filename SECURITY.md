@@ -2,11 +2,11 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|-------------------|
-| 0.7.x   | Yes               |
-| 0.6.x   | Security fixes only |
-| < 0.6   | End of life       |
+| Version | Supported            |
+|---------|----------------------|
+| 0.9.x   | Yes                  |
+| 0.8.x   | Security fixes only  |
+| < 0.8   | End of life          |
 
 ## Reporting a Vulnerability
 
@@ -55,10 +55,26 @@ The threat model assumes a trusted local user on a single machine.
 
 ## Dependencies
 
-| Dependency | Purpose               | Trust basis                  |
-|------------|----------------------|------------------------------|
-| `mcp`      | MCP server protocol  | PyPI package, pinned range   |
-| Python 3.11+ | Runtime            | System Python or venv        |
-| SQLite     | Graph index storage  | Python stdlib                |
+### Runtime (required)
 
-No other runtime dependencies. No native extensions.
+| Dependency   | Purpose                        | Trust basis                |
+|--------------|--------------------------------|----------------------------|
+| `mcp`        | MCP server protocol            | PyPI package, pinned range |
+| `pyyaml`     | YAML parsing (vault frontmatter, skill manifests) | PyPI package, pinned range |
+| Python 3.11+ | Runtime                        | System Python or venv      |
+| SQLite       | Graph index storage            | Python stdlib              |
+
+### Optional extras (opt-in, installed via `pip install 'obsidian-connector[<name>]'`)
+
+| Extra        | Pulls                      | Purpose                                   |
+|--------------|----------------------------|-------------------------------------------|
+| `tui`        | `textual>=1.0.0`           | Interactive `obsx` dashboard              |
+| `scheduling` | `pyyaml>=6.0,<7.0`         | YAML-based policy scheduling              |
+| `live`       | `watchdog>=4.0,<5.0`       | Filesystem watch for the live sync mode   |
+| `semantic`   | `sentence-transformers>=3.0,<4.0` | Local embeddings for semantic search |
+| `graphify`   | `networkx>=3.0,<4.0`       | Knowledge-graph extract / cluster / analyze |
+| `dev`        | `pytest>=8.0,<9.0`         | Test runner                               |
+
+No native extensions beyond what the listed dependencies pull in themselves.
+Extras are not installed by default; the base install only pulls the Runtime
+(required) table above.
