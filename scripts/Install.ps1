@@ -524,6 +524,7 @@ if (-not (Test-Path $PipPath)) {
 }
 
 if (Test-Path $PipPath) {
+    $EditableInstallTarget = "${InstallDir}[tui]"
     Write-Dim "  Upgrading pip..."
     & $PipPath install --upgrade pip 2>&1 | ForEach-Object { Write-Dim "    $_" }
 
@@ -532,7 +533,7 @@ if (Test-Path $PipPath) {
     # Attempt 1: normal install
     Write-Dim "  Installing obsidian-connector..."
     try {
-        $pipOutput = & $PipPath install -e $InstallDir 2>&1
+        $pipOutput = & $PipPath install -e $EditableInstallTarget 2>&1
         $pipOutput | ForEach-Object {
             if ($_ -match '(Downloading|Installing|Collecting|Building|Successfully)') {
                 Write-Dim "    $_"
@@ -546,7 +547,7 @@ if (Test-Path $PipPath) {
         Add-EdgeCase "pip_failed_first_attempt"
         Write-Yellow "  Retrying with --no-cache-dir..."
         try {
-            & $PipPath install --no-cache-dir -e $InstallDir 2>&1 | ForEach-Object {
+            & $PipPath install --no-cache-dir -e $EditableInstallTarget 2>&1 | ForEach-Object {
                 if ($_ -match '(Downloading|Installing|Collecting|Building|Successfully)') {
                     Write-Dim "    $_"
                 }
@@ -569,7 +570,7 @@ if (Test-Path $PipPath) {
                 --trusted-host pypi.org `
                 --trusted-host pypi.python.org `
                 --trusted-host files.pythonhosted.org `
-                -e $InstallDir 2>&1 | ForEach-Object {
+                -e $EditableInstallTarget 2>&1 | ForEach-Object {
                 if ($_ -match '(Downloading|Installing|Collecting|Building|Successfully)') {
                     Write-Dim "    $_"
                 }
@@ -583,7 +584,7 @@ if (Test-Path $PipPath) {
 
     if ($pipOk) {
         $StepResults["pip"] = "ok"
-        Write-Green "  Package installed"
+        Write-Green "  Package installed (including dashboard dependencies)"
     } else {
         $StepResults["pip"] = "fail"
         Write-Red "  Package installation failed after 3 attempts"

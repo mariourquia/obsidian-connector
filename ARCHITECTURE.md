@@ -2,7 +2,7 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-04-02"
+last_reviewed: "2026-04-13"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
@@ -30,7 +30,7 @@ persisted to SQLite for fast incremental updates.
 
 | Directory | Purpose |
 |-----------|---------|
-| `obsidian_connector/` | Core Python package (39 modules) -- stays at root for PyPI |
+| `obsidian_connector/` | Core Python package -- stays at root for PyPI |
 | `src/` | Human-authored plugin content (skills, hooks, manifest, MCP config, bin wrappers) |
 | `src/skills/` | 17 Claude Code skill definitions (12 workflow + 5 knowledge) |
 | `src/hooks/` | hooks.json + session_start.sh, session_stop.sh, idea_detect.md |
@@ -64,6 +64,8 @@ their `src/` counterparts (same underlying files).
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
 | `cli.py` | CLI entry point (`obsx`): 65 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `startup.py` | Shared first-run marker and non-UI startup helpers used by the CLI and onboarding flow |
+| `ui_dashboard.py` | Optional Textual dashboard and setup wizard, loaded lazily from CLI-only paths |
 | `mcp_server.py` | MCP server (FastMCP): 62 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
@@ -104,6 +106,8 @@ their `src/` counterparts (same underlying files).
 
 ```
 bin/obsx ──> cli.py ──> client.py ──> subprocess (obsidian CLI) ──> Obsidian app (IPC)
+                    ──> startup.py
+                    ──> ui_dashboard.py (lazy, optional `tui` extra)
                     ──> workflows.py ──> client_fallback.py + graph.py
                     ──> thinking.py ──> client_fallback.py + graph.py + index_store.py
                     ──> project_sync.py ──> config.py + audit.py + vault_init.py
@@ -113,6 +117,7 @@ bin/obsx ──> cli.py ──> client.py ──> subprocess (obsidian CLI) ─�
 bin/obsx-mcp ──> mcp_server.py ──> client_fallback.py + workflows.py + thinking.py + graph.py + doctor.py
 
 client.py uses: config.py, cache.py, errors.py
+cli.py uses: startup.py; lazily imports ui_dashboard.py only for `menu` / `setup-wizard` / first-run onboarding
 client_fallback.py uses: client.py, file_backend.py, config.py, errors.py
 graph.py uses: config.py (vault path resolution)
 index_store.py uses: graph.py, config.py

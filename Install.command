@@ -348,7 +348,7 @@ dim "  Installing obsidian-connector..."
 PIP_OK=false
 
 # Attempt 1: normal install (show progress)
-if .venv/bin/pip install -e . 2>&1 | while read -r line; do
+if .venv/bin/pip install -e ".[tui]" 2>&1 | while read -r line; do
     printf "\r\033[2m  %s\033[0m\033[K" "$line"
 done; then
     printf "\r\033[K"
@@ -359,7 +359,7 @@ fi
 if [ "$PIP_OK" = false ]; then
     add_edge_case "pip_failed_first_attempt"
     yellow "  Retrying with --no-cache-dir..."
-    if .venv/bin/pip install --no-cache-dir -e . 2>&1 | while read -r line; do
+    if .venv/bin/pip install --no-cache-dir -e ".[tui]" 2>&1 | while read -r line; do
         printf "\r\033[2m  %s\033[0m\033[K" "$line"
     done; then
         printf "\r\033[K"
@@ -375,7 +375,7 @@ if [ "$PIP_OK" = false ]; then
     fi
     # Try trusted-host flags for corporate SSL inspection
     yellow "  Retrying with trusted hosts..."
-    if .venv/bin/pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -e . 2>&1 | while read -r line; do
+    if .venv/bin/pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -e ".[tui]" 2>&1 | while read -r line; do
         printf "\r\033[2m  %s\033[0m\033[K" "$line"
     done; then
         printf "\r\033[K"
@@ -389,7 +389,7 @@ if [ "$PIP_OK" = false ]; then
     printf "\r\033[K"
     red "  Package installation failed"
     echo ""
-    dim "  Try manually: .venv/bin/pip install -e ."
+    dim "  Try manually: .venv/bin/pip install -e '.[tui]'"
     fail_step "pip_install" "All pip install attempts failed"
     press_to_exit 1
 fi

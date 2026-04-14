@@ -80,9 +80,9 @@ else
 fi
 
 "$REPO_ROOT/.venv/bin/pip" install --quiet --upgrade pip
-"$REPO_ROOT/.venv/bin/pip" install --quiet -e "$REPO_ROOT"
+"$REPO_ROOT/.venv/bin/pip" install --quiet -e "${REPO_ROOT}[tui]"
 
-green "  Installed obsidian-connector"
+green "  Installed obsidian-connector + dashboard dependencies"
 
 # ── Step 3: Configure Claude Desktop ─────────────────────────────────
 
