@@ -38,6 +38,8 @@ from obsidian_connector.write_manager import atomic_write
 
 ENTITY_USER_NOTES_BEGIN = "<!-- service:entity-user-notes:begin -->"
 ENTITY_USER_NOTES_END = "<!-- service:entity-user-notes:end -->"
+ENTITY_WIKI_BEGIN = "<!-- service:entity-wiki:begin -->"
+ENTITY_WIKI_END = "<!-- service:entity-wiki:end -->"
 
 NOTE_TYPE = "entity"
 ENTITIES_ROOT = "Entities"
@@ -84,6 +86,9 @@ class EntityInput:
     description: str | None = None
     open_actions: list[LinkedAction] = field(default_factory=list)
     done_actions: list[LinkedAction] = field(default_factory=list)
+    # 15.C: LLM-generated wiki body. When set, written inside the wiki fence.
+    # Preserved across re-renders when not supplied (wiki_content=None).
+    wiki_content: str | None = None
 
 
 @dataclass(frozen=True)
@@ -192,7 +197,7 @@ def _commitment_wikilink(action: LinkedAction) -> str:
     return f"- {action.title}"
 
 
-def _render_body(entity: EntityInput, existing_user_notes: str) -> str:
+def _render_body(entity: EntityInput, existing_user_notes: str, existing_wiki: str) -> str:
     sections: list[str] = [f"# {entity.canonical_name}"]
 
     if entity.description:
@@ -212,6 +217,18 @@ def _render_body(entity: EntityInput, existing_user_notes: str) -> str:
         items = "\n".join(_commitment_wikilink(a) for a in entity.done_actions)
         sections.append("## Completed commitments\n" + items)
 
+    # 15.C: Wiki fence — LLM-generated summary. When entity.wiki_content is set,
+    # it replaces the fence content. Otherwise the existing fence content is
+    # preserved across re-renders. New notes get an empty placeholder.
+    effective_wiki = (
+        entity.wiki_content.strip()
+        if entity.wiki_content is not None
+        else existing_wiki
+    )
+    sections.append(
+        f"## Overview\n{ENTITY_WIKI_BEGIN}\n{effective_wiki}\n{ENTITY_WIKI_END}"
+    )
+
     # Preserve user-authored free-form content across re-renders.
     user_block = existing_user_notes.strip()
     sections.append(
@@ -228,6 +245,20 @@ def _extract_user_notes(content: str | None) -> str:
         return ""
     begin += len(ENTITY_USER_NOTES_BEGIN)
     end = content.find(ENTITY_USER_NOTES_END, begin)
+    if end == -1:
+        return ""
+    return content[begin:end].strip("\n")
+
+
+def _extract_wiki(content: str | None) -> str:
+    """Extract existing wiki fence content; returns empty string when absent."""
+    if not content:
+        return ""
+    begin = content.find(ENTITY_WIKI_BEGIN)
+    if begin == -1:
+        return ""
+    begin += len(ENTITY_WIKI_BEGIN)
+    end = content.find(ENTITY_WIKI_END, begin)
     if end == -1:
         return ""
     return content[begin:end].strip("\n")
@@ -257,9 +288,10 @@ def write_entity_note(
     existing_content = path.read_text(encoding="utf-8") if path.exists() else None
     created = existing_content is None
     user_notes = _extract_user_notes(existing_content)
+    existing_wiki = _extract_wiki(existing_content)
 
     frontmatter = _render_frontmatter(entity, sync_at or _now_iso())
-    body = _render_body(entity, user_notes)
+    body = _render_body(entity, user_notes, existing_wiki)
     rendered = f"{frontmatter}\n\n{body}\n"
 
     atomic_write(
@@ -281,6 +313,8 @@ __all__ = [
     "ENTITIES_ROOT",
     "ENTITY_USER_NOTES_BEGIN",
     "ENTITY_USER_NOTES_END",
+    "ENTITY_WIKI_BEGIN",
+    "ENTITY_WIKI_END",
     "EntityInput",
     "EntityWriteResult",
     "LinkedAction",
