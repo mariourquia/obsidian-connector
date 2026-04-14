@@ -55,9 +55,9 @@ else
 fi
 
 "$PLUGIN_ROOT/.venv/bin/pip" install --quiet --upgrade pip
-"$PLUGIN_ROOT/.venv/bin/pip" install --quiet -e "$PLUGIN_ROOT"
+"$PLUGIN_ROOT/.venv/bin/pip" install --quiet -e "${PLUGIN_ROOT}[tui]"
 
-green "  Installed obsidian-connector"
+green "  Installed obsidian-connector + dashboard dependencies"
 
 # ── Verify ──────────────────────────────────────────────────────────
 bold "[3/3] Verifying..."

@@ -54,10 +54,26 @@ rm -rf .venv
 python3 -m venv .venv
 source .venv/bin/activate   # macOS/Linux
 # or: .venv\Scripts\activate  # Windows
-pip install -e .
+pip install -e '.[tui]'
 ```
 
 Ensure the Python version used to create the venv matches 3.11+.
+If you only need non-dashboard commands, `pip install -e .` is also valid.
+
+## Dashboard commands require Textual
+
+`obsx menu` and `obsx setup-wizard` use the optional Textual dashboard. If you
+installed the base package only, those commands fail with a short install message.
+
+To enable them:
+
+```bash
+pip install 'obsidian-connector[tui]'
+# or from a local clone:
+pip install -e '.[tui]'
+```
+
+Other CLI commands do not require Textual.
 
 ## iCloud vault path issues
 
