@@ -57,7 +57,7 @@ This repo is a self-contained Claude marketplace. Pick the method that fits your
 | **Windows EXE** | Non-technical Windows users | Full plugin + Desktop MCP registration |
 | **Cowork upload** | Cowork tab users | Skills + MCP tools (no hooks) |
 | **Manual MCP config** | Chat tab only | 62 MCP tools only |
-| **pip install** | Python developers | 65 CLI commands + Python API |
+| **pip install** | Python developers | Core CLI + Python API (`menu` / `setup-wizard` via optional `tui` extra) |
 
 > See [Install Surfaces](docs/INSTALL.md) for a detailed comparison of all methods.
 
@@ -79,12 +79,14 @@ bash <plugin-dir>/scripts/setup.sh
 ```
 
 This gives you 62 MCP tools, 17 skills (`/capture`, `/ritual`, `/sync`, `/explore`, `/float`, `/morning`, `/evening`, `/idea`, `/weekly`, and more), and a SessionStart hook that suggests workflows based on time of day.
+The setup script also installs the optional dashboard dependency, so `obsx menu` and `obsx setup-wizard` work out of the box.
 
 > **Note:** Plugin mode (`.mcp.json`) uses Unix venv paths. On Windows, use `scripts/Install.ps1` instead.
 
 ### b. Installer (macOS DMG / Windows EXE)
 
 Download from the [latest release](https://github.com/mariourquia/obsidian-connector/releases/latest). The installer auto-detects Claude Desktop and Claude Code, configures both, creates the Python venv, and registers the MCP server. Restart Claude Desktop after installation.
+The installer includes the optional dashboard dependency used by `obsx menu` and `obsx setup-wizard`.
 
 ### c. Cowork Tab
 
@@ -126,7 +128,7 @@ git clone https://github.com/mariourquia/obsidian-connector.git
 cd obsidian-connector
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e '.[tui]'
 ```
 
 Then add this to your Claude Desktop config file:
@@ -190,7 +192,17 @@ The installer checks for Python, creates the venv, and registers the MCP server 
 pip install obsidian-connector
 ```
 
-This gives you the `obsx` CLI (65 commands) and the Python API. It does not configure Claude Desktop -- use one of the options above for that.
+This gives you the core `obsx` CLI (65 commands) and the Python API. It does not configure Claude Desktop -- use one of the options above for that.
+
+To enable the interactive dashboard and setup wizard on a bare Python install:
+
+```bash
+pip install 'obsidian-connector[tui]'
+# or from a local clone:
+pip install -e '.[tui]'
+```
+
+Without the optional extra, `obsx menu` and `obsx setup-wizard` exit with a short install-guidance message instead of crashing.
 
 ### How to verify it worked
 
@@ -326,7 +338,7 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ## CLI usage
 
 65 commands available as `./bin/obsx` (works without venv activation) or `obsx`
-(after `pip install -e .`).
+(after `pip install -e .` or `pip install -e '.[tui]'`).
 
 ```bash
 # ── Core ──
@@ -394,6 +406,9 @@ The `claude_desktop_config.json` approach (used by the installer) is recommended
 ./bin/obsx --vault "Work" search "q3"  # target specific vault
 ./bin/obsx log-daily "test" --dry-run  # preview without writing
 ```
+
+`setup-wizard` and `menu` require the optional `tui` extra on bare Python installs.
+The first-party installers and `scripts/setup.sh` already include it.
 
 ## Python API
 

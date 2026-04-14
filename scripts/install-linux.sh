@@ -68,9 +68,10 @@ fi
 
 "$REPO_ROOT/.venv/bin/pip" install --quiet --upgrade pip
 "$REPO_ROOT/.venv/bin/pip" install --quiet -r "$REPO_ROOT/requirements-lock.txt"
+"$REPO_ROOT/.venv/bin/pip" install --quiet "textual>=1.0.0"
 "$REPO_ROOT/.venv/bin/pip" install --quiet --no-deps -e "$REPO_ROOT"
 
-green "  Installed obsidian-connector"
+green "  Installed obsidian-connector + dashboard dependencies"
 
 # ── Step 3: Configure Claude Desktop (XDG) ───────────────────────────
 

@@ -2,7 +2,7 @@
 title: "Setup Guide"
 status: verified
 owner: core
-last_reviewed: "2026-03-06"
+last_reviewed: "2026-04-13"
 ---
 
 # Setup Guide
@@ -159,6 +159,11 @@ with the correct environment variable. Or manually add to your `claude_desktop_c
   "PYTHONPATH": "/path/to/obsidian-connector"
 }
 ```
+
+**Dashboard commands say Textual is missing.** Install the optional dashboard
+dependency with `pip install 'obsidian-connector[tui]'` (or `pip install -e '.[tui]'`
+from a local clone). The first-party installers and `scripts/setup.sh` already
+include it.
 
 **"Operation not permitted" on macOS.** Re-run `./scripts/install.sh` to
 update the Claude Desktop config. The installer points directly at the
