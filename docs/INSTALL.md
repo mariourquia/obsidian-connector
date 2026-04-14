@@ -1,6 +1,19 @@
+---
+title: "Installation Guide"
+status: verified
+owner: core
+last_reviewed: "2026-04-13"
+---
+
 # Installation Guide
 
 Install obsidian-connector on any AI agent surface. Each platform has a dedicated distribution target.
+
+## Python package variants
+
+- `pip install obsidian-connector` installs the core CLI, Python API, and MCP server dependencies.
+- `pip install 'obsidian-connector[tui]'` adds the optional Textual dashboard used by `obsx menu` and `obsx setup-wizard`.
+- The first-party installers and `scripts/setup.sh` install the dashboard dependency automatically.
 
 ## Claude Code (CLI, Desktop Code tab, IDEs)
 
@@ -24,7 +37,7 @@ claude plugin add ./obsidian-connector
 git clone https://github.com/mariourquia/obsidian-connector.git
 cd obsidian-connector
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e '.[tui]'
 claude plugin add .
 ```
 
@@ -56,6 +69,9 @@ Add to `claude_desktop_config.json` ([location](https://code.claude.com/docs/en/
 ```
 
 Restart Claude Desktop after editing.
+
+If you only install the base Python package, `obsx menu` and `obsx setup-wizard`
+print install guidance for the optional `tui` extra instead of showing a traceback.
 
 ## Claude Desktop (Cowork tab)
 

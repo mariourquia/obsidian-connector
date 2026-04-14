@@ -37,6 +37,8 @@ FOLLOWUP_BEGIN = "<!-- service:follow-up-log:begin -->"
 FOLLOWUP_END = "<!-- service:follow-up-log:end -->"
 USER_NOTES_BEGIN = "<!-- service:user-notes:begin -->"
 USER_NOTES_END = "<!-- service:user-notes:end -->"
+RELATED_BEGIN = "<!-- service:related:begin -->"
+RELATED_END = "<!-- service:related:end -->"
 
 NOTE_TYPE = "commitment"
 COMMITMENTS_ROOT = "Commitments"
@@ -77,6 +79,11 @@ class ActionInput:
     source_note: str | None = None
     description: str | None = None
     completed_at: str | None = None
+    # 15.A.2: related edges and shared-entity groups, regenerated on each sync.
+    # related_edges: list of dicts with keys: relation, direction, action_title, action_path
+    # related_actions: list of dicts with keys: entity_name, entity_kind, actions (list of {title, path})
+    related_edges: list[dict] = field(default_factory=list)
+    related_actions: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -292,6 +299,69 @@ def _existing_user_notes(content: str | None) -> str | None:
     return block
 
 
+_RELATION_LABELS: dict[str, str] = {
+    "blocks": "Blocks",
+    "follows_from": "Follows from",
+    "precedes": "Precedes",
+    "duplicates": "Duplicates",
+    "relates_to": "Relates to",
+}
+
+
+def _render_related_block(action: ActionInput) -> str | None:
+    """Return the inner content of the related fence, or None if empty."""
+    has_edges = bool(action.related_edges)
+    has_shared = bool(action.related_actions)
+    if not has_edges and not has_shared:
+        return None
+
+    lines: list[str] = []
+    if has_edges:
+        lines.append("### Edges")
+        for edge in action.related_edges:
+            label = _RELATION_LABELS.get(edge.get("relation", ""), edge.get("relation", ""))
+            direction = edge.get("direction", "outgoing")
+            title = edge.get("action_title", "")
+            path = edge.get("action_path")
+            if direction == "incoming":
+                label = f"{label} (incoming)"
+            if path:
+                target = path[:-3] if path.endswith(".md") else path
+                lines.append(f"- {label}: [[{target}|{title}]]")
+            else:
+                lines.append(f"- {label}: {title}")
+
+    if has_shared:
+        shared_lines: list[str] = []
+        for group in action.related_actions:
+            entity_name = group.get("entity_name", "")
+            entity_kind = group.get("entity_kind", "")
+            actions = group.get("actions", [])
+            if not actions:
+                continue
+            kind_label = entity_kind.capitalize() if entity_kind else ""
+            header = f"**{kind_label}: {entity_name}**" if kind_label else f"**{entity_name}**"
+            links = []
+            for a in actions:
+                a_title = a.get("title", "")
+                a_path = a.get("path")
+                if a_path:
+                    target = a_path[:-3] if a_path.endswith(".md") else a_path
+                    links.append(f"[[{target}|{a_title}]]")
+                else:
+                    links.append(a_title)
+            shared_lines.append(f"- {header}: {', '.join(links)}")
+        if shared_lines:
+            if has_edges:
+                lines.append("")
+            lines.append("### Shared context")
+            lines.extend(shared_lines)
+
+    if not lines:
+        return None
+    return "\n".join(lines)
+
+
 def _existing_frontmatter_values(content: str | None) -> dict[str, str]:
     if not content:
         return {}
@@ -394,6 +464,18 @@ def _render_body(
         *notes_section,
         "",
     ]
+
+    related_inner = _render_related_block(action)
+    if related_inner is not None:
+        related_section = [
+            "## Related",
+            RELATED_BEGIN,
+            related_inner,
+            RELATED_END,
+            "",
+        ]
+        sections.extend(related_section)
+
     return "\n".join(sections)
 
 
@@ -573,6 +655,8 @@ __all__ = [
     "FOLLOWUP_END",
     "USER_NOTES_BEGIN",
     "USER_NOTES_END",
+    "RELATED_BEGIN",
+    "RELATED_END",
     "NOTE_TYPE",
     "COMMITMENTS_ROOT",
     "OPEN_DIR",

@@ -15,6 +15,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from obsidian_connector.startup import mark_wizard_completed
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -681,7 +682,7 @@ class WizardCompleteScreen(Screen):
         yield Footer()
 
     def action_finish(self) -> None:
-        _mark_wizard_completed()
+        mark_wizard_completed()
         self.app.exit()
 
 
@@ -731,20 +732,3 @@ def run_wizard() -> int:
     app = WizardApp()
     app.run()
     return 0
-
-
-# ---------------------------------------------------------------------------
-# First-run detection
-# ---------------------------------------------------------------------------
-
-_WIZARD_MARKER = Path.home() / ".config" / "obsidian-connector" / ".setup-complete"
-
-
-def _mark_wizard_completed() -> None:
-    _WIZARD_MARKER.parent.mkdir(parents=True, exist_ok=True)
-    _WIZARD_MARKER.write_text("1", encoding="utf-8")
-
-
-def is_first_run() -> bool:
-    """Return True if the setup wizard has never been completed."""
-    return not _WIZARD_MARKER.is_file()

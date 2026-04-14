@@ -8,6 +8,7 @@ thin wrapper that imports from here for backward compatibility with
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import sys
 import time
@@ -29,6 +30,7 @@ from obsidian_connector.envelope import (
 from obsidian_connector.audit import log_action
 from obsidian_connector.retrieval import hybrid_search, SearchResult, PROFILE_WEIGHTS
 from obsidian_connector.search import enrich_search_results
+from obsidian_connector.startup import is_first_run
 from obsidian_connector.thinking import (
     deep_ideas,
     drift_analysis,
@@ -57,6 +59,33 @@ from obsidian_connector.workflows import (
     my_world_snapshot,
     today_brief,
 )
+
+_TUI_PYPI_INSTALL = "pip install 'obsidian-connector[tui]'"
+_TUI_SOURCE_INSTALL = "pip install -e '.[tui]'"
+
+
+def _is_missing_textual_dependency(exc: ModuleNotFoundError) -> bool:
+    name = exc.name or ""
+    return name == "textual" or name.startswith("textual.")
+
+
+def _missing_tui_dependency_message(feature: str) -> str:
+    return (
+        f"The {feature} requires the optional Textual dependency.\n"
+        f"Install it with: {_TUI_PYPI_INSTALL}\n"
+        f"From a local clone, use: {_TUI_SOURCE_INSTALL}"
+    )
+
+
+def _run_tui_entrypoint(entrypoint: str, feature: str) -> int:
+    try:
+        ui_dashboard = importlib.import_module("obsidian_connector.ui_dashboard")
+    except ModuleNotFoundError as exc:
+        if _is_missing_textual_dependency(exc):
+            print(_missing_tui_dependency_message(feature), file=sys.stderr)
+            return 2
+        raise
+    return getattr(ui_dashboard, entrypoint)()
 
 
 # ---------------------------------------------------------------------------
@@ -1601,10 +1630,16 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("run", help="Run a determinisic YAML workflow recipe from ~/.obsx/recipes/.")
 
     # -- menu (interactive dashboard) --------------------------------------
-    p = sub.add_parser("menu", help="Open the interactive configuration dashboard.")
+    p = sub.add_parser(
+        "menu",
+        help="Open the interactive configuration dashboard (requires the optional 'tui' extra).",
+    )
 
     # -- setup-wizard (first-run onboarding) -------------------------------
-    p = sub.add_parser("setup-wizard", help="Run the interactive setup wizard.")
+    p = sub.add_parser(
+        "setup-wizard",
+        help="Run the interactive setup wizard (requires the optional 'tui' extra).",
+    )
 
     # -- commitments -------------------------------------------------------
     p = sub.add_parser("commitments", help="List commitment notes in the vault.")
@@ -1683,26 +1718,21 @@ def main(argv: list[str] | None = None) -> int:
             traceback.print_exc()
             return 1
 
-    # Early intercept for menu / setup-wizard
-    if argv and argv[0] == "menu":
-        from obsidian_connector.ui_dashboard import run_menu
-        return run_menu()
-
-    if argv and argv[0] == "setup-wizard":
-        from obsidian_connector.ui_dashboard import run_wizard
-        return run_wizard()
-
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command is None:
         # If no command given and this is the very first run, launch wizard
-        from obsidian_connector.ui_dashboard import is_first_run
         if is_first_run():
-            from obsidian_connector.ui_dashboard import run_wizard
-            return run_wizard()
+            return _run_tui_entrypoint("run_wizard", "interactive setup wizard")
         parser.print_help()
         return 0
+
+    if args.command == "menu":
+        return _run_tui_entrypoint("run_menu", "interactive dashboard")
+
+    if args.command == "setup-wizard":
+        return _run_tui_entrypoint("run_wizard", "interactive setup wizard")
 
     use_json = _resolve_json(args)
     cfg = load_config()

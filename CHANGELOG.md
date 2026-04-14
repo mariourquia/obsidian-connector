@@ -4,6 +4,37 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-13
+
+```text
++===================================================================+
+|                                                                   |
+|   OBSIDIAN-CONNECTOR  v0.9.0                                      |
+|   ::  TRIAGE  ::  SEMANTIC MEMORY  ::  GRAPHIFY  ::  UX           |
+|                                                                   |
+|   [ rules -> threshold -> LLM fallback ]                          |
+|   [ entities -> edges -> related blocks ]                         |
+|   [ extract -> cluster -> god-nodes -> report ]                   |
+|                                                                   |
++===================================================================+
+```
+
+### Added
+- **`smart_triage` module + `RuleBasedClassifier`**: Connector surface (`obsidian_connector.smart_triage`, `obsidian_connector.classifiers.rule_based`) consumed by obsidian-capture-service Task 20 triage modes. The `smart_triage()` function runs rule-based classification first and falls back to an injected `LLMClient` when rule confidence is below the threshold (default 0.7). Exposes `ClassificationResult`, `LLMClient`, `Kind`, `Source`.
+- **Semantic memory 15.A.2 (`commitment_notes.py`, `entity_notes.py`)**: Related-edges and shared-entity groups are regenerated on each sync. Commitment notes gain a fenced `related` block rendering edges (`blocks`, `follows_from`, `precedes`, `duplicates`, `relates_to`) as wiki-linked bullets plus a per-entity "Related actions" section. Entity notes gain the same related-actions surface wired off the ActionInput payload. 25 dedicated tests cover fence lifecycle, user-notes preservation, and idempotent re-render.
+- **`entity_notes.py`**: Entity notes writer for the semantic memory layer (Task 15.A), generating per-entity vault notes from extracted entities.
+- **`commitment_dashboards.py`**: 4 generated dashboard views (open by priority, blocked, due this week, recently completed) rendered from capture-service actions.
+- **`commitment_notes.py`**: Renders capture-service actions as vault notes with lifecycle metadata and follow-up log fences.
+- **Commitment inspection and update commands**: CLI surface for querying and updating commitment state.
+- **Textual TUI dashboard**: `obsx` menu with sidebar navigation and multi-screen wizard.
+- **First-run setup wizard**: Guided onboarding flow for new users.
+- **UX orchestrator, Ix Integration, and progressive MCP middleware**: Connector orchestration layer coordinating user-facing flows across MCP, CLI, and TUI surfaces.
+- **`graphify` module (optional extra)**: Knowledge-graph builder over code, docs, papers, and audio. Extract, build, cluster, analyze, report, and export to JSON / HTML / SVG / Obsidian Canvas / wiki. Ships as `obsidian_connector.graphify` and opts in via `pip install 'obsidian-connector[graphify]'` (pulls `networkx>=3.0,<4.0`). CLI entrypoint: `python -m obsidian_connector.graphify`. Includes an 18-test smoke suite that skips cleanly when the extra is not installed.
+
+### Changed
+- **`obsidian_connector/graphify/__init__.py`**: Rewrote the lazy `__getattr__` dispatch to use fully static absolute imports per attribute (previously referenced a standalone `graphify.*` package path that does not exist inside the connector layout). This also satisfies static security linters that cannot trace allowlists through dict lookups.
+- **`obsidian_connector/graphify/__main__.py`**: Fixed the version lookup from the long-stale `graphifyy` typo to the actual distribution name `obsidian-connector` so `__version__` no longer falls back to `"unknown"`.
+
 ## [0.7.1] - 2026-04-02
 
 ### Added

@@ -192,6 +192,9 @@ shell out to `obsidian` or `python main.py` from within an MCP-connected session
 
 The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
 `obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
+Core CLI commands do not require Textual. The optional `menu` and
+`setup-wizard` commands require `pip install 'obsidian-connector[tui]'`
+(first-party installers and `scripts/setup.sh` include it).
 
 ### CLI subcommands (65 add_parser registrations, including 6 parent groups)
 
@@ -259,6 +262,8 @@ are not directly runnable -- they contain the sub-subcommands listed below.
 | `project changelog` | Generate a project changelog | no |
 | `project packet` | Generate a weekly project packet | no |
 | `index-status` | Show index age and staleness | no |
+| `menu` | Open the interactive configuration dashboard (`tui` extra) | no |
+| `setup-wizard` | Run the interactive setup wizard (`tui` extra) | no |
 
 ## Canonical JSON envelope
 
@@ -489,10 +494,11 @@ obsidian-connector/
   config.json                      Project-level defaults
   pyproject.toml                   Package metadata (console scripts: obsx)
   TOOLS_CONTRACT.md                This file
-  obsidian_connector/              38 modules
+  obsidian_connector/              Core Python package
     __init__.py                    Public API re-exports
     __main__.py                    Module entry point
     cli.py                         CLI entry point (65 subcommands)
+    startup.py                     First-run marker + shared startup helpers
     mcp_server.py                  MCP server (62 tools for Claude Desktop)
     client.py                      Core CLI wrapper + batch reads
     client_fallback.py             Adapter: auto file_backend fallback when CLI unavailable
