@@ -4,6 +4,29 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-13
+
+```text
++==============================================================+
+|                                                              |
+|   OBSIDIAN-CONNECTOR  v0.9.0                                 |
+|   ::  TRIAGE  ::  SMART CLASSIFICATION  ::  ENTITY NOTES     |
+|                                                              |
+|   [ rules -> threshold -> LLM fallback ]                     |
+|                                                              |
++==============================================================+
+```
+
+### Added
+- **`smart_triage` module + `RuleBasedClassifier`**: Connector surface (`obsidian_connector.smart_triage`, `obsidian_connector.classifiers.rule_based`) consumed by obsidian-capture-service Task 20 triage modes. The `smart_triage()` function runs rule-based classification first and falls back to an injected `LLMClient` when rule confidence is below the threshold (default 0.7). Exposes `ClassificationResult`, `LLMClient`, `Kind`, `Source`.
+- **`entity_notes.py`**: Entity notes writer for the semantic memory layer (Task 15.A), generating per-entity vault notes from extracted entities.
+- **`commitment_dashboards.py`**: 4 generated dashboard views (open by priority, blocked, due this week, recently completed) rendered from capture-service actions.
+- **`commitment_notes.py`**: Renders capture-service actions as vault notes with lifecycle metadata and follow-up log fences.
+- **Commitment inspection and update commands**: CLI surface for querying and updating commitment state.
+- **Textual TUI dashboard**: `obsx` menu with sidebar navigation and multi-screen wizard.
+- **First-run setup wizard**: Guided onboarding flow for new users.
+- **UX orchestrator, Ix Integration, and progressive MCP middleware**: Connector orchestration layer coordinating user-facing flows across MCP, CLI, and TUI surfaces.
+
 ## [0.7.1] - 2026-04-02
 
 ### Added
