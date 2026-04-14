@@ -57,6 +57,47 @@ ci-local: docs-lint-strict test-cache test-mcp ## Run everything CI would run, l
 .PHONY: check
 check: docs-lint test-all doctor ## Full check: docs + tests + health
 
+# ─── Release Build ───────────────────────────────────────────────────────
+# Produces builds/<target>/ from sources. Run before cutting a release tag.
+# Output directories are gitignored; CI uploads them as release artifacts.
+
+BUILDS_DIR := builds
+VERSION ?= $(shell python3 -c "import importlib.metadata; print(importlib.metadata.version('obsidian-connector'))" 2>/dev/null || echo "0.0.0-dev")
+
+.PHONY: build-portable
+build-portable: ## Assemble portable skills bundle -> builds/portable/
+	bash scripts/build-portable.sh
+	@mkdir -p $(BUILDS_DIR)/portable
+	@cp -r portable/. $(BUILDS_DIR)/portable/
+
+.PHONY: build-claude-code
+build-claude-code: ## Assemble Claude Code plugin bundle -> builds/claude-code/
+	@echo "Assembling Claude Code plugin bundle v$(VERSION)..."
+	@rm -rf $(BUILDS_DIR)/claude-code && mkdir -p $(BUILDS_DIR)/claude-code
+	@cp -r obsidian_connector bin hooks skills .claude-plugin .mcp.json pyproject.toml requirements-lock.txt $(BUILDS_DIR)/claude-code/ 2>/dev/null || true
+	@echo "Done: $(BUILDS_DIR)/claude-code/"
+
+.PHONY: build-claude-desktop
+build-claude-desktop: ## Assemble Claude Desktop bundle -> builds/claude-desktop/
+	@echo "Assembling Claude Desktop bundle v$(VERSION)..."
+	@rm -rf $(BUILDS_DIR)/claude-desktop && mkdir -p $(BUILDS_DIR)/claude-desktop
+	@cp -r obsidian_connector bin pyproject.toml requirements-lock.txt $(BUILDS_DIR)/claude-desktop/ 2>/dev/null || true
+	@echo "Done: $(BUILDS_DIR)/claude-desktop/"
+
+.PHONY: build-cowork
+build-cowork: ## Assemble CoWork bundle -> builds/cowork/
+	@echo "Assembling CoWork bundle v$(VERSION)..."
+	@rm -rf $(BUILDS_DIR)/cowork && mkdir -p $(BUILDS_DIR)/cowork
+	@cp -r hooks skills .claude-plugin $(BUILDS_DIR)/cowork/ 2>/dev/null || true
+	@echo "Done: $(BUILDS_DIR)/cowork/"
+
+.PHONY: release-build
+release-build: build-portable build-claude-code build-claude-desktop build-cowork ## Build all distribution targets
+
+.PHONY: clean-builds
+clean-builds: ## Remove builds/ directory
+	rm -rf $(BUILDS_DIR)
+
 # ─── MCPB Packaging ──────────────────────────────────────────────────────
 
 .PHONY: mcpb-build
