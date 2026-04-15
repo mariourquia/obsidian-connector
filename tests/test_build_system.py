@@ -305,6 +305,12 @@ class TestWindowsPackaging:
         ):
             assert path in script
 
+    def test_shared_packager_uses_build_outputs_directly_when_available(self):
+        script = (ROOT / "scripts" / "build-windows-installer.ps1").read_text()
+        assert "Using built artifacts directly from builds\\claude-desktop\\" in script
+        assert r"Join-Path $BuildDir 'obsidian_connector\*'" in script
+        assert r"Join-Path $RepoRoot 'scripts\*'" in script
+
     def test_shared_packager_uses_faster_ci_compression_profile(self):
         script = (ROOT / "scripts" / "build-windows-installer.ps1").read_text()
         assert "Compression=zip" in script

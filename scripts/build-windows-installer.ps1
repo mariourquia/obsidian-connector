@@ -98,6 +98,7 @@ function Invoke-Robocopy {
 $DistDir = Join-Path $RepoRoot "dist"
 $StagingDir = Join-Path $DistDir ".win-staging"
 $BuildDir = Join-Path $RepoRoot "builds\claude-desktop"
+$LicenseFile = Join-Path $RepoRoot "LICENSE"
 $IxExcludeDirs = @(
     'ix_engine\core-ingestion\src',
     'ix_engine\core-ingestion\test-fixtures',
@@ -113,51 +114,62 @@ $IxExcludeFiles = @(
     'tsconfig*.json'
 )
 
-if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
-New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
-
-Write-Host "Staging project files..."
+$FilesSectionEntries = New-Object System.Collections.Generic.List[string]
 
 if (Test-Path $BuildDir) {
-    Write-Host "Using built artifacts from builds\claude-desktop\"
+    Write-Host "Using built artifacts directly from builds\claude-desktop\"
 
-    # The tracked claude-desktop build includes the full embedded Ix source tree.
-    # The Windows installer only needs the compiled dist outputs and runtime
-    # dependencies, not the dev/test fixtures or shell shims inside .bin/.
-    Invoke-Robocopy `
-        -Source (Join-Path $BuildDir "obsidian_connector") `
-        -Destination (Join-Path $StagingDir "obsidian_connector") `
-        -ExcludeDirs (@('__pycache__') + $IxExcludeDirs) `
-        -ExcludeFiles (@('*.pyc', '.DS_Store') + $IxExcludeFiles)
+    # Point Inno Setup at the built tree directly. Copying the entire build into
+    # a temporary staging directory was the dominant runtime cost in CI.
+    $BuildObsidianExcludes = @(
+        '__pycache__\*',
+        '*.pyc',
+        '.DS_Store'
+    ) + ($IxExcludeDirs | ForEach-Object { "$_\*" }) + $IxExcludeFiles
+    $ScriptExcludes = @(
+        '__pycache__\*',
+        '*.pyc',
+        '.DS_Store'
+    )
 
-    $BinSrc = Join-Path $BuildDir "bin"
-    if (Test-Path $BinSrc) {
-        Invoke-Robocopy `
-            -Source $BinSrc `
-            -Destination (Join-Path $StagingDir "bin") `
-            -ExcludeDirs @('__pycache__') `
-            -ExcludeFiles @('*.pyc', '.DS_Store')
+    $FilesSectionEntries.Add(
+        'Source: "' + (Join-Path $BuildDir 'obsidian_connector\*') +
+        '"; DestDir: "{app}\obsidian_connector"; Excludes: "' +
+        ($BuildObsidianExcludes -join ',') +
+        '"; Flags: ignoreversion recursesubdirs createallsubdirs'
+    )
+
+    if (Test-Path (Join-Path $BuildDir "bin")) {
+        $FilesSectionEntries.Add(
+            'Source: "' + (Join-Path $BuildDir 'bin\*') +
+            '"; DestDir: "{app}\bin"; Excludes: "' +
+            ($ScriptExcludes -join ',') +
+            '"; Flags: ignoreversion recursesubdirs createallsubdirs'
+        )
     }
 
     foreach ($supportFile in @("claude_desktop_config_snippet.json", "pyproject.toml", "requirements-lock.txt", "INSTALL.txt")) {
         $src = Join-Path $BuildDir $supportFile
         if (Test-Path $src) {
-            Copy-Item $src -Destination $StagingDir -Force
+            $FilesSectionEntries.Add(
+                'Source: "' + $src + '"; DestDir: "{app}"; Flags: ignoreversion'
+            )
         }
     }
 
-    # Copy LICENSE from repo root (needed by Inno Setup LicenseFile)
-    $LicenseSrc = Join-Path $RepoRoot "LICENSE"
-    if (Test-Path $LicenseSrc) {
-        Copy-Item $LicenseSrc -Destination $StagingDir
-    }
-    # Copy scripts/ for post-install (Install.ps1, etc.)
-    $ScriptsSrc = Join-Path $RepoRoot "scripts"
-    if (Test-Path $ScriptsSrc) {
-        $ScriptsDst = Join-Path $StagingDir "scripts"
-        Invoke-Robocopy -Source $ScriptsSrc -Destination $ScriptsDst -ExcludeDirs @('__pycache__') -ExcludeFiles @('*.pyc')
+    if (Test-Path (Join-Path $RepoRoot "scripts")) {
+        $FilesSectionEntries.Add(
+            'Source: "' + (Join-Path $RepoRoot 'scripts\*') +
+            '"; DestDir: "{app}\scripts"; Excludes: "' +
+            ($ScriptExcludes -join ',') +
+            '"; Flags: ignoreversion recursesubdirs createallsubdirs'
+        )
     }
 } else {
+    if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
+    New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
+
+    Write-Host "Staging project files..."
     Write-Host "No builds\claude-desktop\ found, falling back to source tree"
 
     # Directories and patterns to exclude (mirrors create-dmg.sh)
@@ -172,9 +184,22 @@ if (Test-Path $BuildDir) {
     ) + $IxExcludeFiles
 
     Invoke-Robocopy -Source $RepoRoot -Destination $StagingDir -ExcludeDirs $ExcludeDirs -ExcludeFiles $ExcludeFiles
+    Write-Host "Staged to: $StagingDir"
+
+    $FilesSectionEntries.Add(
+        'Source: "' + (Join-Path $StagingDir '*') +
+        '"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
+    )
 }
 
-Write-Host "Staged to: $StagingDir"
+if (-not (Test-Path $LicenseFile)) {
+    Write-Error "Required license file missing: $LicenseFile"
+    exit 1
+}
+$FilesSectionEntries.Add(
+    'Source: "' + $LicenseFile + '"; DestDir: "{app}"; Flags: ignoreversion'
+)
+$FilesSection = $FilesSectionEntries -join "`r`n"
 
 # -- Generate Inno Setup script -------------------------------------------
 
@@ -198,7 +223,7 @@ AppSupportURL=https://github.com/mariourquia/obsidian-connector/issues
 DefaultDirName={userappdata}\obsidian-connector
 DefaultGroupName=obsidian-connector
 DisableProgramGroupPage=yes
-LicenseFile=$StagingDir\LICENSE
+LicenseFile=$LicenseFile
 OutputDir=$DistDir
 OutputBaseFilename=$OutputExe
 ; Favor build throughput over maximum compression so CI can finish in a
@@ -223,7 +248,7 @@ Name: "skills"; Description: "Install Claude Code skills (/morning, /evening, et
 Name: "schedule"; Description: "Daily scheduled briefing (8:00 AM)"; Types: full
 
 [Files]
-Source: "$StagingDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+$FilesSection
 
 [Run]
 ; Create venv, install package, configure Claude Desktop
@@ -289,7 +314,9 @@ if (Test-Path $ExePath) {
 
 # -- Cleanup ---------------------------------------------------------------
 
-Remove-Item -Recurse -Force $StagingDir
+if (Test-Path $StagingDir) {
+    Remove-Item -Recurse -Force $StagingDir
+}
 Remove-Item -Force $IssFile
 
 Write-Host ""
