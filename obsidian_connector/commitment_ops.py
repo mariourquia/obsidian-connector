@@ -1111,6 +1111,90 @@ def merge_commitments(
     )
 
 
+# ---------------------------------------------------------------------------
+# Task 31: pattern intelligence wrappers
+# ---------------------------------------------------------------------------
+
+
+def list_repeated_postponements(
+    *,
+    since_days: int = 30,
+    limit: int = 50,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/patterns/repeated-postponements``.
+
+    Returns the :func:`_service_get_json` envelope. On success the
+    payload is ``{ok, since_days, items: [...]}`` where each item
+    carries ``action_id``, ``title``, ``count``, ``first_postponed_at``,
+    ``last_postponed_at``, ``cumulative_days_slipped``, ``last_reason``.
+    Never raises.
+    """
+    params: list[tuple[str, str]] = [
+        ("since_days", str(int(since_days))),
+        ("limit", str(int(limit))),
+    ]
+    query = urllib.parse.urlencode(params)
+    path = f"/api/v1/patterns/repeated-postponements?{query}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
+def list_blocker_clusters(
+    *,
+    since_days: int = 60,
+    limit: int = 50,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/patterns/blocker-clusters``.
+
+    Returns the :func:`_service_get_json` envelope. On success the
+    payload is ``{ok, since_days, items: [...]}`` where each item
+    carries ``blocker_action_id``, ``title``, ``blocks_count``,
+    ``downstream_action_ids`` (sorted list of action IDs),
+    ``oldest_edge_at``. Never raises.
+    """
+    params: list[tuple[str, str]] = [
+        ("since_days", str(int(since_days))),
+        ("limit", str(int(limit))),
+    ]
+    query = urllib.parse.urlencode(params)
+    path = f"/api/v1/patterns/blocker-clusters?{query}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
+def list_recurring_unfinished(
+    *,
+    by: str = "project",
+    since_days: int = 90,
+    limit: int = 50,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/patterns/recurring-unfinished?by=...``.
+
+    ``by`` must be one of ``{"project", "person", "area"}``. Returns
+    the :func:`_service_get_json` envelope. On success the payload is
+    ``{ok, by, since_days, items: [...]}`` where each item carries
+    ``entity_id``, ``canonical_name``, ``slug``, ``kind``,
+    ``open_count``, ``median_age_days``, ``action_ids``. Never raises.
+    """
+    if by not in {"project", "person", "area"}:
+        return {
+            "ok": False,
+            "error": "by must be one of {'project', 'person', 'area'}",
+        }
+    params: list[tuple[str, str]] = [
+        ("by", by),
+        ("since_days", str(int(since_days))),
+        ("limit", str(int(limit))),
+    ]
+    query = urllib.parse.urlencode(params)
+    path = f"/api/v1/patterns/recurring-unfinished?{query}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
 __all__ = [
     "CommitmentSummary",
     "list_commitments",
@@ -1125,4 +1209,7 @@ __all__ = [
     "get_service_action_stats",
     "list_duplicate_candidates",
     "merge_commitments",
+    "list_repeated_postponements",
+    "list_blocker_clusters",
+    "list_recurring_unfinished",
 ]
