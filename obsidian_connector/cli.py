@@ -1389,6 +1389,79 @@ def _fmt_merge_commitment(result: dict) -> str:
     )
 
 
+def _fmt_repeated_postponements(result: dict) -> str:
+    """Human-readable repeated-postponements output (Task 31)."""
+    if not result.get("ok"):
+        return f"Postponements lookup failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    since_days = data.get("since_days", "?")
+    lines = [f"Repeated postponements in the last {since_days}d:"]
+    if not items:
+        lines.append("  (none detected)")
+        return "\n".join(lines)
+    for item in items:
+        lines.append(
+            f"  [{item.get('count', 0)}x] {item.get('title', '(untitled)')}"
+        )
+        reason = (item.get("last_reason") or "").strip() or "(no reason)"
+        lines.append(
+            f"    id: {item.get('action_id', '?')} "
+            f"slipped: {item.get('cumulative_days_slipped', 0)}d "
+            f"reason: {reason}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_blocker_clusters(result: dict) -> str:
+    """Human-readable blocker-clusters output (Task 31)."""
+    if not result.get("ok"):
+        return f"Blockers lookup failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    since_days = data.get("since_days", "?")
+    lines = [f"Blocker clusters in the last {since_days}d:"]
+    if not items:
+        lines.append("  (no open blockers)")
+        return "\n".join(lines)
+    for item in items:
+        downstream = item.get("downstream_action_ids") or []
+        preview = ", ".join(downstream[:5])
+        suffix = f" (+{len(downstream) - 5} more)" if len(downstream) > 5 else ""
+        lines.append(
+            f"  blocks {item.get('blocks_count', 0)} — "
+            f"{item.get('title', '(untitled)')}"
+        )
+        lines.append(
+            f"    id: {item.get('blocker_action_id', '?')} "
+            f"downstream: {preview}{suffix}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_recurring_unfinished(result: dict) -> str:
+    """Human-readable recurring-unfinished output (Task 31)."""
+    if not result.get("ok"):
+        return f"Recurring lookup failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    by = data.get("by", "?")
+    since_days = data.get("since_days", "?")
+    lines = [
+        f"Recurring unfinished by {by} in the last {since_days}d:",
+    ]
+    if not items:
+        lines.append("  (nothing recurring)")
+        return "\n".join(lines)
+    for item in items:
+        lines.append(
+            f"  {item.get('canonical_name', '?')} — "
+            f"{item.get('open_count', 0)} open "
+            f"(median age {item.get('median_age_days', 0)}d)"
+        )
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -1965,6 +2038,77 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--winner", dest="winner_id", required=True,
         help="Action ULID that survives.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- repeated-postponements (Task 31) --------------------------------
+    p = sub.add_parser(
+        "repeated-postponements",
+        help="List actions repeatedly postponed within the window.",
+    )
+    p.add_argument(
+        "--since-days", dest="since_days", type=int, default=30,
+        help="Rolling window (default 30, max 365).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=50,
+        help="Max rows (default 50, server caps at 200).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- blocker-clusters (Task 31) --------------------------------------
+    p = sub.add_parser(
+        "blocker-clusters",
+        help="List open actions that block many downstream actions.",
+    )
+    p.add_argument(
+        "--since-days", dest="since_days", type=int, default=60,
+        help="Rolling window (default 60, max 365).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=50,
+        help="Max rows (default 50, server caps at 200).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- recurring-unfinished (Task 31) ----------------------------------
+    p = sub.add_parser(
+        "recurring-unfinished",
+        help="List recurring unfinished work bucketed by project/person/area.",
+    )
+    p.add_argument(
+        "--by", dest="by", choices=["project", "person", "area"],
+        default="project",
+        help="Semantic anchor kind (default project).",
+    )
+    p.add_argument(
+        "--since-days", dest="since_days", type=int, default=90,
+        help="Rolling window (default 90, max 365).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=50,
+        help="Max rows (default 50, server caps at 200).",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -3177,6 +3321,46 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_merge_commitment(result)
+
+        elif args.command == "repeated-postponements":
+            from obsidian_connector.commitment_ops import (
+                list_repeated_postponements,
+            )
+
+            result = list_repeated_postponements(
+                since_days=getattr(args, "since_days", 30),
+                limit=getattr(args, "limit", 50),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_repeated_postponements(result)
+
+        elif args.command == "blocker-clusters":
+            from obsidian_connector.commitment_ops import (
+                list_blocker_clusters,
+            )
+
+            result = list_blocker_clusters(
+                since_days=getattr(args, "since_days", 60),
+                limit=getattr(args, "limit", 50),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_blocker_clusters(result)
+
+        elif args.command == "recurring-unfinished":
+            from obsidian_connector.commitment_ops import (
+                list_recurring_unfinished,
+            )
+
+            result = list_recurring_unfinished(
+                by=getattr(args, "by", "project"),
+                since_days=getattr(args, "since_days", 90),
+                limit=getattr(args, "limit", 50),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_recurring_unfinished(result)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore
