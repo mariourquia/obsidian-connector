@@ -36,6 +36,7 @@ from pathlib import Path
 # _scan_commitments is an intentional package-internal dependency: it returns
 # CommitmentSummary objects which the renderer uses directly, avoiding a
 # round-trip through dict serialisation.
+from obsidian_connector.commitment_notes import format_source_label
 from obsidian_connector.commitment_ops import CommitmentSummary, _scan_commitments
 from obsidian_connector.write_manager import atomic_write
 
@@ -568,6 +569,40 @@ def _list_line_compact(s: CommitmentSummary) -> str:
     return "- [ ] " + _wikilink(s) + " \u00b7 " + " \u00b7 ".join(parts)
 
 
+def _by_source_counts(
+    items: list[CommitmentSummary],
+) -> list[tuple[str, int]]:
+    """Return ``[(label, count), ...]`` grouped by human source label.
+
+    Uses :func:`format_source_label` to canonicalise the grouping key so
+    the Daily and Weekly review surfaces show the same provenance
+    vocabulary the commitment notes render. Ordering: count descending,
+    label ascending -- deterministic across runs.
+    """
+    counts: dict[str, int] = {}
+    for s in items:
+        label = format_source_label(s.source_app, s.source_entrypoint)
+        counts[label] = counts.get(label, 0) + 1
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+
+
+def _render_by_source_table(
+    counts: list[tuple[str, int]],
+    empty_label: str,
+) -> list[str]:
+    """Render a small Markdown table for a By-source subsection.
+
+    Returns the lines (without a trailing empty line) so callers can
+    slot the block into an existing section list.
+    """
+    if not counts:
+        return [f"_{empty_label}_"]
+    out: list[str] = ["| Source | Count |", "|--------|------:|"]
+    for label, n in counts:
+        out.append(f"| {label} | {n} |")
+    return out
+
+
 def _render_daily_review_md(
     items: list[CommitmentSummary],
     now_iso: str,
@@ -641,6 +676,19 @@ def _render_daily_review_md(
         "No commitments completed today yet.",
     )
     _section("Blocked/Waiting", blocked, "Nothing blocked or waiting.")
+
+    # Task 29: provenance subsection. Counts only today's captures so the
+    # By-source view matches the "Captured today" slice above.
+    captured_counts = _by_source_counts(captured_today)
+    lines.append(f"## By source ({len(captured_counts)})")
+    lines.append("")
+    lines.extend(
+        _render_by_source_table(
+            captured_counts,
+            "No sources to group (nothing captured today).",
+        )
+    )
+    lines.append("")
 
     return "\n".join(lines)
 
@@ -755,6 +803,19 @@ def _render_weekly_review_md(
         for project, n in top_projects:
             lines.append(f"| {project} | {n} |")
         lines.append("")
+
+    # Task 29: provenance subsection. Counts the same "captured this week"
+    # slice as the list section above so readers can match rows to counts.
+    captured_counts = _by_source_counts(captured_week)
+    lines.append(f"## By source ({len(captured_counts)})")
+    lines.append("")
+    lines.extend(
+        _render_by_source_table(
+            captured_counts,
+            "No sources to group (nothing captured this week).",
+        )
+    )
+    lines.append("")
 
     return "\n".join(lines)
 
