@@ -276,3 +276,25 @@ class TestNegativeValidation:
         src_skills = {d.name for d in (SRC / "skills").iterdir() if d.is_dir()}
         unclassified = src_skills - classified
         assert not unclassified, f"Skills not classified in portability config: {unclassified}"
+
+
+class TestWindowsPackaging:
+    """Windows packaging should use the shared packager and trim Ix dev-only files."""
+
+    def test_windows_workflow_uses_shared_packager(self):
+        workflow = (ROOT / ".github" / "workflows" / "build-windows-installer.yml").read_text()
+        assert r".\scripts\build-windows-installer.ps1" in workflow
+        assert r"scripts\create-exe.iss" not in workflow
+
+    def test_shared_packager_excludes_ix_dev_only_paths(self):
+        script = (ROOT / "scripts" / "build-windows-installer.ps1").read_text()
+        for path in (
+            r"obsidian_connector\ix_engine\core-ingestion\src",
+            r"obsidian_connector\ix_engine\core-ingestion\test-fixtures",
+            r"obsidian_connector\ix_engine\core-ingestion\node_modules\.bin",
+            r"obsidian_connector\ix_engine\ix-cli\src",
+            r"obsidian_connector\ix_engine\ix-cli\scripts",
+            r"obsidian_connector\ix_engine\ix-cli\test",
+            r"obsidian_connector\ix_engine\ix-cli\node_modules\.bin",
+        ):
+            assert path in script

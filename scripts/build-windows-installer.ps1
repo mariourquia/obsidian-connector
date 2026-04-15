@@ -70,6 +70,22 @@ Write-Host "Using Inno Setup: $ISCC"
 $DistDir = Join-Path $RepoRoot "dist"
 $StagingDir = Join-Path $DistDir ".win-staging"
 $BuildDir = Join-Path $RepoRoot "builds\claude-desktop"
+$IxExcludeDirs = @(
+    'obsidian_connector\ix_engine\core-ingestion\src',
+    'obsidian_connector\ix_engine\core-ingestion\test-fixtures',
+    'obsidian_connector\ix_engine\core-ingestion\node_modules\.bin',
+    'obsidian_connector\ix_engine\ix-cli\src',
+    'obsidian_connector\ix_engine\ix-cli\scripts',
+    'obsidian_connector\ix_engine\ix-cli\test',
+    'obsidian_connector\ix_engine\ix-cli\node_modules\.bin',
+    'obsidian_connector\ix_engine\ix-cli\dist\cli\__tests__'
+)
+$IxExcludeFiles = @(
+    'obsidian_connector\ix_engine\core-ingestion\package-lock*.json',
+    'obsidian_connector\ix_engine\core-ingestion\tsconfig*.json',
+    'obsidian_connector\ix_engine\ix-cli\package-lock*.json',
+    'obsidian_connector\ix_engine\ix-cli\tsconfig*.json'
+)
 
 if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
@@ -79,8 +95,11 @@ Write-Host "Staging project files..."
 if (Test-Path $BuildDir) {
     Write-Host "Using built artifacts from builds\claude-desktop\"
 
-    $ExcludeDirs = @('__pycache__')
-    $ExcludeFiles = @('*.pyc', '.DS_Store')
+    # The tracked claude-desktop build includes the full embedded Ix source tree.
+    # The Windows installer only needs the compiled dist outputs and runtime
+    # dependencies, not the dev/test fixtures or shell shims inside .bin/.
+    $ExcludeDirs = @('__pycache__') + $IxExcludeDirs
+    $ExcludeFiles = @('*.pyc', '.DS_Store') + $IxExcludeFiles
 
     $ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }
     $ExcludeFileArgs = $ExcludeFiles | ForEach-Object { "/XF"; $_ }
@@ -116,11 +135,11 @@ if (Test-Path $BuildDir) {
         '.venv', '.git', '.claude', '.claude-plugin', 'dist',
         '__pycache__', '*.egg-info', 'vault-context-drafts',
         'templates', 'tools', 'dev', 'hooks', '.github'
-    )
+    ) + $IxExcludeDirs
     $ExcludeFiles = @(
         '*.pyc', '.DS_Store', 'firebase-debug.log',
         'AGENTS.md', 'Makefile', 'main.py', 'Install.command'
-    )
+    ) + $IxExcludeFiles
 
     # Use robocopy for efficient file staging
     $ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }

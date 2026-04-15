@@ -76,19 +76,28 @@ jobs:
         env:
           APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) {
-            Write-Error "Inno Setup compiler not found at: $iscc"
-            exit 1
-          }
-          $src = $env:GITHUB_WORKSPACE
-          $ver = $env:APP_VERSION
-          Write-Host "Compiling: ISCC /DSourceDir=$src /DAppVersion=$ver scripts\create-exe.iss"
-          & $iscc "/DSourceDir=$src" "/DAppVersion=$ver" "scripts\create-exe.iss"
+          & .\scripts\build-windows-installer.ps1 -Version "v$($env:APP_VERSION)"
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Inno Setup compilation failed with exit code: $LASTEXITCODE"
+            Write-Error "build-windows-installer.ps1 failed with exit code: $LASTEXITCODE"
             exit 1
           }
+
+      - name: Normalize output filename
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          $generated = "dist\obsidian-connector-$($env:APP_VERSION)-setup.exe"
+          $tagged = "dist\obsidian-connector-v$($env:APP_VERSION)-setup.exe"
+          if (-not (Test-Path $generated)) {
+            Write-Error "Expected generated installer not found: $generated"
+            Get-ChildItem dist\ -ErrorAction SilentlyContinue
+            exit 1
+          }
+          if (Test-Path $tagged) {
+            Remove-Item $tagged -Force
+          }
+          Rename-Item $generated $tagged
 
       - name: Verify output
         shell: pwsh
