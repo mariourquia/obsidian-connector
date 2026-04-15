@@ -598,12 +598,14 @@ class TestOrchestrators:
             "Daily.md", "Weekly.md", "Stale.md", "Merge Candidates.md",
         ]
 
-    def test_update_all_dashboards_with_admin_emits_nine(self, vault: Path) -> None:
-        # include_admin=True (default) appends Dashboards/Admin.md.
+    def test_update_all_dashboards_with_admin_emits_ten(self, vault: Path) -> None:
+        # include_admin=True (default) appends Dashboards/Admin.md plus
+        # the Task 36 Dashboards/Admin/Approvals.md companion.
         results = update_all_dashboards(vault, now_iso=NOW)
         paths = [r.path.name for r in results]
-        assert len(results) == 9
-        assert paths[-1] == "Admin.md"
+        assert len(results) == 10
+        assert paths[-2] == "Admin.md"
+        assert paths[-1] == "Approvals.md"
 
     def test_determinism_same_inputs_byte_identical(self, vault: Path) -> None:
         _write(

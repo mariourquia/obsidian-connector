@@ -117,9 +117,24 @@ Five read-only HTTP wrappers in `obsidian_connector/admin_ops.py` over `/api/v1/
 
 CLI: `obsx queue-health`, `obsx delivery-failures`, `obsx pending-approvals`, `obsx stale-sync-devices`, `obsx system-health` (all support `--json`). MCP: `obsidian_queue_health`, `obsidian_delivery_failures`, `obsidian_pending_approvals`, `obsidian_stale_sync_devices`, `obsidian_system_health`.
 
-Dashboard: `commitment_dashboards.generate_admin_dashboard(vault, *, service_url, token)` writes `Dashboards/Admin.md`. When no service URL is configured it still produces the file with a "service not configured" banner (doesn't silently skip). `update_all_dashboards(..., include_admin=True)` (default) appends the admin dashboard to the existing 8 surfaces.
+Dashboard: `commitment_dashboards.generate_admin_dashboard(vault, *, service_url, token)` writes `Dashboards/Admin.md`. When no service URL is configured it still produces the file with a "service not configured" banner (doesn't silently skip). `update_all_dashboards(..., include_admin=True)` (default) appends the admin dashboard plus the Task 36 approvals dashboard to the existing 8 surfaces for a total of 10.
 
 Task 44 service-side ADR: [docs/architecture/task_44_admin_surfaces.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_44_admin_surfaces.md).
+
+## Approval UX (Task 36)
+
+Four HTTP wrappers in `obsidian_connector/approval_ops.py` over `/api/v1/deliveries/*`:
+
+- `get_delivery_detail(delivery_id, *, service_url, token)` -> `GET /api/v1/deliveries/{id}`. Envelope data: `{ok, delivery, action, risk_factors[], approval_history[]}`. 404 surfaces as `{ok: False, status_code: 404}`.
+- `bulk_approve_deliveries(delivery_ids, *, note, service_url, token)` -> `POST /api/v1/deliveries/bulk-approve`. Atomic per-batch; per-row skips (missing/wrong_status/duplicate_id) reported without aborting. Server cap: `MAX_BULK_APPROVAL_IDS` (default 50).
+- `bulk_reject_deliveries(delivery_ids, *, note, service_url, token)` -> `POST /api/v1/deliveries/bulk-reject`. Mirror.
+- `get_approval_digest(*, since_hours=24, service_url, token)` -> `GET /api/v1/deliveries/approval-digest`. Envelope data: `{since_hours, pending_total, counts_by_channel, counts_by_urgency, oldest_pending_age_seconds, top_pending[], recent_decisions_count, generated_at}`.
+
+CLI: `obsx delivery-detail --delivery-id ...`, `obsx bulk-approve --delivery-ids a,b,c [--note "..."]`, `obsx bulk-reject ...`, `obsx approval-digest [--since-hours N]` (all support `--json`). MCP: `obsidian_delivery_detail`, `obsidian_bulk_approve`, `obsidian_bulk_reject`, `obsidian_approval_digest`.
+
+Dashboard: `commitment_dashboards.generate_approval_dashboard(vault, *, service_url, token, now_iso, since_hours)` writes `Dashboards/Admin/Approvals.md` with three sections — Approval digest, Pending approvals with risk factors (ordered by urgency then age), Recent decisions (last 24h). Service-unconfigured and service-error cases both render the page with a banner, never silent skip. Wired into `update_all_dashboards(..., include_admin=True)`.
+
+Task 36 service-side ADR: [docs/architecture/task_36_approval_ux.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_36_approval_ux.md).
 
 ## How to navigate fast
 

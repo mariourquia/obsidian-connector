@@ -1585,6 +1585,141 @@ def _fmt_system_health(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_delivery_detail(result: dict) -> str:
+    """Human-readable delivery-detail output (Task 36)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Delivery detail failed (HTTP {status}): {err}"
+        return f"Delivery detail failed: {err}"
+    data = result.get("data", {}) or {}
+    delivery = data.get("delivery", {}) or {}
+    action = data.get("action") or {}
+    risks = data.get("risk_factors", []) or []
+    history = data.get("approval_history", []) or []
+    lines = [
+        f"Delivery {delivery.get('delivery_id', '?')}"
+        f"  [{delivery.get('channel', '?')}]"
+        f"  status: {delivery.get('status', '?')}",
+        f"  target: {delivery.get('target') or '(none)'}",
+        f"  scheduled: {delivery.get('scheduled_at') or '(none)'}",
+    ]
+    if action:
+        lines.append(
+            f"  action: {action.get('title', '(no title)')}"
+            f"  priority: {action.get('priority', 'normal')}"
+            f"  urgency: {action.get('urgency', 'normal')}"
+            f"  lifecycle: {action.get('lifecycle_stage', 'inbox')}"
+        )
+        if action.get("due_at"):
+            lines.append(f"  due: {action.get('due_at')}")
+        projects = action.get("projects") or []
+        people = action.get("people") or []
+        areas = action.get("areas") or []
+        if projects:
+            lines.append(f"  projects: {', '.join(projects)}")
+        if people:
+            lines.append(f"  people: {', '.join(people)}")
+        if areas:
+            lines.append(f"  areas: {', '.join(areas)}")
+    if risks:
+        lines.append(f"  risk factors: {', '.join(risks)}")
+    else:
+        lines.append("  risk factors: (none flagged)")
+    if history:
+        lines.append(f"  history: {len(history)} prior decision(s)")
+        for h in history:
+            lines.append(
+                f"    - {h.get('decided_at', '?')}  "
+                f"{h.get('decision', '?')} by {h.get('decided_by', '?')}"
+            )
+    return "\n".join(lines)
+
+
+def _fmt_bulk_approval(result: dict, verb: str) -> str:
+    """Shared formatter for bulk-approve + bulk-reject (Task 36)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Bulk {verb} failed (HTTP {status}): {err}"
+        return f"Bulk {verb} failed: {err}"
+    data = result.get("data", {}) or {}
+    requested = int(data.get("requested", 0) or 0)
+    approved = data.get("approved", []) or []
+    rejected = data.get("rejected", []) or []
+    skipped = data.get("skipped", []) or []
+    processed = approved if verb == "approve" else rejected
+    lines = [
+        f"Bulk {verb}: requested={requested}"
+        f"  {'approved' if verb == 'approve' else 'rejected'}={len(processed)}"
+        f"  skipped={len(skipped)}",
+    ]
+    for row in processed:
+        lines.append(
+            f"  ok: {row.get('delivery_id', '?')} -> {row.get('status', '?')}"
+        )
+    for row in skipped:
+        detail = row.get("detail")
+        suffix = f" ({detail})" if detail else ""
+        lines.append(
+            f"  skip: {row.get('delivery_id', '?')}"
+            f"  reason: {row.get('reason', '?')}{suffix}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_approval_digest(result: dict) -> str:
+    """Human-readable approval-digest output (Task 36)."""
+    if not result.get("ok"):
+        return f"Approval digest failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    counts_ch = d.get("counts_by_channel", {}) or {}
+    counts_ug = d.get("counts_by_urgency", {}) or {}
+    top = d.get("top_pending", []) or []
+    lines = [
+        f"Approval digest (window {d.get('since_hours', '?')}h,"
+        f" generated {d.get('generated_at', '?')}):",
+        f"  pending total: {d.get('pending_total', 0)}",
+    ]
+    if counts_ch:
+        lines.append(
+            "  by channel: "
+            + ", ".join(
+                f"{k}={v}" for k, v in sorted(counts_ch.items())
+            )
+        )
+    if counts_ug:
+        lines.append(
+            "  by urgency: "
+            + ", ".join(
+                f"{k}={v}" for k, v in sorted(counts_ug.items())
+            )
+        )
+    age = d.get("oldest_pending_age_seconds")
+    if age is not None:
+        lines.append(f"  oldest pending age: {age}s")
+    lines.append(
+        f"  recent decisions (last {d.get('since_hours', '?')}h): "
+        f"{d.get('recent_decisions_count', 0)}"
+    )
+    if top:
+        lines.append("  top pending:")
+        for item in top:
+            risks = item.get("risk_factors", []) or []
+            risks_str = ", ".join(risks) if risks else "(no flags)"
+            lines.append(
+                f"    - [{item.get('channel', '?')}]"
+                f"  {item.get('action_title') or '(no title)'}"
+                f"  urgency: {item.get('urgency', 'normal')}"
+                f"  risks: {risks_str}"
+            )
+    else:
+        lines.append("  top pending: (none)")
+    return "\n".join(lines)
+
+
 def _fmt_explain_commitment(result: dict) -> str:
     """Human-readable why-still-open output (Task 32)."""
     if not result.get("ok"):
@@ -2381,6 +2516,86 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "onboarding",
         help="Print the step-by-step onboarding walkthrough (non-interactive).",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- delivery-detail (Task 36) ---------------------------------------
+    p = sub.add_parser(
+        "delivery-detail",
+        help="Delivery + action context + approval history + risk factors.",
+    )
+    p.add_argument(
+        "--delivery-id", dest="delivery_id", required=True,
+        help="Server-side delivery id (dlv_...).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- bulk-approve (Task 36) ------------------------------------------
+    p = sub.add_parser(
+        "bulk-approve",
+        help="Approve a batch of pending deliveries atomically.",
+    )
+    p.add_argument(
+        "--delivery-ids", dest="delivery_ids", required=True,
+        help="Comma-separated list of delivery ids.",
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional reason recorded on every audit row (<=500 chars).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- bulk-reject (Task 36) -------------------------------------------
+    p = sub.add_parser(
+        "bulk-reject",
+        help="Reject a batch of pending deliveries atomically.",
+    )
+    p.add_argument(
+        "--delivery-ids", dest="delivery_ids", required=True,
+        help="Comma-separated list of delivery ids.",
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional reason recorded on every audit row (<=500 chars).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- approval-digest (Task 36) ---------------------------------------
+    p = sub.add_parser(
+        "approval-digest",
+        help="Approval queue summary: counts + oldest + top-5 pending + recent decisions.",
+    )
+    p.add_argument(
+        "--since-hours", dest="since_hours", type=int, default=24,
+        help="Recent-decisions window in hours (default 24, max 720).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
     )
     p.add_argument(
         "--json", dest="sub_json", action="store_true",
@@ -3689,6 +3904,56 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_system_health(result)
+
+        elif args.command == "delivery-detail":
+            from obsidian_connector.approval_ops import get_delivery_detail
+
+            result = get_delivery_detail(
+                args.delivery_id,
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_delivery_detail(result)
+
+        elif args.command == "bulk-approve":
+            from obsidian_connector.approval_ops import bulk_approve_deliveries
+
+            ids = [
+                s.strip() for s in (args.delivery_ids or "").split(",")
+                if s.strip()
+            ]
+            result = bulk_approve_deliveries(
+                ids,
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_bulk_approval(result, "approve")
+
+        elif args.command == "bulk-reject":
+            from obsidian_connector.approval_ops import bulk_reject_deliveries
+
+            ids = [
+                s.strip() for s in (args.delivery_ids or "").split(",")
+                if s.strip()
+            ]
+            result = bulk_reject_deliveries(
+                ids,
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_bulk_approval(result, "reject")
+
+        elif args.command == "approval-digest":
+            from obsidian_connector.approval_ops import get_approval_digest
+
+            result = get_approval_digest(
+                since_hours=getattr(args, "since_hours", 24),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_approval_digest(result)
 
         elif args.command == "onboarding":
             from obsidian_connector.onboarding import (
