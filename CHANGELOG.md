@@ -4,6 +4,21 @@ All notable changes to obsidian-connector are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Task 33 — Packaging and distribution surfaces**: added `obsidian-connector-mcp`
+  console script entry point (`obsidian_connector.mcp_server:main`) alongside the
+  existing `obsidian-connector` / `obsx` CLI entry points so `pip install -e .`
+  exposes the MCP server on `$PATH` with no `python -m` wrapper required.
+  Companion to obsidian-capture-service Task 33 service-side packaging.
+- **`tests/test_packaging.py`**: pyproject fields + CHANGELOG presence assertions
+  to guard against silent regressions in distribution metadata.
+
+### Changed
+- CLAUDE.md/AGENTS.md now document the editable install flow (`pip install -e .`)
+  and the three console scripts shipped by the package.
+
 ## [0.9.0] - 2026-04-13
 
 ```text
