@@ -3256,6 +3256,202 @@ def obsidian_explain_commitment(
 
 
 # ---------------------------------------------------------------------------
+# Task 44: operational admin surfaces
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Queue Health (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_queue_health(
+    since_hours: int = 24,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/admin/queue-health`` from the capture service.
+
+    Returns the Neon ``capture_queue`` health snapshot: status counts,
+    oldest pending row age (seconds), and error rate across the window.
+    When the queue poller is disabled on the service side, ``enabled``
+    is false and the counts are empty.
+
+    Args:
+        since_hours: Window in hours (default 24, max 720).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import get_queue_health
+
+    try:
+        result = get_queue_health(
+            since_hours=since_hours, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Delivery Failures (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_delivery_failures(
+    since_hours: int = 24,
+    limit: int = 100,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/admin/delivery-failures``.
+
+    Returns recent deliveries in ``failed`` or ``dead_letter`` status,
+    joined with the parent action's title. Sorted by most recent
+    ``scheduled_at`` first.
+
+    Args:
+        since_hours: Window in hours (default 24, max 720).
+        limit: Max rows (default 100, server cap 500).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import list_delivery_failures
+
+    try:
+        result = list_delivery_failures(
+            since_hours=since_hours, limit=limit, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Pending Approvals (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_pending_approvals(
+    limit: int = 100,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/admin/pending-approvals``.
+
+    Returns deliveries whose ``status = 'pending_approval'`` joined
+    with action title, priority, and lifecycle stage. Sorted oldest
+    first.
+
+    Args:
+        limit: Max rows (default 100, server cap 500).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import list_pending_approvals
+
+    try:
+        result = list_pending_approvals(
+            limit=limit, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Stale Sync Devices (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_stale_sync_devices(
+    threshold_hours: int = 24,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/admin/stale-sync-devices``.
+
+    Returns devices whose ``last_sync_at`` is older than the
+    threshold, or whose row has existed longer than the threshold with
+    ``last_sync_at IS NULL``. Each row includes a pending-ops count
+    from ``sync_operations``.
+
+    Args:
+        threshold_hours: Staleness threshold (default 24, max 8760).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import list_stale_sync_devices
+
+    try:
+        result = list_stale_sync_devices(
+            threshold_hours=threshold_hours, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="System Health (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_system_health(
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/admin/system-health`` (composite summary).
+
+    One-call operator summary wrapping the doctor report + compact
+    counts of queue health, delivery failures, pending approvals, and
+    stale sync devices. Includes an ``overall_status`` field
+    (``ok`` / ``warn`` / ``fail``).
+
+    Args:
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import get_system_health
+
+    try:
+        result = get_system_health(service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 

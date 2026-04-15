@@ -53,6 +53,7 @@ _DASHBOARD_WEEKLY_REVIEW_PATH = f"{REVIEW_DASHBOARDS_DIR}/Weekly.md"
 _DASHBOARD_STALE_PATH = f"{REVIEW_DASHBOARDS_DIR}/Stale.md"
 _DASHBOARD_MERGE_CANDIDATES_PATH = f"{REVIEW_DASHBOARDS_DIR}/Merge Candidates.md"
 _DASHBOARD_PATTERNS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Patterns.md"
+_DASHBOARD_ADMIN_PATH = f"{DASHBOARDS_DIR}/Admin.md"
 
 _TOOL = "obsidian-connector/dashboards"
 
@@ -1466,6 +1467,277 @@ def generate_patterns_dashboard(
     return DashboardResult(path=path, written=written)
 
 
+# ---------------------------------------------------------------------------
+# Task 44: Admin dashboard
+# ---------------------------------------------------------------------------
+
+
+def _render_admin_md(
+    *,
+    now_iso: str,
+    system_health_payload: dict | None,
+    queue_health_payload: dict | None,
+    delivery_failures_items: list[dict] | None,
+    pending_approvals_items: list[dict] | None,
+    stale_devices_items: list[dict] | None,
+    service_configured: bool,
+    service_error: str | None,
+) -> str:
+    """Render the admin dashboard markdown.
+
+    Pure function. Always produces a document, even when the service
+    isn't configured — in that case the header banner explains the
+    gap and every section renders a polite "no data" note. When the
+    service is configured but unreachable, the error is surfaced
+    once at the top and the sections fall through to empty.
+    """
+    fm = _frontmatter("admin", now_iso)
+    lines: list[str] = [fm, "", "# Admin", ""]
+    lines.append(f"_Generated at {_now_display(now_iso)}._")
+    lines.append("")
+
+    if not service_configured:
+        lines.append(
+            "> Capture service not configured. Set "
+            "`OBSIDIAN_CAPTURE_SERVICE_URL` (and optionally "
+            "`OBSIDIAN_CAPTURE_SERVICE_TOKEN`) to populate the admin "
+            "surfaces. All sections below are empty for this run."
+        )
+        lines.append("")
+    elif service_error:
+        lines.append(
+            f"> Capture service unreachable: {service_error}. "
+            "Sections below show whatever the service returned before "
+            "the error."
+        )
+        lines.append("")
+
+    # System health summary
+    lines.append("## System health summary")
+    lines.append("")
+    if system_health_payload:
+        overall = str(system_health_payload.get("overall_status") or "?").upper()
+        doctor = system_health_payload.get("doctor") or {}
+        counts = doctor.get("counts") or {}
+        lines.append(f"- **Overall status**: {overall}")
+        lines.append(
+            f"- Doctor: {int(counts.get('ok', 0))} ok, "
+            f"{int(counts.get('warn', 0))} warn, "
+            f"{int(counts.get('fail', 0))} fail, "
+            f"{int(counts.get('skip', 0))} skip"
+        )
+        queue_summary = system_health_payload.get("queue") or {}
+        if queue_summary:
+            lines.append(
+                f"- Queue: enabled={bool(queue_summary.get('enabled'))}, "
+                f"reachable={bool(queue_summary.get('reachable'))}, "
+                f"error_rate={float(queue_summary.get('error_rate', 0.0)):.2%}"
+            )
+        fails = [
+            c for c in (doctor.get("checks") or [])
+            if c.get("status") == "fail"
+        ]
+        for check in fails:
+            lines.append(
+                f"  - FAIL: **{check.get('name', '?')}** — "
+                f"{check.get('summary', '')}"
+            )
+    else:
+        lines.append("- No system-health data from service.")
+    lines.append("")
+
+    # Queue health
+    lines.append("## Queue health")
+    lines.append("")
+    if queue_health_payload:
+        if not queue_health_payload.get("enabled"):
+            lines.append(
+                "- Cloud queue is disabled on the service side "
+                "(no `DATABASE_URL` or queue poller off). Cloud "
+                "capture relay is inactive."
+            )
+        else:
+            counts = queue_health_payload.get("counts") or {}
+            if counts:
+                items = [
+                    f"{status}={count}"
+                    for status, count in sorted(counts.items())
+                ]
+                lines.append(f"- Counts: {', '.join(items)}")
+            else:
+                lines.append("- Counts: (empty)")
+            age = queue_health_payload.get("oldest_pending_age_seconds")
+            if age is not None:
+                lines.append(f"- Oldest pending age: {int(age)}s")
+            lines.append(
+                f"- Error rate (last "
+                f"{int(queue_health_payload.get('since_hours', 24))}h): "
+                f"{float(queue_health_payload.get('error_rate', 0.0)):.2%}"
+            )
+            if queue_health_payload.get("error"):
+                lines.append(
+                    f"- Error: {queue_health_payload.get('error')}"
+                )
+    else:
+        lines.append("- No queue-health data from service.")
+    lines.append("")
+
+    # Delivery failures
+    lines.append("## Recent delivery failures")
+    lines.append("")
+    if delivery_failures_items:
+        lines.append("| Channel | Action | Attempt | Scheduled | Error |")
+        lines.append("|---|---|---:|---|---|")
+        for item in delivery_failures_items:
+            channel = str(item.get("channel") or "?").replace("|", "\\|")
+            title = str(item.get("action_title") or "—").replace("|", "\\|")
+            attempt = int(item.get("attempt") or 0)
+            scheduled = _fmt_date(item.get("scheduled_at"), fallback="—")
+            err = (item.get("last_error") or "—").split("\n")[0][:80]
+            err = err.replace("|", "\\|")
+            lines.append(
+                f"| {channel} | {title} | {attempt} | {scheduled} | {err} |"
+            )
+    else:
+        lines.append("- No delivery failures in the window.")
+    lines.append("")
+
+    # Pending approvals
+    lines.append("## Pending approvals")
+    lines.append("")
+    if pending_approvals_items:
+        lines.append("| Channel | Action | Priority | Scheduled |")
+        lines.append("|---|---|---|---|")
+        for item in pending_approvals_items:
+            channel = str(item.get("channel") or "?").replace("|", "\\|")
+            title = str(item.get("action_title") or "—").replace("|", "\\|")
+            priority = str(item.get("action_priority") or "—").replace("|", "\\|")
+            scheduled = _fmt_date(item.get("scheduled_at"), fallback="—")
+            lines.append(
+                f"| {channel} | {title} | {priority} | {scheduled} |"
+            )
+    else:
+        lines.append("- No deliveries awaiting approval.")
+    lines.append("")
+
+    # Stale sync devices
+    lines.append("## Stale sync devices")
+    lines.append("")
+    if stale_devices_items:
+        lines.append("| Device | Platform | Last sync | Hours stale | Pending ops |")
+        lines.append("|---|---|---|---:|---:|")
+        for item in stale_devices_items:
+            device = str(item.get("device_id") or "?").replace("|", "\\|")
+            platform = str(item.get("platform") or "—").replace("|", "\\|")
+            last = _fmt_date(item.get("last_synced_at"), fallback="never")
+            hours = item.get("hours_since_last_sync")
+            hours_str = f"{hours:.1f}" if hours is not None else "—"
+            pending = int(item.get("pending_ops_count") or 0)
+            lines.append(
+                f"| {device} | {platform} | {last} | {hours_str} | {pending} |"
+            )
+    else:
+        lines.append("- All devices are fresh.")
+    lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def generate_admin_dashboard(
+    vault_root: Path,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+    now_iso: str | None = None,
+) -> DashboardResult:
+    """Generate or update ``Dashboards/Admin.md`` (Task 44).
+
+    Pulls the composite ``/api/v1/admin/system-health`` endpoint plus
+    the four list endpoints, renders a single admin page. When no
+    service URL is configured (neither argument nor environment var),
+    writes a dashboard with a "service not configured" banner and
+    empty sections so operators still see the page and understand why
+    it's blank.
+
+    Never raises. Returns a :class:`DashboardResult` whose ``written``
+    count sums the list items surfaced across the four list sections.
+    """
+    import os as _os
+
+    from obsidian_connector.admin_ops import (
+        get_queue_health,
+        get_system_health,
+        list_delivery_failures,
+        list_pending_approvals,
+        list_stale_sync_devices,
+    )
+
+    vault_root = Path(vault_root)
+    ts = now_iso or datetime.now(timezone.utc).isoformat()
+    resolved_url = service_url or _os.environ.get("OBSIDIAN_CAPTURE_SERVICE_URL")
+    service_configured = bool(resolved_url)
+
+    sh_payload: dict | None = None
+    q_payload: dict | None = None
+    f_items: list[dict] | None = None
+    a_items: list[dict] | None = None
+    d_items: list[dict] | None = None
+    service_error: str | None = None
+
+    if service_configured:
+        sh = get_system_health(service_url=service_url, token=token)
+        if sh.get("ok"):
+            sh_payload = sh.get("data") or {}
+        else:
+            service_error = service_error or str(sh.get("error") or "error")
+
+        q = get_queue_health(service_url=service_url, token=token)
+        if q.get("ok"):
+            q_payload = q.get("data") or {}
+        else:
+            service_error = service_error or str(q.get("error") or "error")
+
+        f = list_delivery_failures(service_url=service_url, token=token)
+        if f.get("ok"):
+            f_items = (f.get("data") or {}).get("items") or []
+        else:
+            service_error = service_error or str(f.get("error") or "error")
+
+        a = list_pending_approvals(service_url=service_url, token=token)
+        if a.get("ok"):
+            a_items = (a.get("data") or {}).get("items") or []
+        else:
+            service_error = service_error or str(a.get("error") or "error")
+
+        d = list_stale_sync_devices(service_url=service_url, token=token)
+        if d.get("ok"):
+            d_items = (d.get("data") or {}).get("items") or []
+        else:
+            service_error = service_error or str(d.get("error") or "error")
+
+    content = _render_admin_md(
+        now_iso=ts,
+        system_health_payload=sh_payload,
+        queue_health_payload=q_payload,
+        delivery_failures_items=f_items,
+        pending_approvals_items=a_items,
+        stale_devices_items=d_items,
+        service_configured=service_configured,
+        service_error=service_error,
+    )
+    path = vault_root / _DASHBOARD_ADMIN_PATH
+    written = (
+        (len(f_items or []))
+        + (len(a_items or []))
+        + (len(d_items or []))
+    )
+    atomic_write(
+        path, content, vault_root=vault_root, tool_name=_TOOL,
+        inject_generated_by=False,
+    )
+    return DashboardResult(path=path, written=written)
+
+
 def update_all_review_dashboards(
     vault_root: Path,
     now_iso: str | None = None,
@@ -1527,8 +1799,12 @@ def update_all_dashboards(
     stale_days: int = DEFAULT_STALE_DAYS,
     merge_window_days: int = DEFAULT_MERGE_WINDOW_DAYS,
     merge_jaccard: float = DEFAULT_MERGE_JACCARD,
+    *,
+    include_admin: bool = True,
+    service_url: str | None = None,
+    token: str | None = None,
 ) -> list[DashboardResult]:
-    """Generate or update all dashboards atomically (commitment + review).
+    """Generate or update all dashboards atomically (commitment + review + admin).
 
     A single scan of ``Commitments/`` is not shared across calls to keep
     each generator independent, but every dashboard is stamped with the
@@ -1548,14 +1824,23 @@ def update_all_dashboards(
         Max days between two items' created_at for the merge heuristic.
     merge_jaccard:
         Minimum title token-Jaccard similarity for the merge heuristic.
+    include_admin:
+        Render ``Dashboards/Admin.md`` (Task 44). Default True. When the
+        service URL isn't configured the admin dashboard still renders
+        with a "service not configured" banner instead of silently
+        skipping, so operators see the page.
+    service_url:
+        Capture-service base URL override for the admin dashboard.
+    token:
+        Capture-service bearer token override for the admin dashboard.
 
     Returns
     -------
     list[DashboardResult]
         Commitment dashboards first (Commitments, Due Soon, Waiting On Me,
         Postponed), followed by the four review dashboards (Daily, Weekly,
-        Stale, Merge Candidates).  Callers can index either half; the
-        length grew from 4 to 8 in Task 26 but the prefix is stable.
+        Stale, Merge Candidates), then optionally the Admin dashboard.
+        Callers can index either half; the prefix is stable.
     """
     vault_root = Path(vault_root)
     ts = now_iso or datetime.now(timezone.utc).isoformat()
@@ -1572,7 +1857,23 @@ def update_all_dashboards(
         merge_window_days=merge_window_days,
         merge_jaccard=merge_jaccard,
     )
-    return commitment_results + review_results
+    results = commitment_results + review_results
+    if include_admin:
+        try:
+            results.append(
+                generate_admin_dashboard(
+                    vault_root,
+                    service_url=service_url,
+                    token=token,
+                    now_iso=ts,
+                )
+            )
+        except Exception:
+            # Non-fatal: admin dashboard hits the network. If the call
+            # crashes despite the admin_ops wrappers, drop it and let
+            # the rest of the set complete.
+            pass
+    return results
 
 
 __all__ = [
@@ -1593,4 +1894,5 @@ __all__ = [
     "title_jaccard",
     "update_all_dashboards",
     "update_all_review_dashboards",
+    "generate_admin_dashboard",
 ]

@@ -1462,6 +1462,129 @@ def _fmt_recurring_unfinished(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_queue_health(result: dict) -> str:
+    """Human-readable queue-health output (Task 44)."""
+    if not result.get("ok"):
+        return f"Queue health failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    if not d.get("enabled"):
+        return "Queue health: disabled (cloud bridge off on service side)"
+    counts = d.get("counts", {}) or {}
+    age = d.get("oldest_pending_age_seconds")
+    err_rate = d.get("error_rate", 0.0)
+    lines = [
+        f"Queue health (window {d.get('since_hours', '?')}h):",
+        f"  enabled: yes  reachable: {d.get('reachable', False)}",
+        f"  counts: {counts or '(empty)'}",
+        f"  oldest pending age: {age}s" if age is not None else "  oldest pending age: n/a",
+        f"  error rate: {err_rate:.2%}",
+    ]
+    if d.get("error"):
+        lines.append(f"  error: {d.get('error')}")
+    return "\n".join(lines)
+
+
+def _fmt_delivery_failures(result: dict) -> str:
+    """Human-readable delivery-failures output (Task 44)."""
+    if not result.get("ok"):
+        return f"Delivery failures lookup failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    items = d.get("items", []) or []
+    lines = [
+        f"Delivery failures (last {d.get('since_hours', '?')}h, cap {d.get('limit', '?')}):",
+    ]
+    if not items:
+        lines.append("  (none)")
+        return "\n".join(lines)
+    for item in items:
+        err = (item.get("last_error") or "").split("\n")[0][:80]
+        lines.append(
+            f"  [{item.get('channel', '?')}] {item.get('action_title') or '(no title)'}"
+        )
+        lines.append(
+            f"    id: {item.get('delivery_id', '?')}"
+            f"  attempt: {item.get('attempt', 0)}"
+            f"  at: {item.get('scheduled_at', '?')}"
+        )
+        if err:
+            lines.append(f"    error: {err}")
+    return "\n".join(lines)
+
+
+def _fmt_pending_approvals(result: dict) -> str:
+    """Human-readable pending-approvals output (Task 44)."""
+    if not result.get("ok"):
+        return f"Pending approvals lookup failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    items = d.get("items", []) or []
+    lines = [f"Pending approvals (cap {d.get('limit', '?')}):"]
+    if not items:
+        lines.append("  (none waiting)")
+        return "\n".join(lines)
+    for item in items:
+        lines.append(
+            f"  [{item.get('channel', '?')}] {item.get('action_title') or '(no title)'}"
+        )
+        lines.append(
+            f"    id: {item.get('delivery_id', '?')}"
+            f"  priority: {item.get('action_priority', '?')}"
+            f"  scheduled: {item.get('scheduled_at', '?')}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_stale_sync_devices(result: dict) -> str:
+    """Human-readable stale-sync-devices output (Task 44)."""
+    if not result.get("ok"):
+        return f"Stale devices lookup failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    items = d.get("items", []) or []
+    lines = [f"Stale sync devices (threshold {d.get('threshold_hours', '?')}h):"]
+    if not items:
+        lines.append("  (all devices fresh)")
+        return "\n".join(lines)
+    for item in items:
+        hours = item.get("hours_since_last_sync")
+        hours_str = f"{hours}h" if hours is not None else "never synced"
+        lines.append(
+            f"  {item.get('device_id', '?')}"
+            f"  last sync: {hours_str}"
+            f"  pending ops: {item.get('pending_ops_count', 0)}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_system_health(result: dict) -> str:
+    """Human-readable composite system-health output (Task 44)."""
+    if not result.get("ok"):
+        return f"System health failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    status = d.get("overall_status", "?")
+    generated = d.get("generated_at", "")
+    doctor = d.get("doctor", {}) or {}
+    counts = doctor.get("counts", {}) or {}
+    queue = d.get("queue", {}) or {}
+    deliveries = d.get("deliveries", {}) or {}
+    approvals = d.get("approvals", {}) or {}
+    devices = d.get("devices", {}) or {}
+    lines = [
+        f"System health: {status.upper()} (as of {generated})",
+        f"  doctor: {counts.get('ok', 0)} ok, {counts.get('warn', 0)} warn,"
+        f" {counts.get('fail', 0)} fail, {counts.get('skip', 0)} skip",
+        f"  queue: enabled={queue.get('enabled')}  reachable={queue.get('reachable')}"
+        f"  error_rate={queue.get('error_rate', 0.0):.2%}",
+        f"  deliveries: {deliveries.get('failure_count', 0)} failures"
+        f" in last {deliveries.get('since_hours', '?')}h",
+        f"  approvals: {approvals.get('pending_count', 0)} pending",
+        f"  devices: {devices.get('stale_count', 0)} stale"
+        f" (threshold {devices.get('threshold_hours', '?')}h)",
+    ]
+    failing = [c for c in doctor.get("checks", []) if c.get("status") == "fail"]
+    for check in failing:
+        lines.append(f"    FAIL: {check.get('name')} -- {check.get('summary')}")
+    return "\n".join(lines)
+
+
 def _fmt_explain_commitment(result: dict) -> str:
     """Human-readable why-still-open output (Task 32)."""
     if not result.get("ok"):
@@ -2154,6 +2277,96 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--action-id", dest="action_id", required=True, help="Action ULID.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- queue-health (Task 44) ------------------------------------------
+    p = sub.add_parser(
+        "queue-health",
+        help="Cloud capture queue health (counts, oldest pending, error rate).",
+    )
+    p.add_argument(
+        "--since-hours", dest="since_hours", type=int, default=24,
+        help="Window in hours (default 24, max 720).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- delivery-failures (Task 44) -------------------------------------
+    p = sub.add_parser(
+        "delivery-failures",
+        help="Recent failed / dead-letter deliveries with action title.",
+    )
+    p.add_argument(
+        "--since-hours", dest="since_hours", type=int, default=24,
+        help="Window in hours (default 24, max 720).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=100,
+        help="Max rows (default 100, server cap 500).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- pending-approvals (Task 44) -------------------------------------
+    p = sub.add_parser(
+        "pending-approvals",
+        help="Deliveries awaiting manual approval, oldest first.",
+    )
+    p.add_argument(
+        "--limit", type=int, default=100,
+        help="Max rows (default 100, server cap 500).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- stale-sync-devices (Task 44) ------------------------------------
+    p = sub.add_parser(
+        "stale-sync-devices",
+        help="Devices whose last mobile sync is older than the threshold.",
+    )
+    p.add_argument(
+        "--threshold-hours", dest="threshold_hours", type=int, default=24,
+        help="Staleness threshold in hours (default 24, max 8760).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- system-health (Task 44) -----------------------------------------
+    p = sub.add_parser(
+        "system-health",
+        help="One-call operator summary (doctor + queue + failures + approvals + devices).",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -3426,6 +3639,56 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_explain_commitment(result)
+
+        elif args.command == "queue-health":
+            from obsidian_connector.admin_ops import get_queue_health
+
+            result = get_queue_health(
+                since_hours=getattr(args, "since_hours", 24),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_queue_health(result)
+
+        elif args.command == "delivery-failures":
+            from obsidian_connector.admin_ops import list_delivery_failures
+
+            result = list_delivery_failures(
+                since_hours=getattr(args, "since_hours", 24),
+                limit=getattr(args, "limit", 100),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_delivery_failures(result)
+
+        elif args.command == "pending-approvals":
+            from obsidian_connector.admin_ops import list_pending_approvals
+
+            result = list_pending_approvals(
+                limit=getattr(args, "limit", 100),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_pending_approvals(result)
+
+        elif args.command == "stale-sync-devices":
+            from obsidian_connector.admin_ops import list_stale_sync_devices
+
+            result = list_stale_sync_devices(
+                threshold_hours=getattr(args, "threshold_hours", 24),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_stale_sync_devices(result)
+
+        elif args.command == "system-health":
+            from obsidian_connector.admin_ops import get_system_health
+
+            result = get_system_health(
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_system_health(result)
 
         elif args.command == "onboarding":
             from obsidian_connector.onboarding import (

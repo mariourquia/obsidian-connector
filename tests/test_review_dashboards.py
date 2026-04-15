@@ -583,7 +583,8 @@ class TestOrchestrators:
             assert r.path.read_text(encoding="utf-8").strip() != ""
 
     def test_update_all_dashboards_unified_emits_eight(self, vault: Path) -> None:
-        results = update_all_dashboards(vault, now_iso=NOW)
+        # With include_admin=False we still get the historical 8 dashboards.
+        results = update_all_dashboards(vault, now_iso=NOW, include_admin=False)
         assert len(results) == 8
         commitment_prefix = [r.path.name for r in results[:4]]
         review_suffix = [r.path.name for r in results[4:]]
@@ -596,6 +597,13 @@ class TestOrchestrators:
         assert review_suffix == [
             "Daily.md", "Weekly.md", "Stale.md", "Merge Candidates.md",
         ]
+
+    def test_update_all_dashboards_with_admin_emits_nine(self, vault: Path) -> None:
+        # include_admin=True (default) appends Dashboards/Admin.md.
+        results = update_all_dashboards(vault, now_iso=NOW)
+        paths = [r.path.name for r in results]
+        assert len(results) == 9
+        assert paths[-1] == "Admin.md"
 
     def test_determinism_same_inputs_byte_identical(self, vault: Path) -> None:
         _write(

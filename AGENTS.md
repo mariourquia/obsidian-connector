@@ -105,6 +105,22 @@ Commitment-note projection: `ActionInput.why_open_summary: str | None`. When sup
 
 Task 32 service-side ADR: [docs/architecture/task_32_why_still_open.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_32_why_still_open.md).
 
+## Operational admin surfaces (Task 44)
+
+Five read-only HTTP wrappers in `obsidian_connector/admin_ops.py` over `/api/v1/admin/*`:
+
+- `get_queue_health(since_hours=24, ...)` -> `GET /api/v1/admin/queue-health`. Envelope data: `{enabled, reachable, counts, oldest_pending_age_seconds, error_rate, since_hours, window_done, window_failed}`. Returns `enabled=false` when the queue poller is off on the service side.
+- `list_delivery_failures(since_hours=24, limit=100, ...)` -> `GET /api/v1/admin/delivery-failures`. Envelope data: `{since_hours, limit, items[...]}`. Items carry `delivery_id`, `action_id`, `channel`, `attempt`, `status`, `last_error`, `scheduled_at`, `dispatched_at`, `action_title`.
+- `list_pending_approvals(limit=100, ...)` -> `GET /api/v1/admin/pending-approvals`. Envelope data: `{limit, items[...]}`. Items carry delivery + action metadata including priority and lifecycle stage.
+- `list_stale_sync_devices(threshold_hours=24, ...)` -> `GET /api/v1/admin/stale-sync-devices`. Envelope data: `{threshold_hours, items[...]}`. Items include `pending_ops_count` from `sync_operations`.
+- `get_system_health(...)` -> `GET /api/v1/admin/system-health`. Composite summary: `{overall_status, generated_at, doctor: {counts, checks}, queue, deliveries, approvals, devices}`.
+
+CLI: `obsx queue-health`, `obsx delivery-failures`, `obsx pending-approvals`, `obsx stale-sync-devices`, `obsx system-health` (all support `--json`). MCP: `obsidian_queue_health`, `obsidian_delivery_failures`, `obsidian_pending_approvals`, `obsidian_stale_sync_devices`, `obsidian_system_health`.
+
+Dashboard: `commitment_dashboards.generate_admin_dashboard(vault, *, service_url, token)` writes `Dashboards/Admin.md`. When no service URL is configured it still produces the file with a "service not configured" banner (doesn't silently skip). `update_all_dashboards(..., include_admin=True)` (default) appends the admin dashboard to the existing 8 surfaces.
+
+Task 44 service-side ADR: [docs/architecture/task_44_admin_surfaces.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_44_admin_surfaces.md).
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`
