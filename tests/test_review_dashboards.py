@@ -583,8 +583,14 @@ class TestOrchestrators:
             assert r.path.read_text(encoding="utf-8").strip() != ""
 
     def test_update_all_dashboards_unified_emits_eight(self, vault: Path) -> None:
-        # With include_admin=False we still get the historical 8 dashboards.
-        results = update_all_dashboards(vault, now_iso=NOW, include_admin=False)
+        # With include_admin=False and include_analytics=False we get the
+        # historical 8 dashboards.
+        results = update_all_dashboards(
+            vault,
+            now_iso=NOW,
+            include_admin=False,
+            include_analytics=False,
+        )
         assert len(results) == 8
         commitment_prefix = [r.path.name for r in results[:4]]
         review_suffix = [r.path.name for r in results[4:]]
@@ -600,12 +606,25 @@ class TestOrchestrators:
 
     def test_update_all_dashboards_with_admin_emits_ten(self, vault: Path) -> None:
         # include_admin=True (default) appends Dashboards/Admin.md plus
-        # the Task 36 Dashboards/Admin/Approvals.md companion.
-        results = update_all_dashboards(vault, now_iso=NOW)
+        # the Task 36 Dashboards/Admin/Approvals.md companion. Task 39
+        # default also appends Dashboards/Analytics.md, opt out via
+        # include_analytics=False to keep the historical count of 10.
+        results = update_all_dashboards(
+            vault, now_iso=NOW, include_analytics=False
+        )
         paths = [r.path.name for r in results]
         assert len(results) == 10
         assert paths[-2] == "Admin.md"
         assert paths[-1] == "Approvals.md"
+
+    def test_update_all_dashboards_includes_analytics_by_default(
+        self, vault: Path
+    ) -> None:
+        # Task 39: include_analytics defaults to True, adding Analytics.md.
+        results = update_all_dashboards(vault, now_iso=NOW)
+        names = [r.path.name for r in results]
+        assert names[-1] == "Analytics.md"
+        assert len(results) == 11
 
     def test_determinism_same_inputs_byte_identical(self, vault: Path) -> None:
         _write(

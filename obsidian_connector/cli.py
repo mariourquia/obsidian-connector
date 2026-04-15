@@ -1748,6 +1748,52 @@ def _fmt_explain_commitment(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_weekly_report(result: dict) -> str:
+    """Human-readable weekly-report output (Task 39)."""
+    if not result.get("ok"):
+        return f"Weekly report failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    window = data.get("window", {}) or {}
+    captures = data.get("captures", {}) or {}
+    ac = data.get("actions_created", {}) or {}
+    ad = data.get("actions_completed", {}) or {}
+    ap = data.get("actions_postponed", {}) or {}
+    lines = [
+        f"Weekly report: {window.get('week_label', '?')}",
+        f"  window: {window.get('start_iso', '?')} -> {window.get('end_iso', '?')}",
+        f"  captures: {captures.get('total', 0)}",
+        f"  actions created: {ac.get('total', 0)}",
+        f"  actions completed: {ad.get('total', 0)}"
+        f"  (median age {ad.get('median_age_days', 0)}d)",
+        f"  actions postponed: {ap.get('count', 0)}",
+    ]
+    ds = data.get("delivery_stats", {}) or {}
+    if ds:
+        lines.append(
+            f"  deliveries: {ds.get('total_deliveries', 0)}"
+            f"  failure rate: {float(ds.get('failure_rate', 0.0)):.2%}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_weeks_available(result: dict) -> str:
+    """Human-readable weeks-available output (Task 39)."""
+    if not result.get("ok"):
+        return f"Weeks lookup failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    lines = [f"Available weeks ({data.get('weeks_back', '?')} requested):"]
+    if not items:
+        lines.append("  (none)")
+        return "\n".join(lines)
+    for item in items:
+        lines.append(
+            f"  {item.get('week_label', '?')}"
+            f"  {item.get('start_iso', '?')} -> {item.get('end_iso', '?')}"
+        )
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -2592,6 +2638,82 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--since-hours", dest="since_hours", type=int, default=24,
         help="Recent-decisions window in hours (default 24, max 720).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- weekly-report (Task 39) -----------------------------------------
+    p = sub.add_parser(
+        "weekly-report",
+        help="Weekly activity report (JSON). Captures + actions + lifecycle + deliveries.",
+    )
+    p.add_argument(
+        "--week-offset", dest="week_offset", type=int, default=0,
+        help="Week shift from the current ISO week (default 0; -1 = last week).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- weekly-report-markdown (Task 39) --------------------------------
+    p = sub.add_parser(
+        "weekly-report-markdown",
+        help="Weekly activity report rendered as Markdown.",
+    )
+    p.add_argument(
+        "--week-offset", dest="week_offset", type=int, default=0,
+        help="Week shift from the current ISO week (default 0; -1 = last week).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- weeks-available (Task 39) ---------------------------------------
+    p = sub.add_parser(
+        "weeks-available",
+        help="List past ISO-week windows the analytics surface can report on.",
+    )
+    p.add_argument(
+        "--weeks-back", dest="weeks_back", type=int, default=12,
+        help="How many past weeks to list (default 12, max 104).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- write-weekly-report (Task 39) -----------------------------------
+    p = sub.add_parser(
+        "write-weekly-report",
+        help="Fetch the weekly Markdown and project it into Analytics/Weekly/.",
+    )
+    p.add_argument(
+        "--week-offset", dest="week_offset", type=int, default=0,
+        help="Week shift from the current ISO week (default 0; -1 = last week).",
+    )
+    p.add_argument(
+        "--vault-root", dest="vault_root", default=None,
+        help="Vault root override (defaults to $OBSIDIAN_VAULT_PATH).",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -3954,6 +4076,70 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_approval_digest(result)
+
+        elif args.command == "weekly-report":
+            from obsidian_connector.analytics_ops import get_weekly_report
+
+            result = get_weekly_report(
+                week_offset=getattr(args, "week_offset", 0),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_weekly_report(result)
+
+        elif args.command == "weekly-report-markdown":
+            from obsidian_connector.analytics_ops import (
+                get_weekly_report_markdown,
+            )
+
+            result = get_weekly_report_markdown(
+                week_offset=getattr(args, "week_offset", 0),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            if result.get("ok"):
+                human = (result.get("data") or {}).get("markdown", "")
+            else:
+                human = (
+                    f"Weekly report (markdown) failed: "
+                    f"{result.get('error', 'unknown error')}"
+                )
+
+        elif args.command == "weeks-available":
+            from obsidian_connector.analytics_ops import list_weeks_available
+
+            result = list_weeks_available(
+                weeks_back=getattr(args, "weeks_back", 12),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_weeks_available(result)
+
+        elif args.command == "write-weekly-report":
+            from obsidian_connector.analytics_ops import (
+                fetch_and_write_weekly_report_note,
+            )
+            from obsidian_connector.config import resolve_vault_path
+
+            root_override = getattr(args, "vault_root", None)
+            resolved_vault = (
+                Path(root_override) if root_override else resolve_vault_path(args.vault)
+            )
+            result = fetch_and_write_weekly_report_note(
+                resolved_vault,
+                week_offset=getattr(args, "week_offset", 0),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            if result.get("ok"):
+                human = (
+                    f"Weekly report written to {result.get('path')}"
+                    f" ({result.get('week_label')})"
+                )
+            else:
+                human = (
+                    f"Write failed: {result.get('error', 'unknown error')}"
+                )
 
         elif args.command == "onboarding":
             from obsidian_connector.onboarding import (
