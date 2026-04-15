@@ -161,6 +161,8 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_find_commitments` | `status?`, `lifecycle_stage?`, `project?`, `person?`, `area?`, `urgency?`, `priority?`, `source_app?`, `due_before?`, `due_after?`, `limit?`, `cursor?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, items[...], next_cursor}}` -- thin wrapper over `GET /api/v1/actions` on the capture service. Task 28. |
 | `obsidian_commitment_detail` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action{...}}}` -- thin wrapper over `GET /api/v1/actions/{id}`. Includes delivery summary, entity buckets, `next_follow_up_at`. Task 28. |
 | `obsidian_commitment_stats` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, total, by_status, by_lifecycle_stage, by_priority, by_source_app}}`. Task 28. |
+| `obsidian_duplicate_candidates` | `action_id`, `limit?`, `within_days?`, `min_score?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, candidates[...], thresholds: {candidate, strong}}}`. Each candidate has `score`, `tier`, and a `reasons` dict (title_jaccard, same_project, shared_people, shared_areas, days_apart, due_close). Task 21.B. |
+| `obsidian_merge_commitment` | `loser_id`, `winner_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, loser_id, winner_id, edge_id, already_merged}}`. POST `/api/v1/actions/{loser_id}/merge`. Atomic + idempotent. Task 21.B. |
 
 ### Idea routing (v0.5.0)
 
