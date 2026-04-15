@@ -69,7 +69,7 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 - `config.py` -- vault/index configuration, vault path resolution
 - `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`). Task 27 extends `ActionInput` and the frontmatter schema with `urgency` (derived by the service), `lifecycle_stage` (enum, separate from `status`), `source_app`, `source_entrypoint`, `people`, `areas`. Field slots are stable; pre-Task-27 notes hydrate with defaults (`urgency='normal'`, `lifecycle_stage='inbox'`, empty lists).
 - `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`). `_dict_to_action_input` and `_action_from_content` tolerate missing Task 27 keys from older service payloads / legacy on-disk notes.
-- `commitment_dashboards.py` -- generate/update four dashboard notes in `Dashboards/` from current commitment state (see `docs/implementation/commitment_dashboards.md`)
+- `commitment_dashboards.py` -- generate/update four commitment dashboards in `Dashboards/` plus four review surfaces in `Dashboards/Review/` (Daily, Weekly, Stale, Merge Candidates) from current commitment state. `update_all_dashboards` refreshes all eight in one call; `update_all_review_dashboards` refreshes only the review surfaces. CLI: `obsx review-dashboards`. MCP: `obsidian_review_dashboards`. See `docs/implementation/commitment_dashboards.md` and ADR `docs/architecture/task_26_review_dashboards.md`.
 - `entity_notes.py` -- idempotent writer for semantic-memory entity notes under `Entities/<Kind>/<slug>.md` with preserved user-notes fence (Task 15.A)
 
 ## Adding new commands
