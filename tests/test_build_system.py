@@ -295,12 +295,12 @@ class TestWindowsPackaging:
     def test_shared_packager_excludes_ix_dev_only_paths(self):
         script = (ROOT / "scripts" / "build-windows-installer.ps1").read_text()
         for path in (
-            r"obsidian_connector\ix_engine\core-ingestion\src",
-            r"obsidian_connector\ix_engine\core-ingestion\test-fixtures",
-            r"obsidian_connector\ix_engine\core-ingestion\node_modules\.bin",
-            r"obsidian_connector\ix_engine\ix-cli\src",
-            r"obsidian_connector\ix_engine\ix-cli\scripts",
-            r"obsidian_connector\ix_engine\ix-cli\test",
-            r"obsidian_connector\ix_engine\ix-cli\node_modules\.bin",
+            r"ix_engine\core-ingestion\src",
+            r"ix_engine\core-ingestion\test-fixtures",
+            r"ix_engine\core-ingestion\node_modules\.bin",
+            r"ix_engine\ix-cli\src",
+            r"ix_engine\ix-cli\scripts",
+            r"ix_engine\ix-cli\test",
+            r"ix_engine\ix-cli\node_modules\.bin",
         ):
             assert path in script

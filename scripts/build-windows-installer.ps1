@@ -62,6 +62,34 @@ if (-not $ISCC) {
 }
 Write-Host "Using Inno Setup: $ISCC"
 
+function Invoke-Robocopy {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination,
+        [string[]]$ExcludeDirs = @(),
+        [string[]]$ExcludeFiles = @()
+    )
+
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+
+    $robocopyArgs = @($Source, $Destination, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
+    foreach ($dir in $ExcludeDirs) {
+        $robocopyArgs += @("/XD", $dir)
+    }
+    foreach ($file in $ExcludeFiles) {
+        $robocopyArgs += @("/XF", $file)
+    }
+
+    $output = & robocopy @robocopyArgs 2>&1
+    if ($LASTEXITCODE -gt 7) {
+        if ($output) {
+            $output | ForEach-Object { Write-Host $_ }
+        }
+        Write-Error "robocopy failed with exit code $LASTEXITCODE"
+        exit 1
+    }
+}
+
 # -- Stage files -----------------------------------------------------------
 # Prefer validated build artifacts from builds\claude-desktop\ when the
 # build pipeline has been run. Fall back to the raw source tree for dev
@@ -71,20 +99,20 @@ $DistDir = Join-Path $RepoRoot "dist"
 $StagingDir = Join-Path $DistDir ".win-staging"
 $BuildDir = Join-Path $RepoRoot "builds\claude-desktop"
 $IxExcludeDirs = @(
-    'obsidian_connector\ix_engine\core-ingestion\src',
-    'obsidian_connector\ix_engine\core-ingestion\test-fixtures',
-    'obsidian_connector\ix_engine\core-ingestion\node_modules\.bin',
-    'obsidian_connector\ix_engine\ix-cli\src',
-    'obsidian_connector\ix_engine\ix-cli\scripts',
-    'obsidian_connector\ix_engine\ix-cli\test',
-    'obsidian_connector\ix_engine\ix-cli\node_modules\.bin',
-    'obsidian_connector\ix_engine\ix-cli\dist\cli\__tests__'
+    'ix_engine\core-ingestion\src',
+    'ix_engine\core-ingestion\test-fixtures',
+    'ix_engine\core-ingestion\node_modules\.bin',
+    'ix_engine\ix-cli\src',
+    'ix_engine\ix-cli\scripts',
+    'ix_engine\ix-cli\test',
+    'ix_engine\ix-cli\node_modules\.bin',
+    'ix_engine\ix-cli\dist\cli\__tests__'
 )
 $IxExcludeFiles = @(
-    'obsidian_connector\ix_engine\core-ingestion\package-lock*.json',
-    'obsidian_connector\ix_engine\core-ingestion\tsconfig*.json',
-    'obsidian_connector\ix_engine\ix-cli\package-lock*.json',
-    'obsidian_connector\ix_engine\ix-cli\tsconfig*.json'
+    'ix_engine\core-ingestion\package-lock*.json',
+    'ix_engine\core-ingestion\tsconfig*.json',
+    'ix_engine\ix-cli\package-lock*.json',
+    'ix_engine\ix-cli\tsconfig*.json'
 )
 
 if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
@@ -98,17 +126,26 @@ if (Test-Path $BuildDir) {
     # The tracked claude-desktop build includes the full embedded Ix source tree.
     # The Windows installer only needs the compiled dist outputs and runtime
     # dependencies, not the dev/test fixtures or shell shims inside .bin/.
-    $ExcludeDirs = @('__pycache__') + $IxExcludeDirs
-    $ExcludeFiles = @('*.pyc', '.DS_Store') + $IxExcludeFiles
+    Invoke-Robocopy `
+        -Source (Join-Path $BuildDir "obsidian_connector") `
+        -Destination (Join-Path $StagingDir "obsidian_connector") `
+        -ExcludeDirs (@('__pycache__') + $IxExcludeDirs) `
+        -ExcludeFiles (@('*.pyc', '.DS_Store') + $IxExcludeFiles)
 
-    $ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }
-    $ExcludeFileArgs = $ExcludeFiles | ForEach-Object { "/XF"; $_ }
+    $BinSrc = Join-Path $BuildDir "bin"
+    if (Test-Path $BinSrc) {
+        Invoke-Robocopy `
+            -Source $BinSrc `
+            -Destination (Join-Path $StagingDir "bin") `
+            -ExcludeDirs @('__pycache__') `
+            -ExcludeFiles @('*.pyc', '.DS_Store')
+    }
 
-    $robocopyArgs = @($BuildDir, $StagingDir) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP") + $ExcludeDirArgs + $ExcludeFileArgs
-    & robocopy @robocopyArgs | Out-Null
-    if ($LASTEXITCODE -gt 7) {
-        Write-Error "robocopy failed with exit code $LASTEXITCODE"
-        exit 1
+    foreach ($supportFile in @("claude_desktop_config_snippet.json", "pyproject.toml", "requirements-lock.txt", "INSTALL.txt")) {
+        $src = Join-Path $BuildDir $supportFile
+        if (Test-Path $src) {
+            Copy-Item $src -Destination $StagingDir -Force
+        }
     }
 
     # Copy LICENSE from repo root (needed by Inno Setup LicenseFile)
@@ -120,12 +157,7 @@ if (Test-Path $BuildDir) {
     $ScriptsSrc = Join-Path $RepoRoot "scripts"
     if (Test-Path $ScriptsSrc) {
         $ScriptsDst = Join-Path $StagingDir "scripts"
-        $robocopyArgs = @($ScriptsSrc, $ScriptsDst) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/XD", "__pycache__", "/XF", "*.pyc")
-        & robocopy @robocopyArgs | Out-Null
-        if ($LASTEXITCODE -gt 7) {
-            Write-Error "robocopy (scripts) failed with exit code $LASTEXITCODE"
-            exit 1
-        }
+        Invoke-Robocopy -Source $ScriptsSrc -Destination $ScriptsDst -ExcludeDirs @('__pycache__') -ExcludeFiles @('*.pyc')
     }
 } else {
     Write-Host "No builds\claude-desktop\ found, falling back to source tree"
@@ -135,23 +167,13 @@ if (Test-Path $BuildDir) {
         '.venv', '.git', '.claude', '.claude-plugin', 'dist',
         '__pycache__', '*.egg-info', 'vault-context-drafts',
         'templates', 'tools', 'dev', 'hooks', '.github'
-    ) + $IxExcludeDirs
+    ) + ($IxExcludeDirs | ForEach-Object { Join-Path 'obsidian_connector' $_ })
     $ExcludeFiles = @(
         '*.pyc', '.DS_Store', 'firebase-debug.log',
         'AGENTS.md', 'Makefile', 'main.py', 'Install.command'
-    ) + $IxExcludeFiles
+    ) + ($IxExcludeFiles | ForEach-Object { Join-Path 'obsidian_connector' $_ })
 
-    # Use robocopy for efficient file staging
-    $ExcludeDirArgs = $ExcludeDirs | ForEach-Object { "/XD"; $_ }
-    $ExcludeFileArgs = $ExcludeFiles | ForEach-Object { "/XF"; $_ }
-
-    $robocopyArgs = @($RepoRoot, $StagingDir) + @("/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP") + $ExcludeDirArgs + $ExcludeFileArgs
-    & robocopy @robocopyArgs | Out-Null
-    # robocopy exit codes 0-7 are success
-    if ($LASTEXITCODE -gt 7) {
-        Write-Error "robocopy failed with exit code $LASTEXITCODE"
-        exit 1
-    }
+    Invoke-Robocopy -Source $RepoRoot -Destination $StagingDir -ExcludeDirs $ExcludeDirs -ExcludeFiles $ExcludeFiles
 }
 
 Write-Host "Staged to: $StagingDir"
