@@ -88,10 +88,6 @@ TODO (deferred to a follow-up): the `Merge Candidates` review dashboard (`commit
 - **Behavior change:** update doc(s) + add/adjust tests
 - **Cross-cutting change:** update ARCHITECTURE.md and relevant QUALITY_SCORE.md
 
-## Escalation
-
-- If docs conflict with code, code wins; open a doc-fix PR immediately.
-
 ## Available local commands
 
 ```
