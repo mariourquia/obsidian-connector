@@ -285,6 +285,7 @@ class TestWindowsPackaging:
         workflow = (ROOT / ".github" / "workflows" / "build-windows-installer.yml").read_text()
         assert r".\scripts\build-windows-installer.ps1" in workflow
         assert "tools/build.ts --target claude-desktop" in workflow
+        assert "Move-Item $generated $tagged" in workflow
         assert r"scripts\create-exe.iss" not in workflow
 
     def test_release_workflow_builds_claude_desktop_before_windows_packaging(self):

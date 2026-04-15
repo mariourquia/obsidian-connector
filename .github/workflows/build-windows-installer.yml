@@ -113,7 +113,7 @@ jobs:
           if (Test-Path $tagged) {
             Remove-Item $tagged -Force
           }
-          Rename-Item $generated $tagged
+          Move-Item $generated $tagged
 
       - name: Verify output
         shell: pwsh
