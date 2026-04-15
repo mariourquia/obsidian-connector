@@ -26,8 +26,9 @@ turn Claude into a proactive second brain assistant.
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper, batch reads |
-| `cli.py` | 65 CLI subcommands |
+| `cli.py` | 66 CLI subcommands (Task 34 adds `onboarding`) |
 | `mcp_server.py` | 62 MCP tools (FastMCP) |
+| `onboarding.py` | Pure-Python onboarding step catalog; powers `obsx onboarding` + `docs/ONBOARDING.md` (Task 34) |
 | `startup.py` | First-run marker + shared non-UI startup helpers |
 | `workflows.py` | Daily ops, loops, graduate, delegations, context |
 | `thinking.py` | Ghost, drift, trace, ideas |
