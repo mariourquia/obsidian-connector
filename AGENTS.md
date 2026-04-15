@@ -63,6 +63,19 @@ Three thin wrappers over the capture service's read endpoints live in `commitmen
 
 All three share `_service_get_json` (stdlib `http.client`), honor `OBSIDIAN_CAPTURE_SERVICE_URL` / `_TOKEN`, and return an envelope dict rather than raising. CLI: `obsx find-commitments`, `obsx commitment-detail --action-id ...`, `obsx commitment-stats` (each with `--json`). MCP: `obsidian_find_commitments`, `obsidian_commitment_detail`, `obsidian_commitment_stats`.
 
+## Cross-input dedup (Task 21.B)
+
+Two more wrappers in `commitment_ops.py` cover the dedup + merge endpoints added in the service:
+
+- `list_duplicate_candidates(action_id, *, limit=10, within_days=30, min_score=None, service_url, token)` -> `GET /api/v1/actions/{id}/duplicate-candidates`. Returns an envelope whose `data` carries `{ok, action_id, candidates[...], thresholds: {candidate, strong}}`. Each candidate has `score`, `tier` (`strong` | `candidate` | `below_threshold`), and a `reasons` dict (`title_jaccard`, `same_project`, `shared_people`, `shared_areas`, `days_apart`, `due_close`) that agents/dashboards can surface verbatim.
+- `merge_commitments(loser_id, winner_id, *, service_url, token)` -> `POST /api/v1/actions/{loser_id}/merge`. Atomic on the service side (edge + loser status=`cancelled` + lifecycle_stage=`archived` + `postpone_reason="merged into {winner_id}"`) and idempotent on re-merge (returns `already_merged: True`).
+
+Shared helper `_service_post_json` mirrors `_service_get_json`'s no-raise envelope. CLI: `obsx duplicate-candidates --action-id ... [--limit N] [--min-score 0.6]`, `obsx merge-commitment --loser ... --winner ...` (both support `--json`). MCP: `obsidian_duplicate_candidates`, `obsidian_merge_commitment`.
+
+Task 21.B service-side ADR: [docs/architecture/task_21b_dedup_intelligence.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_21b_dedup_intelligence.md).
+
+TODO (deferred to a follow-up): the `Merge Candidates` review dashboard (`commitment_dashboards.py`) still uses the local token-Jaccard heuristic. A future pass can optionally consult `list_duplicate_candidates` when `OBSIDIAN_CAPTURE_SERVICE_URL` is set to supplement the client-side ranking with the service's full feature-weighted score. Gated behind a flag to avoid network dependency in the default renderer path.
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`
