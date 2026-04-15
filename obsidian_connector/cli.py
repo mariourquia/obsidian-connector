@@ -2164,6 +2164,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="(alias for global --json)",
     )
 
+    # -- onboarding (Task 34) --------------------------------------------
+    p = sub.add_parser(
+        "onboarding",
+        help="Print the step-by-step onboarding walkthrough (non-interactive).",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
     return parser
 
 
@@ -3416,6 +3426,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_explain_commitment(result)
+
+        elif args.command == "onboarding":
+            from obsidian_connector.onboarding import (
+                format_onboarding,
+                get_onboarding_payload,
+            )
+
+            payload = get_onboarding_payload()
+            data = payload
+            human = format_onboarding(payload)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore

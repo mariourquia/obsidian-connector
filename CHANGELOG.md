@@ -14,10 +14,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Companion to obsidian-capture-service Task 33 service-side packaging.
 - **`tests/test_packaging.py`**: pyproject fields + CHANGELOG presence assertions
   to guard against silent regressions in distribution metadata.
+- **Task 34 — End-user onboarding flow**: new `obsidian_connector/onboarding.py`
+  module with `ONBOARDING_STEPS`, `get_onboarding_payload()`, and
+  `format_onboarding()`. `obsx onboarding` (and `obsx onboarding --json`) render
+  the same six-step catalog used by `docs/ONBOARDING.md`: vault setup,
+  capture-service URL, bearer token, MCP registration, first sync, verify.
+  Connector-side doc cross-links `../obsidian-capture-service/docs/onboarding/ONBOARDING.md`.
 
 ### Changed
 - CLAUDE.md/AGENTS.md now document the editable install flow (`pip install -e .`)
   and the three console scripts shipped by the package.
+- AGENTS.md module map gains the `onboarding.py` row; CLI subcommand count bumped
+  from 65 to 66.
 
 ## [0.9.0] - 2026-04-13
 
