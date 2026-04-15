@@ -214,19 +214,33 @@ def _action_from_content(content: str, fm: dict) -> ActionInput:
 
     This is intentionally tolerant: missing or malformed fields fall back to
     safe defaults so callers can always write the updated note back.
+
+    Task 27 adds ``urgency``, ``lifecycle_stage``, ``source_app``,
+    ``source_entrypoint``, ``people``, and ``areas``. Missing fields on
+    pre-Task 27 notes hydrate as ``'normal'`` / ``'inbox'`` / ``None`` /
+    ``[]`` so existing commitment notes roundtrip cleanly.
     """
     # created_at lives in the body (not frontmatter) to keep FM stable.
     m = _CREATED_AT_RE.search(content)
     created_at = m.group(1).strip() if m else datetime.now(timezone.utc).isoformat()
 
     # Parse YAML flow list: [push, sms] or []
-    channels: list[str] = []
-    raw_channels = fm.get("channels", "[]")
-    cm = _CHANNELS_FLOW_RE.match(raw_channels.strip())
-    if cm:
+    def _parse_flow_list(raw: str) -> list[str]:
+        cm = _CHANNELS_FLOW_RE.match((raw or "").strip())
+        if not cm:
+            return []
         inner = cm.group(1).strip()
-        if inner:
-            channels = [v.strip().strip('"').strip("'") for v in inner.split(",") if v.strip()]
+        if not inner:
+            return []
+        return [
+            v.strip().strip('"').strip("'")
+            for v in inner.split(",")
+            if v.strip()
+        ]
+
+    channels = _parse_flow_list(fm.get("channels", "[]"))
+    people = _parse_flow_list(fm.get("people", "[]"))
+    areas = _parse_flow_list(fm.get("areas", "[]"))
 
     def _unquote(s: str) -> str | None:
         s = s.strip()
@@ -252,6 +266,13 @@ def _action_from_content(content: str, fm: dict) -> ActionInput:
         escalation_policy=_unquote(fm.get("escalation_policy", "null") or "null"),
         channels=channels,
         source_note=_unquote(fm.get("source_note", "null") or "null"),
+        # Task 27
+        urgency=fm.get("urgency", "normal") or "normal",
+        lifecycle_stage=fm.get("lifecycle_stage", "inbox") or "inbox",
+        source_app=_unquote(fm.get("source_app", "null") or "null"),
+        source_entrypoint=_unquote(fm.get("source_entrypoint", "null") or "null"),
+        people=people,
+        areas=areas,
     )
 
 
@@ -316,6 +337,14 @@ def mark_commitment_done(
         channels=action.channels,
         source_note=action.source_note,
         completed_at=ts,
+        # Task 27: preserve rich metadata; lifecycle_stage shifts to 'done'
+        # on this transition because the service-side verb also does so.
+        urgency=action.urgency,
+        lifecycle_stage="done",
+        source_app=action.source_app,
+        source_entrypoint=action.source_entrypoint,
+        people=action.people,
+        areas=action.areas,
     )
     result = write_commitment_note(vault_root, done_action, now_iso=now_iso)
 
@@ -383,6 +412,14 @@ def postpone_commitment(
         escalation_policy=action.escalation_policy,
         channels=action.channels,
         source_note=action.source_note,
+        # Task 27: preserve rich metadata; lifecycle_stage shifts to 'waiting'
+        # on postpone to mirror the service-side verb.
+        urgency=action.urgency,
+        lifecycle_stage="waiting",
+        source_app=action.source_app,
+        source_entrypoint=action.source_entrypoint,
+        people=action.people,
+        areas=action.areas,
     )
     result = write_commitment_note(vault_root, updated, now_iso=now_iso)
 
@@ -573,11 +610,24 @@ def sync_commitments_from_service(
 
 
 def _dict_to_action_input(raw: dict) -> ActionInput:
-    """Map a service action payload dict to an :class:`ActionInput`."""
+    """Map a service action payload dict to an :class:`ActionInput`.
+
+    Tolerates the Task 27 rich-metadata keys (``urgency``,
+    ``lifecycle_stage``, ``source_app``, ``source_entrypoint``,
+    ``projects``, ``people``, ``areas``) when the service includes them;
+    falls back to sensible defaults when the payload is from a pre-Task
+    27 service build.
+    """
 
     def _s(k: str) -> str | None:
         v = raw.get(k)
         return str(v) if v is not None else None
+
+    def _list(k: str) -> list[str]:
+        v = raw.get(k) or []
+        if isinstance(v, str):
+            return [v]
+        return [str(x) for x in v]
 
     channels = raw.get("channels") or []
     if isinstance(channels, str):
@@ -599,6 +649,14 @@ def _dict_to_action_input(raw: dict) -> ActionInput:
         source_note=_s("source_note"),
         description=_s("description"),
         completed_at=_s("completed_at"),
+        # Task 27 rich metadata (all optional / defaulted).
+        urgency=raw.get("urgency") or "normal",
+        lifecycle_stage=raw.get("lifecycle_stage") or "inbox",
+        source_app=_s("source_app"),
+        source_entrypoint=_s("source_entrypoint"),
+        projects=_list("projects"),
+        people=_list("people"),
+        areas=_list("areas"),
     )
 
 
