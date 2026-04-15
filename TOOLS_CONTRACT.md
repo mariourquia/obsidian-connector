@@ -158,6 +158,9 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_due_soon` | `within_days?`, `vault?` | JSON `{ok, count, commitments[...+overdue]}` sorted earliest-due first |
 | `obsidian_sync_commitments` | `service_url?`, `vault?` | JSON `{ok, synced, errors[], source_url}` or `{ok: false, error}` |
 | `obsidian_review_dashboards` | `stale_days?`, `merge_window_days?`, `merge_jaccard?`, `now?`, `vault?` | JSON `{ok, count, dashboards[{path, written}]}` -- refreshes Daily, Weekly, Stale, Merge Candidates under `Dashboards/Review/` |
+| `obsidian_find_commitments` | `status?`, `lifecycle_stage?`, `project?`, `person?`, `area?`, `urgency?`, `priority?`, `source_app?`, `due_before?`, `due_after?`, `limit?`, `cursor?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, items[...], next_cursor}}` -- thin wrapper over `GET /api/v1/actions` on the capture service. Task 28. |
+| `obsidian_commitment_detail` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action{...}}}` -- thin wrapper over `GET /api/v1/actions/{id}`. Includes delivery summary, entity buckets, `next_follow_up_at`. Task 28. |
+| `obsidian_commitment_stats` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, total, by_status, by_lifecycle_stage, by_priority, by_source_app}}`. Task 28. |
 
 ### Idea routing (v0.5.0)
 
