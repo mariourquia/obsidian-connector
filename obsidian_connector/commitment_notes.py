@@ -39,6 +39,14 @@ USER_NOTES_BEGIN = "<!-- service:user-notes:begin -->"
 USER_NOTES_END = "<!-- service:user-notes:end -->"
 RELATED_BEGIN = "<!-- service:related:begin -->"
 RELATED_END = "<!-- service:related:end -->"
+# Task 32: "why is this still open?" projection fence. Rendered only
+# when the caller supplies ``ActionInput.why_open_summary``. Idempotent:
+# re-rendering with the same summary produces byte-identical output.
+# The connector writer drops the entire section (fence included) when
+# ``why_open_summary`` is ``None`` so vault writes stay minimal when the
+# operator hasn't asked for a refresh.
+WHY_OPEN_BEGIN = "<!-- service:why-open:begin -->"
+WHY_OPEN_END = "<!-- service:why-open:end -->"
 
 NOTE_TYPE = "commitment"
 COMMITMENTS_ROOT = "Commitments"
@@ -196,6 +204,13 @@ class ActionInput:
     projects: list[str] = field(default_factory=list)
     people: list[str] = field(default_factory=list)
     areas: list[str] = field(default_factory=list)
+    # Task 32: optional "why is this still open?" summary, rendered
+    # inside the ``service:why-open:begin/end`` fence as a bounded
+    # projection. ``None`` means "do not project" — the writer drops
+    # the section entirely and any previous fence content is not
+    # carried forward. Explicit refresh required (CLI/MCP), never
+    # auto-fetched, to keep vault writes minimal.
+    why_open_summary: str | None = None
 
 
 @dataclass(frozen=True)
@@ -423,6 +438,19 @@ def _existing_user_notes(content: str | None) -> str | None:
     return block
 
 
+def _existing_why_open_summary(content: str | None) -> str | None:
+    """Return the inner content of the Task 32 why-open fence, or None.
+
+    Used by :func:`render_commitment_note` so re-syncing an action with
+    ``ActionInput.why_open_summary = None`` preserves the previously
+    written summary on disk. An explicit refresh (CLI/MCP) that supplies
+    a non-``None`` summary overwrites the block.
+    """
+    if not content:
+        return None
+    return _extract_block(content, WHY_OPEN_BEGIN, WHY_OPEN_END)
+
+
 _RELATION_LABELS: dict[str, str] = {
     "blocks": "Blocks",
     "follows_from": "Follows from",
@@ -531,6 +559,8 @@ def _render_body(
     action: ActionInput,
     log_entries: list[str],
     user_notes_block: str | None,
+    *,
+    existing_why_open: str | None = None,
 ) -> str:
     title_line = f"# {action.title}"
     description = (action.description or "").strip()
@@ -565,6 +595,28 @@ def _render_body(
         _source_note_wikilink(action.source_note),
     ]
 
+    # Task 32: why-still-open projection. Bounded, idempotent.
+    # When the caller supplies an explicit summary (CLI/MCP refresh),
+    # we re-render the block from it. When no summary is supplied but
+    # the existing note already has a block, preserve it verbatim so
+    # routine re-syncs don't erase the projection.
+    why_open_section: list[str] = []
+    why_open_body: str | None = None
+    if action.why_open_summary is not None:
+        summary = action.why_open_summary.strip()
+        if len(summary) > 1500:
+            summary = summary[:1500].rstrip() + "…"
+        why_open_body = summary if summary else "_No reasons returned._"
+    elif existing_why_open is not None:
+        why_open_body = existing_why_open
+    if why_open_body is not None:
+        why_open_section = [
+            "## Why still open",
+            WHY_OPEN_BEGIN,
+            why_open_body,
+            WHY_OPEN_END,
+        ]
+
     followup_section = [
         "## Follow-up Log",
         FOLLOWUP_BEGIN,
@@ -593,11 +645,16 @@ def _render_body(
         "",
         *source_section,
         "",
+    ]
+    if why_open_section:
+        sections.extend(why_open_section)
+        sections.append("")
+    sections.extend([
         *followup_section,
         "",
         *notes_section,
         "",
-    ]
+    ])
 
     related_inner = _render_related_block(action)
     if related_inner is not None:
@@ -635,9 +692,13 @@ def render_commitment_note(
     new_entries = _compute_new_log_entries(action, previous_fm, sync_at)
     all_entries = previous_entries + new_entries
     user_notes_block = _existing_user_notes(existing_content)
+    existing_why_open = _existing_why_open_summary(existing_content)
 
     frontmatter = _render_frontmatter(action, sync_at)
-    body = _render_body(action, all_entries, user_notes_block)
+    body = _render_body(
+        action, all_entries, user_notes_block,
+        existing_why_open=existing_why_open,
+    )
     return frontmatter + "\n\n" + body
 
 
@@ -791,6 +852,8 @@ __all__ = [
     "USER_NOTES_END",
     "RELATED_BEGIN",
     "RELATED_END",
+    "WHY_OPEN_BEGIN",
+    "WHY_OPEN_END",
     "NOTE_TYPE",
     "COMMITMENTS_ROOT",
     "OPEN_DIR",
