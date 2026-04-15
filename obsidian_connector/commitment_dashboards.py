@@ -54,6 +54,7 @@ _DASHBOARD_STALE_PATH = f"{REVIEW_DASHBOARDS_DIR}/Stale.md"
 _DASHBOARD_MERGE_CANDIDATES_PATH = f"{REVIEW_DASHBOARDS_DIR}/Merge Candidates.md"
 _DASHBOARD_PATTERNS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Patterns.md"
 _DASHBOARD_ADMIN_PATH = f"{DASHBOARDS_DIR}/Admin.md"
+_DASHBOARD_APPROVALS_PATH = f"{DASHBOARDS_DIR}/Admin/Approvals.md"
 
 _TOOL = "obsidian-connector/dashboards"
 
@@ -1738,6 +1739,263 @@ def generate_admin_dashboard(
     return DashboardResult(path=path, written=written)
 
 
+# ---------------------------------------------------------------------------
+# Task 36: Approvals dashboard
+# ---------------------------------------------------------------------------
+
+
+def _render_approvals_md(
+    *,
+    now_iso: str,
+    digest_payload: dict | None,
+    detail_rows: list[dict] | None,
+    recent_history_rows: list[dict] | None,
+    service_configured: bool,
+    service_error: str | None,
+) -> str:
+    """Render ``Dashboards/Admin/Approvals.md``.
+
+    Pure function. Always produces a document — when the service is
+    not configured the header banner explains the gap and every
+    section renders a polite "no data" note. When the service is
+    configured but unreachable, the error surfaces once at the top
+    and the sections fall through to whatever the partial fetch
+    returned before failure.
+
+    The ``detail_rows`` input is a list of dicts where each row has
+    the delivery + action + risk_factors shape of the
+    ``/api/v1/deliveries/{id}`` endpoint. ``recent_history_rows`` is
+    a list of ``approval_history`` entries from the same source,
+    enriched with ``delivery_id`` and ``action_title`` so the table
+    can be rendered without another round-trip.
+    """
+    fm = _frontmatter("approvals", now_iso)
+    lines: list[str] = [fm, "", "# Approvals", ""]
+    lines.append(f"_Generated at {_now_display(now_iso)}._")
+    lines.append("")
+
+    if not service_configured:
+        lines.append(
+            "> Capture service not configured. Set "
+            "`OBSIDIAN_CAPTURE_SERVICE_URL` (and optionally "
+            "`OBSIDIAN_CAPTURE_SERVICE_TOKEN`) to populate the "
+            "approval surfaces. All sections below are empty for "
+            "this run."
+        )
+        lines.append("")
+    elif service_error:
+        lines.append(
+            f"> Capture service unreachable: {service_error}. "
+            "Sections below show whatever the service returned "
+            "before the error."
+        )
+        lines.append("")
+
+    # Digest block
+    lines.append("## Approval digest")
+    lines.append("")
+    if digest_payload:
+        pending_total = int(digest_payload.get("pending_total", 0) or 0)
+        since_hours = int(digest_payload.get("since_hours", 24) or 24)
+        lines.append(f"- **Pending total**: {pending_total}")
+        age = digest_payload.get("oldest_pending_age_seconds")
+        if age is not None:
+            lines.append(f"- Oldest pending age: {int(age)}s")
+        counts_ch = digest_payload.get("counts_by_channel") or {}
+        if counts_ch:
+            parts = ", ".join(
+                f"{ch}={counts_ch[ch]}" for ch in sorted(counts_ch.keys())
+            )
+            lines.append(f"- By channel: {parts}")
+        counts_ug = digest_payload.get("counts_by_urgency") or {}
+        if counts_ug:
+            parts = ", ".join(
+                f"{u}={counts_ug[u]}" for u in sorted(counts_ug.keys())
+            )
+            lines.append(f"- By urgency: {parts}")
+        recent = int(digest_payload.get("recent_decisions_count", 0) or 0)
+        lines.append(
+            f"- Recent decisions (last {since_hours}h): {recent}"
+        )
+    else:
+        lines.append("- No digest data from service.")
+    lines.append("")
+
+    # Pending approvals table (with risk factors, urgency, age)
+    lines.append("## Pending approvals with risk factors")
+    lines.append("")
+    if detail_rows:
+        lines.append("| Delivery | Action | Channel | Urgency | Scheduled | Risk factors |")
+        lines.append("|---|---|---|---|---|---|")
+        for row in _order_approvals_for_dashboard(detail_rows):
+            delivery = row.get("delivery", {}) or {}
+            action = row.get("action") or {}
+            risks = row.get("risk_factors", []) or []
+            did = str(delivery.get("delivery_id") or "?").replace("|", "\\|")
+            title = str(
+                action.get("title") or "\u2014"
+            ).replace("|", "\\|")
+            channel = str(delivery.get("channel") or "?").replace("|", "\\|")
+            urgency = str(
+                action.get("urgency") or "normal"
+            ).replace("|", "\\|")
+            scheduled = _fmt_date(
+                delivery.get("scheduled_at"), fallback="\u2014",
+            )
+            risks_cell = (
+                ", ".join(risks).replace("|", "\\|") if risks else "\u2014"
+            )
+            lines.append(
+                f"| {did} | {title} | {channel} | {urgency}"
+                f" | {scheduled} | {risks_cell} |"
+            )
+    else:
+        lines.append("- No deliveries awaiting approval.")
+    lines.append("")
+
+    # Recent decisions (last 24h window sourced from approval_history)
+    lines.append("## Recent decisions (last 24h)")
+    lines.append("")
+    if recent_history_rows:
+        lines.append("| Decided | Decision | Delivery | Action | Channel |")
+        lines.append("|---|---|---|---|---|")
+        for row in recent_history_rows:
+            decided = _fmt_date(row.get("decided_at"), fallback="\u2014")
+            decision = str(row.get("decision") or "?").replace("|", "\\|")
+            did = str(row.get("delivery_id") or "?").replace("|", "\\|")
+            title = str(
+                row.get("action_title") or "\u2014"
+            ).replace("|", "\\|")
+            channel = str(row.get("channel") or "?").replace("|", "\\|")
+            lines.append(
+                f"| {decided} | {decision} | {did} | {title} | {channel} |"
+            )
+    else:
+        lines.append("- No approve/reject decisions in the window.")
+    lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _order_approvals_for_dashboard(rows: list[dict]) -> list[dict]:
+    """Order pending-approval rows by (urgency DESC, age ASC).
+
+    Urgency order is ``critical > elevated > normal > low``. Inside
+    each bucket the oldest ``scheduled_at`` comes first. Rows with no
+    action payload or no scheduled_at sort last inside their bucket.
+    """
+    urgency_rank = {"critical": 0, "elevated": 1, "normal": 2, "low": 3}
+
+    def _key(row: dict) -> tuple[int, str, str]:
+        action = row.get("action") or {}
+        u = str(action.get("urgency") or "normal")
+        delivery = row.get("delivery", {}) or {}
+        sched = str(delivery.get("scheduled_at") or "9999-12-31T00:00:00+00:00")
+        did = str(delivery.get("delivery_id") or "~")
+        return (urgency_rank.get(u, 4), sched, did)
+
+    return sorted(rows, key=_key)
+
+
+def generate_approval_dashboard(
+    vault_root: Path,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+    now_iso: str | None = None,
+    since_hours: int = 24,
+) -> DashboardResult:
+    """Generate or update ``Dashboards/Admin/Approvals.md`` (Task 36).
+
+    Pulls ``/api/v1/deliveries/approval-digest``, then
+    ``/api/v1/admin/pending-approvals`` for the delivery id list, and
+    for each id fetches ``/api/v1/deliveries/{id}`` so the dashboard
+    can render the full approval context (action title + urgency +
+    risk factors + recent history). When the service URL isn't
+    configured, writes a "service not configured" banner + empty
+    sections. Never raises.
+
+    ``DashboardResult.written`` counts the number of pending rows
+    rendered in the middle section (the actionable work).
+    """
+    import os as _os
+
+    from obsidian_connector.admin_ops import list_pending_approvals
+    from obsidian_connector.approval_ops import (
+        get_approval_digest,
+        get_delivery_detail,
+    )
+
+    vault_root = Path(vault_root)
+    ts = now_iso or datetime.now(timezone.utc).isoformat()
+    resolved_url = service_url or _os.environ.get("OBSIDIAN_CAPTURE_SERVICE_URL")
+    service_configured = bool(resolved_url)
+
+    digest_payload: dict | None = None
+    detail_rows: list[dict] = []
+    recent_history_rows: list[dict] = []
+    service_error: str | None = None
+
+    if service_configured:
+        d = get_approval_digest(
+            since_hours=since_hours,
+            service_url=service_url, token=token,
+        )
+        if d.get("ok"):
+            digest_payload = d.get("data") or {}
+        else:
+            service_error = service_error or str(d.get("error") or "error")
+
+        listing = list_pending_approvals(
+            service_url=service_url, token=token,
+        )
+        if listing.get("ok"):
+            items = (listing.get("data") or {}).get("items") or []
+        else:
+            items = []
+            service_error = service_error or str(listing.get("error") or "error")
+
+        for item in items:
+            delivery_id = item.get("delivery_id")
+            if not delivery_id:
+                continue
+            detail = get_delivery_detail(
+                delivery_id, service_url=service_url, token=token,
+            )
+            if not detail.get("ok"):
+                service_error = service_error or str(detail.get("error") or "error")
+                continue
+            data = detail.get("data") or {}
+            detail_rows.append(data)
+            # Collect the last 24h of decisions across every row we see.
+            for h in (data.get("approval_history") or []):
+                enriched = dict(h)
+                enriched["delivery_id"] = delivery_id
+                action = data.get("action") or {}
+                enriched["action_title"] = action.get("title")
+                recent_history_rows.append(enriched)
+
+    # Order recent decisions by decided_at DESC so the newest is on top.
+    recent_history_rows.sort(
+        key=lambda r: str(r.get("decided_at") or ""), reverse=True,
+    )
+
+    content = _render_approvals_md(
+        now_iso=ts,
+        digest_payload=digest_payload,
+        detail_rows=detail_rows,
+        recent_history_rows=recent_history_rows,
+        service_configured=service_configured,
+        service_error=service_error,
+    )
+    path = vault_root / _DASHBOARD_APPROVALS_PATH
+    atomic_write(
+        path, content, vault_root=vault_root, tool_name=_TOOL,
+        inject_generated_by=False,
+    )
+    return DashboardResult(path=path, written=len(detail_rows))
+
+
 def update_all_review_dashboards(
     vault_root: Path,
     now_iso: str | None = None,
@@ -1873,6 +2131,19 @@ def update_all_dashboards(
             # crashes despite the admin_ops wrappers, drop it and let
             # the rest of the set complete.
             pass
+        # Task 36: approvals dashboard rides on the same flag. Separate
+        # try so an approvals-side failure never masks the admin page.
+        try:
+            results.append(
+                generate_approval_dashboard(
+                    vault_root,
+                    service_url=service_url,
+                    token=token,
+                    now_iso=ts,
+                )
+            )
+        except Exception:
+            pass
     return results
 
 
@@ -1895,4 +2166,5 @@ __all__ = [
     "update_all_dashboards",
     "update_all_review_dashboards",
     "generate_admin_dashboard",
+    "generate_approval_dashboard",
 ]
