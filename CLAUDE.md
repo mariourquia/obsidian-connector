@@ -108,6 +108,59 @@ Companion to the capture-service ADR in
   passthrough, dashboard render / alphabetical grouping /
   determinism, orchestrator wiring, CLI human + JSON). 541 -> 575.
 
+## Mobile bulk actions (Task 41)
+
+Companion to the capture-service ADR in
+`../obsidian-capture-service/docs/architecture/task_41_mobile_ux.md`
+(service PR #26, merge `6989d26`). Connector-side ADR:
+`docs/architecture/task_41_mobile_ux_connector.md`.
+
+- Five new HTTP wrappers on top of `commitment_ops._service_get_json`
+  / `_service_post_json`, so Task 35 timeout / scheme / auth behavior
+  is shared. Never raises; failures surface inside the standard
+  envelope.
+  - `bulk_ack_commitments(action_ids, *, note=None, ...)` ->
+    `POST /api/v1/actions/bulk-ack`.
+  - `bulk_done_commitments(action_ids, *, note=None, ...)` ->
+    `POST /api/v1/actions/bulk-done`.
+  - `bulk_postpone_commitments(action_ids, *, preset=None, postponed_until=None, note=None, ...)` ->
+    `POST /api/v1/actions/bulk-postpone`. **Client-side validates
+    exactly one of `preset` or `postponed_until` is set** so the
+    caller never wastes a round-trip on a 422. Blank strings count as
+    unset.
+  - `bulk_cancel_commitments(action_ids, *, reason=None, ...)` ->
+    `POST /api/v1/actions/bulk-cancel`.
+  - `list_postpone_presets(*, ...)` ->
+    `GET /api/v1/actions/postpone-presets`.
+- Shared preflight via private `_bulk_action_call(...)` helper:
+  empty `action_ids` or lists of blank strings short-circuit before
+  the network call (mirrors Task 36's `_bulk_call`).
+- Five MCP tools in `mcp_server.py`: `obsidian_bulk_ack`,
+  `obsidian_bulk_done`, `obsidian_bulk_postpone`,
+  `obsidian_bulk_cancel`, `obsidian_postpone_presets`. Thin wrappers
+  with the standard JSON dump + catch-all exception envelope + lazy
+  import pattern.
+- Five CLI subcommands in `cli.py` (each supports human + `--json`,
+  honours `--service-url`):
+  `obsx bulk-ack --action-ids a,b,c [--note ...]`,
+  `obsx bulk-done ...`,
+  `obsx bulk-postpone --action-ids ... [--preset NAME | --postponed-until ISO] [--note ...]`,
+  `obsx bulk-cancel --action-ids ... [--reason ...]`,
+  `obsx postpone-presets`.
+- Human formatters: `_fmt_bulk_action(result, verb)` for
+  ack/done/cancel, `_fmt_bulk_postpone(result)` adds the
+  `resolved_postponed_until` echo line, `_fmt_postpone_presets(result)`
+  renders the catalog.
+- No vault dashboard for Task 41 -- bulk actions are fire-and-forget
+  and the Task 40 coaching dashboard is the review surface that
+  surfaces candidates. Shortcut docs on the service side walk users
+  through iOS Shortcuts build guides.
+- Tests: `tests/test_bulk_actions_connector.py` (36 cases --
+  wrapper path + body + auth, mutual exclusivity for bulk-postpone,
+  empty-ids / blank-ids preflight, HTTP 400 surfaces, MCP
+  passthrough for all five tools, CLI human + `--json` output,
+  per-row `skip: ... wrong_status` rendering). 575 -> 611.
+
 ## Delegation (Task 38)
 
 Companion to the capture-service ADR in
@@ -219,7 +272,7 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 - `workflows.py` -- composed multi-step operations
 - `config.py` -- vault/index configuration, vault path resolution
 - `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`). Task 27 extends `ActionInput` and the frontmatter schema with `urgency` (derived by the service), `lifecycle_stage` (enum, separate from `status`), `source_app`, `source_entrypoint`, `people`, `areas`. Field slots are stable; pre-Task-27 notes hydrate with defaults (`urgency='normal'`, `lifecycle_stage='inbox'`, empty lists). **Task 29** adds a pure `format_source_label(source_app, source_entrypoint) -> str` that maps the Task 27 tuples to a human-readable provenance label (`"Captured via Wispr Flow (Action Button)"`, `"Captured from Apple Notes (#capture)"`, `"(via cloud queue)"` suffix for `queue_poller` entrypoint, `"Unknown source"` fallback). Rendered alongside the raw `- Source:` line as a new `- Captured:` body row. Reused by `commitment_dashboards.py` for the By-source subsection on the Daily and Weekly review surfaces. Single source of truth for provenance vocabulary. ADR: `docs/architecture/task_29_provenance_ux.md`. **Task 32** adds an optional `why_open_summary: str | None` field on `ActionInput`. When supplied, `_render_body` writes a `## Why still open` section inside the `service:why-open:begin/end` fence. The summary is truncated at 1500 chars, idempotent, and preserved across routine re-syncs (the renderer reads the existing fence from disk when `why_open_summary is None`). Only an explicit refresh (`obsx explain-commitment` + re-sync) replaces the block. No auto-fetch on every sync.
-- `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`). `_dict_to_action_input` and `_action_from_content` tolerate missing Task 27 keys from older service payloads / legacy on-disk notes. Task 28 adds three thin wrappers over the capture service's retrieval endpoints: `list_service_actions(...)` (filters + cursor), `get_service_action(action_id)`, and `get_service_action_stats()`. All share the same `http.client` pattern, honor `OBSIDIAN_CAPTURE_SERVICE_URL` / `_TOKEN`, and never raise — errors surface inside a dict envelope. CLI: `obsx find-commitments`, `obsx commitment-detail --action-id ...`, `obsx commitment-stats`. MCP: `obsidian_find_commitments`, `obsidian_commitment_detail`, `obsidian_commitment_stats`. **Task 21.B** adds two more wrappers for cross-input dedup: `list_duplicate_candidates(action_id, *, limit, within_days, min_score, service_url, token)` over `GET /api/v1/actions/{id}/duplicate-candidates`, and `merge_commitments(loser_id, winner_id, *, service_url, token)` over `POST /api/v1/actions/{id}/merge`. Both follow the same no-raise envelope contract. CLI: `obsx duplicate-candidates --action-id ... [--limit N]`, `obsx merge-commitment --loser ... --winner ...`. MCP: `obsidian_duplicate_candidates`, `obsidian_merge_commitment`. **Task 31** adds three pattern-intelligence wrappers: `list_repeated_postponements(*, since_days, limit, ...)`, `list_blocker_clusters(*, since_days, limit, ...)`, `list_recurring_unfinished(*, by, since_days, limit, ...)` over `GET /api/v1/patterns/{repeated-postponements,blocker-clusters,recurring-unfinished}`. Same no-raise envelope contract. CLI: `obsx repeated-postponements`, `obsx blocker-clusters`, `obsx recurring-unfinished --by project|person|area`. MCP: `obsidian_repeated_postponements`, `obsidian_blocker_clusters`, `obsidian_recurring_unfinished`. **Task 32** adds `explain_commitment(action_id, *, service_url, token)` over `GET /api/v1/actions/{id}/why-still-open`. Returns an envelope with `{ok, data: {action_id, status, lifecycle_stage, urgency, reasons[{code, label, data}], inputs}}`. 404/409 surface via `status_code`. CLI: `obsx explain-commitment --action-id ...`. MCP: `obsidian_explain_commitment`.
+- `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`). `_dict_to_action_input` and `_action_from_content` tolerate missing Task 27 keys from older service payloads / legacy on-disk notes. Task 28 adds three thin wrappers over the capture service's retrieval endpoints: `list_service_actions(...)` (filters + cursor), `get_service_action(action_id)`, and `get_service_action_stats()`. All share the same `http.client` pattern, honor `OBSIDIAN_CAPTURE_SERVICE_URL` / `_TOKEN`, and never raise — errors surface inside a dict envelope. CLI: `obsx find-commitments`, `obsx commitment-detail --action-id ...`, `obsx commitment-stats`. MCP: `obsidian_find_commitments`, `obsidian_commitment_detail`, `obsidian_commitment_stats`. **Task 21.B** adds two more wrappers for cross-input dedup: `list_duplicate_candidates(action_id, *, limit, within_days, min_score, service_url, token)` over `GET /api/v1/actions/{id}/duplicate-candidates`, and `merge_commitments(loser_id, winner_id, *, service_url, token)` over `POST /api/v1/actions/{id}/merge`. Both follow the same no-raise envelope contract. CLI: `obsx duplicate-candidates --action-id ... [--limit N]`, `obsx merge-commitment --loser ... --winner ...`. MCP: `obsidian_duplicate_candidates`, `obsidian_merge_commitment`. **Task 31** adds three pattern-intelligence wrappers: `list_repeated_postponements(*, since_days, limit, ...)`, `list_blocker_clusters(*, since_days, limit, ...)`, `list_recurring_unfinished(*, by, since_days, limit, ...)` over `GET /api/v1/patterns/{repeated-postponements,blocker-clusters,recurring-unfinished}`. Same no-raise envelope contract. CLI: `obsx repeated-postponements`, `obsx blocker-clusters`, `obsx recurring-unfinished --by project|person|area`. MCP: `obsidian_repeated_postponements`, `obsidian_blocker_clusters`, `obsidian_recurring_unfinished`. **Task 32** adds `explain_commitment(action_id, *, service_url, token)` over `GET /api/v1/actions/{id}/why-still-open`. Returns an envelope with `{ok, data: {action_id, status, lifecycle_stage, urgency, reasons[{code, label, data}], inputs}}`. 404/409 surface via `status_code`. CLI: `obsx explain-commitment --action-id ...`. MCP: `obsidian_explain_commitment`. **Task 41** adds five bulk lifecycle wrappers: `bulk_ack_commitments(action_ids, *, note=None, ...)`, `bulk_done_commitments(action_ids, *, note=None, ...)`, `bulk_postpone_commitments(action_ids, *, preset=None, postponed_until=None, note=None, ...)` (client-side enforces exactly one of preset/postponed_until), `bulk_cancel_commitments(action_ids, *, reason=None, ...)`, and `list_postpone_presets(*, ...)`. Shared preflight via private `_bulk_action_call(...)` helper. CLI: `obsx bulk-ack`, `obsx bulk-done`, `obsx bulk-postpone`, `obsx bulk-cancel`, `obsx postpone-presets`. MCP: `obsidian_bulk_ack`, `obsidian_bulk_done`, `obsidian_bulk_postpone`, `obsidian_bulk_cancel`, `obsidian_postpone_presets`.
 - `commitment_dashboards.py` -- generate/update four commitment dashboards in `Dashboards/` plus four review surfaces in `Dashboards/Review/` (Daily, Weekly, Stale, Merge Candidates) from current commitment state. `update_all_dashboards` refreshes all eight in one call; `update_all_review_dashboards` refreshes only the review surfaces. CLI: `obsx review-dashboards`. MCP: `obsidian_review_dashboards`. See `docs/implementation/commitment_dashboards.md` and ADR `docs/architecture/task_26_review_dashboards.md`. **Task 29** adds a `## By source (N)` subsection at the bottom of Daily.md and Weekly.md — a small Markdown `| Source | Count |` table over the current day's / week's captures, grouped by the label `commitment_notes.format_source_label()` returns. Backwards compatible: existing sections untouched, new subsection added below the existing ones. **Task 31** adds a fifth review surface — `Dashboards/Review/Patterns.md` — via `generate_patterns_dashboard(vault, *, service_url, token)`. Opt-in from `update_all_review_dashboards(..., include_patterns=True)` because it contacts the capture service. Renders three sections (postponement loops, blocker clusters, recurring unfinished by project/person/area); writes a "Capture service unreachable" banner when the service is down, with empty-section placeholders below so the shape is stable.
 - `entity_notes.py` -- idempotent writer for semantic-memory entity notes under `Entities/<Kind>/<slug>.md` with preserved user-notes fence (Task 15.A). Task 30 adds a deterministic `render_first_pass_wiki_body(entity)` that fills the `service:entity-wiki:begin/end` fence with kind-conditioned peer subsections (projects / people / areas / topics) plus an "At a glance" header. Triggers when `EntityInput.wiki_content is None` and the caller has supplied projection data; an explicit `wiki_content` always wins so Task 15.C can override the scaffold. See ADR `docs/architecture/task_30_wiki_foundations.md`.
 - `coaching_ops.py` -- **Task 40** HTTP wrappers for the capture service's `/api/v1/coaching/*` endpoints: `get_action_recommendations(action_id, ...)` over `GET /api/v1/coaching/action/{id}`, and `list_review_recommendations(since_days=7, limit=50, ...)` over `GET /api/v1/coaching/review`. Reuse `commitment_ops._service_get_json` so the Task 35 timeout / scheme / auth behavior is shared. Never raises; returns envelopes. CLI: `obsx action-recommendations --action-id ...`, `obsx review-recommendations [--since-days N] [--limit N]` (each with `--json`). MCP: `obsidian_action_recommendations`, `obsidian_review_recommendations`. `commitment_dashboards.generate_coaching_dashboard(vault, *, service_url, token, since_days=7, limit=100, now_iso=None)` writes `Dashboards/Review/Coaching.md` with one section per recommendation code (`CONSIDER_CANCEL`, `CONSIDER_DELEGATE`, `CONSIDER_MERGE`, `CONSIDER_RECLAIM`, `CONSIDER_RESCHEDULE`, `CONSIDER_UNBLOCK`), each grouping actions sharing that verb. `update_all_review_dashboards(..., include_coaching=True)` (default) adds the page to the review set; `include_coaching=False` opts out. Service-unreachable and service-unconfigured render with a banner, never silent skip.

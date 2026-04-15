@@ -7,6 +7,32 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Task 41 -- Mobile bulk actions (connector)**: five new thin HTTP
+  wrappers in `obsidian_connector/commitment_ops.py` --
+  `bulk_ack_commitments(action_ids, *, note=None, ...)` over
+  `POST /api/v1/actions/bulk-ack`,
+  `bulk_done_commitments(action_ids, *, note=None, ...)` over
+  `POST /api/v1/actions/bulk-done`,
+  `bulk_postpone_commitments(action_ids, *, preset=None, postponed_until=None, note=None, ...)`
+  over `POST /api/v1/actions/bulk-postpone` (client-side enforces
+  exactly one of preset/postponed_until),
+  `bulk_cancel_commitments(action_ids, *, reason=None, ...)` over
+  `POST /api/v1/actions/bulk-cancel`, and
+  `list_postpone_presets(*, ...)` over
+  `GET /api/v1/actions/postpone-presets`. Shared preflight via a
+  private `_bulk_action_call(...)` helper that short-circuits empty
+  lists and all-blank strings before the network call. All five
+  reuse `_service_get_json` / `_service_post_json` so Task 35
+  timeout / scheme / auth behavior is shared. Never raises;
+  failures surface inside the standard envelope. Five new MCP
+  tools (`obsidian_bulk_ack`, `obsidian_bulk_done`,
+  `obsidian_bulk_postpone`, `obsidian_bulk_cancel`,
+  `obsidian_postpone_presets`) and five CLI subcommands
+  (`obsx bulk-ack`, `obsx bulk-done`, `obsx bulk-postpone`,
+  `obsx bulk-cancel`, `obsx postpone-presets`) with human + `--json`
+  output. Tests: `tests/test_bulk_actions_connector.py` (36 cases).
+  575 -> 611. Companion to capture-service PR #26 (merge `6989d26`).
+  ADR: `docs/architecture/task_41_mobile_ux_connector.md`.
 - **Task 40 -- Review coaching and recommendation layer (connector)**: new
   `obsidian_connector/coaching_ops.py` with two thin HTTP wrappers --
   `get_action_recommendations(action_id, ...)` over

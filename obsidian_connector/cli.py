@@ -1900,6 +1900,99 @@ def _fmt_review_recommendations(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_bulk_action(result: dict, verb: str) -> str:
+    """Shared formatter for Task 41 bulk-{ack,done,cancel}.
+
+    Mirrors :func:`_fmt_bulk_approval` (Task 36). Shows ``processed``
+    vs ``skipped`` counts + per-row outcomes. ``verb`` is one of
+    ``ack | done | cancel``.
+    """
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Bulk {verb} failed (HTTP {status}): {err}"
+        return f"Bulk {verb} failed: {err}"
+    data = result.get("data", {}) or {}
+    requested = int(data.get("requested", 0) or 0)
+    processed = data.get("processed", []) or []
+    skipped = data.get("skipped", []) or []
+    lines = [
+        f"Bulk {verb}: requested={requested}"
+        f"  processed={len(processed)}"
+        f"  skipped={len(skipped)}",
+    ]
+    for row in processed:
+        lines.append(
+            f"  ok: {row.get('action_id', '?')} -> {row.get('status', '?')}"
+            f"  ack_id={row.get('ack_id', '?')}"
+        )
+    for row in skipped:
+        detail = row.get("detail")
+        suffix = f" ({detail})" if detail else ""
+        lines.append(
+            f"  skip: {row.get('action_id', '?')}"
+            f"  reason: {row.get('reason', '?')}{suffix}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_bulk_postpone(result: dict) -> str:
+    """Formatter for Task 41 bulk-postpone. Adds the resolved time echo."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Bulk postpone failed (HTTP {status}): {err}"
+        return f"Bulk postpone failed: {err}"
+    data = result.get("data", {}) or {}
+    requested = int(data.get("requested", 0) or 0)
+    processed = data.get("processed", []) or []
+    skipped = data.get("skipped", []) or []
+    resolved = data.get("resolved_postponed_until", "?")
+    lines = [
+        f"Bulk postpone: requested={requested}"
+        f"  processed={len(processed)}"
+        f"  skipped={len(skipped)}",
+        f"  resolved until: {resolved}",
+    ]
+    for row in processed:
+        lines.append(
+            f"  ok: {row.get('action_id', '?')} -> {row.get('status', '?')}"
+            f"  ack_id={row.get('ack_id', '?')}"
+        )
+    for row in skipped:
+        detail = row.get("detail")
+        suffix = f" ({detail})" if detail else ""
+        lines.append(
+            f"  skip: {row.get('action_id', '?')}"
+            f"  reason: {row.get('reason', '?')}{suffix}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_postpone_presets(result: dict) -> str:
+    """Formatter for Task 41 postpone-presets listing."""
+    if not result.get("ok"):
+        return (
+            f"Postpone presets fetch failed: "
+            f"{result.get('error', 'unknown error')}"
+        )
+    data = result.get("data", {}) or {}
+    presets = data.get("presets", []) or []
+    if not presets:
+        return "No postpone presets available."
+    lines = [f"Postpone presets ({len(presets)}):"]
+    for item in presets:
+        lines.append(
+            f"  {item.get('name', '?')}  {item.get('label', '')}"
+        )
+        desc = item.get("description")
+        if desc:
+            lines.append(f"    {desc}")
+    return "\n".join(lines)
+
+
 def _fmt_weekly_report(result: dict) -> str:
     """Human-readable weekly-report output (Task 39)."""
     if not result.get("ok"):
@@ -2993,6 +3086,122 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--limit", type=int, default=50,
         help="Max items (default 50, server cap 200).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- bulk-ack (Task 41) ----------------------------------------------
+    p = sub.add_parser(
+        "bulk-ack",
+        help="Batch-ack awaiting_ack actions atomically (Task 41).",
+    )
+    p.add_argument(
+        "--action-ids", dest="action_ids", required=True,
+        help="Comma-separated list of action ids.",
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional note recorded on every ack audit row (<=500 chars).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- bulk-done (Task 41) ---------------------------------------------
+    p = sub.add_parser(
+        "bulk-done",
+        help="Batch-mark actions done atomically (Task 41).",
+    )
+    p.add_argument(
+        "--action-ids", dest="action_ids", required=True,
+        help="Comma-separated list of action ids.",
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional note recorded on every ack audit row (<=500 chars).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- bulk-postpone (Task 41) -----------------------------------------
+    p = sub.add_parser(
+        "bulk-postpone",
+        help="Batch-postpone actions with a preset or explicit ISO (Task 41).",
+    )
+    p.add_argument(
+        "--action-ids", dest="action_ids", required=True,
+        help="Comma-separated list of action ids.",
+    )
+    p.add_argument(
+        "--preset", default=None,
+        help=(
+            "Named preset (e.g. tomorrow_9am). Run `obsx postpone-presets` "
+            "for the catalog. Mutually exclusive with --postponed-until."
+        ),
+    )
+    p.add_argument(
+        "--postponed-until", dest="postponed_until", default=None,
+        help=(
+            "Explicit ISO 8601 datetime (e.g. 2026-05-01T12:00:00Z). "
+            "Mutually exclusive with --preset."
+        ),
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional note recorded on the ack row + postpone_reason.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- bulk-cancel (Task 41) -------------------------------------------
+    p = sub.add_parser(
+        "bulk-cancel",
+        help="Batch-cancel actions atomically (Task 41).",
+    )
+    p.add_argument(
+        "--action-ids", dest="action_ids", required=True,
+        help="Comma-separated list of action ids.",
+    )
+    p.add_argument(
+        "--reason", default=None,
+        help="Optional reason recorded on every ack row (<=500 chars).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- postpone-presets (Task 41) --------------------------------------
+    p = sub.add_parser(
+        "postpone-presets",
+        help="List the named postpone presets the service accepts (Task 41).",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -4610,6 +4819,81 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_review_recommendations(result)
+
+        elif args.command == "bulk-ack":
+            from obsidian_connector.commitment_ops import bulk_ack_commitments
+
+            ids = [
+                s.strip() for s in (args.action_ids or "").split(",")
+                if s.strip()
+            ]
+            result = bulk_ack_commitments(
+                ids,
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_bulk_action(result, "ack")
+
+        elif args.command == "bulk-done":
+            from obsidian_connector.commitment_ops import bulk_done_commitments
+
+            ids = [
+                s.strip() for s in (args.action_ids or "").split(",")
+                if s.strip()
+            ]
+            result = bulk_done_commitments(
+                ids,
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_bulk_action(result, "done")
+
+        elif args.command == "bulk-postpone":
+            from obsidian_connector.commitment_ops import (
+                bulk_postpone_commitments,
+            )
+
+            ids = [
+                s.strip() for s in (args.action_ids or "").split(",")
+                if s.strip()
+            ]
+            result = bulk_postpone_commitments(
+                ids,
+                preset=getattr(args, "preset", None),
+                postponed_until=getattr(args, "postponed_until", None),
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_bulk_postpone(result)
+
+        elif args.command == "bulk-cancel":
+            from obsidian_connector.commitment_ops import (
+                bulk_cancel_commitments,
+            )
+
+            ids = [
+                s.strip() for s in (args.action_ids or "").split(",")
+                if s.strip()
+            ]
+            result = bulk_cancel_commitments(
+                ids,
+                reason=getattr(args, "reason", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_bulk_action(result, "cancel")
+
+        elif args.command == "postpone-presets":
+            from obsidian_connector.commitment_ops import list_postpone_presets
+
+            result = list_postpone_presets(
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_postpone_presets(result)
 
         elif args.command == "weekly-report":
             from obsidian_connector.analytics_ops import get_weekly_report
