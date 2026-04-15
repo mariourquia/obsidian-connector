@@ -172,6 +172,10 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_pending_approvals` | `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {limit, items[...]}}`. Each item: `delivery_id`, `action_id`, `channel`, `target`, `status`, `scheduled_at`, `delivery_created_at`, `action_title`, `action_priority`, `action_lifecycle_stage`. `GET /api/v1/admin/pending-approvals`. Task 44. |
 | `obsidian_stale_sync_devices` | `threshold_hours?`, `service_url?` | JSON envelope `{ok, status_code, data: {threshold_hours, items[...]}}`. Each item: `device_id`, `last_synced_at`, `hours_since_last_sync`, `platform`, `app_version`, `pending_ops_count`. `GET /api/v1/admin/stale-sync-devices`. Task 44. |
 | `obsidian_system_health` | `service_url?` | JSON envelope `{ok, status_code, data: {overall_status, generated_at, doctor: {counts, checks}, queue, deliveries, approvals, devices}}`. Composite operator summary. `GET /api/v1/admin/system-health`. Task 44. |
+| `obsidian_delivery_detail` | `delivery_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, delivery, action?, risk_factors[], approval_history[]}}`. `GET /api/v1/deliveries/{id}`. 404 when missing. Task 36. |
+| `obsidian_bulk_approve` | `delivery_ids[]`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, decision: "approved", requested, approved[], rejected[], skipped[{delivery_id, reason, detail}]}}`. Atomic per-batch. `POST /api/v1/deliveries/bulk-approve`. Task 36. |
+| `obsidian_bulk_reject` | `delivery_ids[]`, `note?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_approve` with `decision: "rejected"`. `POST /api/v1/deliveries/bulk-reject`. Task 36. |
+| `obsidian_approval_digest` | `since_hours?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_hours, pending_total, counts_by_channel, counts_by_urgency, oldest_pending_age_seconds, top_pending[...], recent_decisions_count, generated_at}}`. `GET /api/v1/deliveries/approval-digest`. Task 36. |
 
 ### Idea routing (v0.5.0)
 

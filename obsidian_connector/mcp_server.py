@@ -3452,6 +3452,157 @@ def obsidian_system_health(
 
 
 # ---------------------------------------------------------------------------
+# Task 36: Approval UX (detail + bulk + digest)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Delivery Detail (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_delivery_detail(
+    delivery_id: str,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/deliveries/{delivery_id}``.
+
+    Returns the full approval context: delivery row + parent action +
+    approval history + computed ``risk_factors`` list (Task 36). The
+    risk factors are deterministic heuristics (no LLM) — see the
+    service-side ADR at ``docs/architecture/task_36_approval_ux.md``.
+
+    Args:
+        delivery_id: Server-side delivery id (``dlv_...``).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.approval_ops import get_delivery_detail
+
+    try:
+        result = get_delivery_detail(
+            delivery_id, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Bulk Approve Deliveries (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_bulk_approve(
+    delivery_ids: list[str],
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/deliveries/bulk-approve``.
+
+    Approves a batch of pending deliveries atomically. Per-row skips
+    (missing id, wrong status, duplicate id) are reported without
+    aborting. Server caps the batch at ``MAX_BULK_APPROVAL_IDS``
+    (default 50).
+
+    Args:
+        delivery_ids: Non-empty list of delivery ids.
+        note: Optional reason attached to every audit row.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.approval_ops import bulk_approve_deliveries
+
+    try:
+        result = bulk_approve_deliveries(
+            delivery_ids, note=note, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Bulk Reject Deliveries (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_bulk_reject(
+    delivery_ids: list[str],
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/deliveries/bulk-reject``. Mirror of bulk-approve."""
+    from obsidian_connector.approval_ops import bulk_reject_deliveries
+
+    try:
+        result = bulk_reject_deliveries(
+            delivery_ids, note=note, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Approval Digest (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_approval_digest(
+    since_hours: int = 24,
+    service_url: str | None = None,
+) -> str:
+    """Call ``GET /api/v1/deliveries/approval-digest``.
+
+    Returns the nightly-review summary: counts by channel, counts by
+    urgency, age of oldest pending, top-5 pending approvals with
+    risk factors, and the number of decisions in the window.
+
+    Args:
+        since_hours: Recent-decisions window (default 24, max 720).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.approval_ops import get_approval_digest
+
+    try:
+        result = get_approval_digest(
+            since_hours=since_hours, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 
