@@ -2,14 +2,14 @@
 title: Commitment Dashboards
 status: stable
 owner: obsidian-connector
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-14
 ---
 
 # Commitment Dashboards
 
 Dashboard notes that aggregate the state of all commitment notes inside a
-vault into four human-navigable Markdown files under ``Dashboards/``.  They
-are generated (or updated) by ``obsidian_connector.commitment_dashboards`` and
+vault into human-navigable Markdown files under ``Dashboards/``.  They are
+generated (or updated) by ``obsidian_connector.commitment_dashboards`` and
 are the read-only, aggregate counterpart to the individual commitment notes
 produced by ``commitment_notes.py``.
 
@@ -19,16 +19,32 @@ Commitment notes live at ``Commitments/Open/YYYY/MM/*.md`` and
 ``Commitments/Done/YYYY/MM/*.md``.  These are great for individual note
 context but require Dataview or folder-level inspection to answer
 questions like "what is overdue right now?" or "what needs my explicit sign-off?".
-The four dashboards answer those questions at a glance.
+The dashboards answer those questions at a glance.
+
+Task 26 adds four **review surfaces** under ``Dashboards/Review/`` aimed at
+triage and inbox grooming, plus an extended Postponed dashboard that
+surfaces "stale postponements" (items whose ``postponed_until`` date has
+passed but which are still open).
 
 ## Dashboards
+
+### Commitment dashboards (Task 12)
 
 | File | Content |
 |------|---------|
 | ``Dashboards/Commitments.md`` | All commitments: open grouped by project, done as a table |
 | ``Dashboards/Due Soon.md`` | Open commitments due within N days (default 7), split overdue vs upcoming |
 | ``Dashboards/Waiting On Me.md`` | Open commitments with ``requires_ack: true`` |
-| ``Dashboards/Postponed.md`` | Open commitments with ``postponed_until`` set |
+| ``Dashboards/Postponed.md`` | Open commitments with ``postponed_until`` set; Task 26 adds a "Stale postponements" section (postponed_until in the past, still open) at the top |
+
+### Review dashboards (Task 26)
+
+| File | Answers |
+|------|---------|
+| ``Dashboards/Review/Daily.md`` | What came in today? What's due today or overdue? What did I close? What's blocked? |
+| ``Dashboards/Review/Weekly.md`` | Captured this ISO-week, Completed this ISO-week, Still open from last week, Stale (>14d no movement), Top projects by open volume |
+| ``Dashboards/Review/Stale.md`` | Every open commitment with ``updated_at`` older than *stale_days* (default 14), OR stuck in ``lifecycle_stage in (inbox, triaged)`` for >3 days; sorted by staleness descending |
+| ``Dashboards/Review/Merge Candidates.md`` | Heuristic-only (no embeddings): pairs of open items in the same project whose title token-Jaccard is >= 0.6 AND whose ``created_at`` timestamps are within 14 days of each other. Purely a review surface; the actual merge is a human decision |
 
 ## Wikilinks
 
@@ -81,24 +97,46 @@ Only the ``generated_at`` frontmatter field changes between live runs.
 ```python
 from obsidian_connector import (
     DashboardResult,
+    DASHBOARDS_DIR,
+    REVIEW_DASHBOARDS_DIR,
+    # Commitment dashboards (Task 12)
     generate_commitments_dashboard,
     generate_due_soon_dashboard,
     generate_waiting_on_me_dashboard,
     generate_postponed_dashboard,
+    # Review dashboards (Task 26)
+    generate_daily_review_dashboard,
+    generate_weekly_review_dashboard,
+    generate_stale_dashboard,
+    generate_merge_candidates_dashboard,
+    # Orchestrators
     update_all_dashboards,
-    DASHBOARDS_DIR,
+    update_all_review_dashboards,
+    # Heuristic (exported for tests + external tools)
+    title_jaccard,
 )
 ```
 
-### ``update_all_dashboards(vault_root, within_days=7, now_iso=None)``
+### ``update_all_dashboards(vault_root, within_days=7, now_iso=None, stale_days=14, merge_window_days=14, merge_jaccard=0.6)``
 
-Generate or update all four dashboards in a single call.
+Generate or update all eight dashboards in a single call.  The commitment
+dashboards come first (stable prefix), followed by the four review
+dashboards.  Task 26 extended the return list from 4 to 8 entries; the
+prefix order (``Commitments.md``, ``Due Soon.md``, ``Waiting On Me.md``,
+``Postponed.md``) is stable for callers that index by position.
 
 ```python
 results = update_all_dashboards(vault_root="/path/to/vault")
-# returns [DashboardResult, DashboardResult, DashboardResult, DashboardResult]
-# one per dashboard, in order: Commitments, Due Soon, Waiting On Me, Postponed
+# returns 8 DashboardResult items in order:
+# Commitments, Due Soon, Waiting On Me, Postponed,
+# Daily, Weekly, Stale, Merge Candidates
 ```
+
+### ``update_all_review_dashboards(vault_root, now_iso=None, stale_days=14, merge_window_days=14, merge_jaccard=0.6)``
+
+Regenerate only the four review dashboards (``Dashboards/Review/``) — the
+on-demand target used by the ``review-dashboards`` CLI subcommand and the
+``obsidian_review_dashboards`` MCP tool.
 
 ### ``generate_commitments_dashboard(vault_root, now_iso=None)``
 
@@ -145,10 +183,18 @@ result = generate_due_soon_dashboard(
 )
 ```
 
+## CLI + MCP surfaces
+
+- CLI: ``obsx review-dashboards [--stale-days N] [--merge-window-days N] [--merge-jaccard X] [--now ISO] [--json]``
+  Refreshes the four review dashboards deterministically.
+- MCP tool: ``obsidian_review_dashboards(stale_days, merge_window_days, merge_jaccard, now, vault)``
+  Same semantics as the CLI subcommand.
+
 ## Tests
 
 ```bash
-python3 scripts/commitment_dashboards_test.py     # 36 test cases
+python3 scripts/commitment_dashboards_test.py     # 36 Task 12 test cases
+pytest tests/test_review_dashboards.py            # 38 Task 26 test cases
 ```
 
 The suite covers:
