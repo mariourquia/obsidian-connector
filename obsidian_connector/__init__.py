@@ -145,6 +145,7 @@ from obsidian_connector.entity_notes import (
     EntityInput,
     EntityWriteResult,
     LinkedAction as EntityLinkedAction,
+    render_first_pass_wiki_body,
     resolve_entity_path,
     write_entity_note,
 )
@@ -286,4 +287,11 @@ __all__ = [
     "title_jaccard",
     "update_all_dashboards",
     "update_all_review_dashboards",
+    # entity notes (Task 15.A / 30)
+    "EntityInput",
+    "EntityWriteResult",
+    "EntityLinkedAction",
+    "render_first_pass_wiki_body",
+    "resolve_entity_path",
+    "write_entity_note",
 ]
