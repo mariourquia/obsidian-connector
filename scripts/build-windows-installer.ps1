@@ -203,7 +203,7 @@ OutputDir=$DistDir
 OutputBaseFilename=$OutputExe
 ; Favor build throughput over maximum compression so CI can finish in a
 ; predictable window when bundling the embedded Ix runtime.
-Compression=lzma
+Compression=zip
 SolidCompression=no
 WizardStyle=modern
 PrivilegesRequired=lowest

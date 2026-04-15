@@ -307,5 +307,5 @@ class TestWindowsPackaging:
 
     def test_shared_packager_uses_faster_ci_compression_profile(self):
         script = (ROOT / "scripts" / "build-windows-installer.ps1").read_text()
-        assert "Compression=lzma" in script
+        assert "Compression=zip" in script
         assert "SolidCompression=no" in script
