@@ -20,6 +20,13 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the same six-step catalog used by `docs/ONBOARDING.md`: vault setup,
   capture-service URL, bearer token, MCP registration, first sync, verify.
   Connector-side doc cross-links `../obsidian-capture-service/docs/onboarding/ONBOARDING.md`.
+- **Task 35 — Hardening**: `commitment_ops._service_timeout()` centralizes the
+  HTTP-client ceiling via `SERVICE_REQUEST_TIMEOUT_SECONDS` (default 10s).
+  `_service_get_json`, `_service_post_json`, and the Task 15 service fetch all
+  honor the env override. Atomic-write audit: `commitment_notes.py`,
+  `entity_notes.py`, and `commitment_dashboards.py` write exclusively through
+  `write_manager.atomic_write` — asserted by AST scan + runtime monkeypatch in
+  `tests/test_hardening.py`.
 
 ### Changed
 - CLAUDE.md/AGENTS.md now document the editable install flow (`pip install -e .`)
