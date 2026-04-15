@@ -952,6 +952,165 @@ def get_service_action_stats(
     )
 
 
+# ---------------------------------------------------------------------------
+# Task 21.B: cross-input dedup wrappers
+# ---------------------------------------------------------------------------
+
+
+def _service_post_json(
+    path: str,
+    *,
+    body: dict | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+    timeout: float = 10.0,
+) -> dict:
+    """POST JSON to the capture service and return the parsed response.
+
+    Return shape matches :func:`_service_get_json`:
+
+    - ``{"ok": True, "status_code": 2xx, "data": {...}}`` on success.
+    - ``{"ok": False, "status_code": n?, "error": "..."}`` on any
+      failure (network, auth, malformed JSON, bad scheme, missing URL).
+
+    Never raises.
+    """
+    import http.client
+    import ssl
+
+    url = service_url or os.getenv("OBSIDIAN_CAPTURE_SERVICE_URL")
+    key = token or os.getenv("OBSIDIAN_CAPTURE_SERVICE_TOKEN")
+    if not url:
+        return {
+            "ok": False,
+            "error": "service not configured (set OBSIDIAN_CAPTURE_SERVICE_URL)",
+        }
+
+    parsed = urllib.parse.urlparse(url.rstrip("/"))
+    if parsed.scheme not in _ALLOWED_SCHEMES:
+        return {
+            "ok": False,
+            "error": (
+                f"service URL must use http or https, got: {parsed.scheme!r}"
+            ),
+        }
+
+    base_path = (parsed.path or "").rstrip("/")
+    full_path = base_path + path
+    body_bytes = json.dumps(body or {}).encode("utf-8")
+    headers: dict[str, str] = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+
+    conn: http.client.HTTPConnection | None = None
+    try:
+        if parsed.scheme == "https":
+            conn = http.client.HTTPSConnection(  # nosemgrep
+                parsed.netloc,
+                timeout=timeout,
+                context=ssl.create_default_context(),
+            )
+        else:
+            conn = http.client.HTTPConnection(parsed.netloc, timeout=timeout)
+        conn.request("POST", full_path, body=body_bytes, headers=headers)
+        resp = conn.getresponse()
+        raw = resp.read().decode("utf-8")
+        if resp.status >= 400:
+            return {
+                "ok": False,
+                "status_code": resp.status,
+                "error": raw or f"HTTP {resp.status}",
+            }
+        data = json.loads(raw) if raw else {}
+    except http.client.HTTPException as exc:
+        return {"ok": False, "error": f"HTTP error: {exc}"}
+    except OSError as exc:
+        return {"ok": False, "error": f"service unreachable: {exc}"}
+    except (json.JSONDecodeError, ValueError) as exc:
+        return {"ok": False, "error": f"service response malformed: {exc}"}
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return {"ok": True, "status_code": resp.status, "data": data}
+
+
+def list_duplicate_candidates(
+    action_id: str,
+    *,
+    limit: int = 10,
+    within_days: int = 30,
+    min_score: float | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions/{action_id}/duplicate-candidates``.
+
+    Returns the :func:`_service_get_json` envelope. On success the
+    payload has ``{ok, action_id, candidates: [...], thresholds:
+    {candidate, strong}}``.  404 is surfaced as ``{ok: False,
+    status_code: 404, error: "..."}``.
+
+    ``min_score`` defaults to the server-side candidate threshold
+    (``0.55``) when omitted — passing an explicit value overrides the
+    env-configured default.
+    """
+    if not action_id or not isinstance(action_id, str):
+        return {"ok": False, "error": "action_id must be a non-empty string"}
+
+    params: list[tuple[str, str]] = [
+        ("limit", str(int(limit))),
+        ("within_days", str(int(within_days))),
+    ]
+    if min_score is not None:
+        params.append(("min_score", str(float(min_score))))
+
+    quoted = urllib.parse.quote(action_id, safe="")
+    query = urllib.parse.urlencode(params)
+    path = f"/api/v1/actions/{quoted}/duplicate-candidates"
+    if query:
+        path = f"{path}?{query}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
+def merge_commitments(
+    loser_id: str,
+    winner_id: str,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/{loser_id}/merge`` with ``{winner_id}``.
+
+    Returns the :func:`_service_post_json` envelope. Server responses:
+
+    - 200 + ``{ok, loser_id, winner_id, edge_id, already_merged}`` on
+      success (idempotent on re-merge).
+    - 400 for self-merge or blank ``winner_id``.
+    - 404 when either action is missing.
+    - 409 when the loser or winner is in a terminal status.
+
+    All of those return a dict with ``ok: False`` and ``status_code``
+    populated so the caller can disambiguate.
+    """
+    if not loser_id or not isinstance(loser_id, str):
+        return {"ok": False, "error": "loser_id must be a non-empty string"}
+    if not winner_id or not isinstance(winner_id, str):
+        return {"ok": False, "error": "winner_id must be a non-empty string"}
+
+    quoted = urllib.parse.quote(loser_id, safe="")
+    path = f"/api/v1/actions/{quoted}/merge"
+    return _service_post_json(
+        path,
+        body={"winner_id": winner_id},
+        service_url=service_url,
+        token=token,
+    )
+
+
 __all__ = [
     "CommitmentSummary",
     "list_commitments",
@@ -964,4 +1123,6 @@ __all__ = [
     "list_service_actions",
     "get_service_action",
     "get_service_action_stats",
+    "list_duplicate_candidates",
+    "merge_commitments",
 ]
