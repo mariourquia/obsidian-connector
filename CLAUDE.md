@@ -48,6 +48,23 @@ obsx doctor                       # sanity check after upgrade
 
 See `CHANGELOG.md` for release notes.
 
+## Onboarding (Task 34)
+
+New-install walkthrough lives at `docs/ONBOARDING.md` and is also
+available via the CLI:
+
+```bash
+obsx onboarding          # prints the 6-step walkthrough
+obsx onboarding --json   # stable payload for scripts / MCP clients
+```
+
+The step catalog lives in `obsidian_connector/onboarding.py`
+(`ONBOARDING_STEPS`, `get_onboarding_payload`, `format_onboarding`).
+Pure Python, no I/O, no network — kept deliberately side-effect-free so
+tests, MCP callers, and the Markdown doc render from the same data.
+The sequence cross-references `../obsidian-capture-service/docs/onboarding/ONBOARDING.md`
+for the service-side steps that precede the connector setup.
+
 ## Build system
 
 Plugin artifacts live in `src/` (skills, hooks, manifest, MCP config, bin). Python package stays at `obsidian_connector/`. Build pipeline in `tools/` (TypeScript, tsx).
