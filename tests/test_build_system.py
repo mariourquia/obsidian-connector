@@ -284,7 +284,13 @@ class TestWindowsPackaging:
     def test_windows_workflow_uses_shared_packager(self):
         workflow = (ROOT / ".github" / "workflows" / "build-windows-installer.yml").read_text()
         assert r".\scripts\build-windows-installer.ps1" in workflow
+        assert "tools/build.ts --target claude-desktop" in workflow
         assert r"scripts\create-exe.iss" not in workflow
+
+    def test_release_workflow_builds_claude_desktop_before_windows_packaging(self):
+        workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text()
+        assert "tools/build.ts --target claude-desktop" in workflow
+        assert "tools/validate.ts --target claude-desktop" in workflow
 
     def test_shared_packager_excludes_ix_dev_only_paths(self):
         script = (ROOT / "scripts" / "build-windows-installer.ps1").read_text()

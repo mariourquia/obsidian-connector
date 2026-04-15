@@ -180,6 +180,21 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install build tools
+        working-directory: tools
+        shell: pwsh
+        run: npm ci
+
+      - name: Build and validate claude-desktop target
+        shell: pwsh
+        run: |
+          npx tsx tools/build.ts --target claude-desktop
+          npx tsx tools/validate.ts --target claude-desktop
+
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
         shell: cmd
@@ -364,4 +379,3 @@ jobs:
             "final-assets/obsidian-connector-${TAG_NAME}.sha256.cert" \
             --title "$TAG_NAME" \
             --notes-file /tmp/release-notes.md \
-
