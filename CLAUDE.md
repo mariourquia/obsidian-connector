@@ -67,8 +67,8 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 - `cli.py` -- argparse CLI (65 commands)
 - `workflows.py` -- composed multi-step operations
 - `config.py` -- vault/index configuration, vault path resolution
-- `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`)
-- `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`)
+- `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`). Task 27 extends `ActionInput` and the frontmatter schema with `urgency` (derived by the service), `lifecycle_stage` (enum, separate from `status`), `source_app`, `source_entrypoint`, `people`, `areas`. Field slots are stable; pre-Task-27 notes hydrate with defaults (`urgency='normal'`, `lifecycle_stage='inbox'`, empty lists).
+- `commitment_ops.py` -- list, inspect, mutate, and sync operations for commitment notes (see `docs/implementation/commitment_commands.md`). `_dict_to_action_input` and `_action_from_content` tolerate missing Task 27 keys from older service payloads / legacy on-disk notes.
 - `commitment_dashboards.py` -- generate/update four dashboard notes in `Dashboards/` from current commitment state (see `docs/implementation/commitment_dashboards.md`)
 - `entity_notes.py` -- idempotent writer for semantic-memory entity notes under `Entities/<Kind>/<slug>.md` with preserved user-notes fence (Task 15.A)
 
