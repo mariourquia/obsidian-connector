@@ -48,6 +48,21 @@ obsx doctor                       # sanity check after upgrade
 
 See `CHANGELOG.md` for release notes.
 
+## Hardening (Task 35)
+
+- **HTTP client timeout**: every service wrapper in `commitment_ops.py`
+  honors `SERVICE_REQUEST_TIMEOUT_SECONDS` (default 10s). Set via env;
+  bad or non-positive values fall back to the default. The helper
+  `_service_timeout()` is the single knob — `_service_get_json`,
+  `_service_post_json`, and the Task 15.A `sync_service_commitments_to_vault`
+  fetch all route through it.
+- **Atomic writes**: `commitment_notes.py`, `entity_notes.py`, and
+  `commitment_dashboards.py` write exclusively through
+  `write_manager.atomic_write`. `tests/test_hardening.py` asserts this
+  at the AST level (any raw `write_text` call fails the audit) plus at
+  runtime (monkeypatched `atomic_write` must record the call).
+- Companion to obsidian-capture-service Task 35 (PR #19).
+
 ## Onboarding (Task 34)
 
 New-install walkthrough lives at `docs/ONBOARDING.md` and is also
