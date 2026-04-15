@@ -2834,6 +2834,156 @@ def obsidian_review_dashboards(
 
 
 # ---------------------------------------------------------------------------
+# Task 28: service retrieval helpers
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Find Commitments (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_find_commitments(
+    status: str | None = None,
+    lifecycle_stage: str | None = None,
+    project: str | None = None,
+    person: str | None = None,
+    area: str | None = None,
+    urgency: str | None = None,
+    priority: str | None = None,
+    source_app: str | None = None,
+    due_before: str | None = None,
+    due_after: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Query ``GET /api/v1/actions`` on the capture service.
+
+    Filters are AND-joined. ``project``/``person``/``area`` resolve
+    server-side through the alias table (case-insensitive). ``urgency``
+    is post-filtered on the server after computing
+    ``(priority, due_at, postponed_until, status)``.
+
+    Pagination uses an opaque ``cursor``; when the response includes
+    ``next_cursor``, pass it back verbatim on the next call to fetch
+    the subsequent page.
+
+    Args:
+        status: Filter by action status (e.g. ``open``, ``awaiting_ack``).
+        lifecycle_stage: Filter by lifecycle stage (e.g. ``active``).
+        project: Project name (canonical or alias).
+        person: Person name (canonical or alias).
+        area: Area name (canonical or alias).
+        urgency: ``low`` | ``normal`` | ``elevated`` | ``critical``.
+        priority: ``low`` | ``normal`` | ``high`` | ``urgent``.
+        source_app: e.g. ``wispr_flow`` or ``shortcut_text``.
+        due_before: ISO 8601 timestamp.
+        due_after: ISO 8601 timestamp.
+        limit: Page size (default 50, max 200).
+        cursor: Opaque pagination cursor from a prior response.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from environment. Never
+    raises; errors are surfaced inside the JSON envelope.
+    """
+    from obsidian_connector.commitment_ops import list_service_actions
+
+    try:
+        result = list_service_actions(
+            status=status,
+            lifecycle_stage=lifecycle_stage,
+            project=project,
+            person=person,
+            area=area,
+            urgency=urgency,
+            priority=priority,
+            source_app=source_app,
+            due_before=due_before,
+            due_after=due_after,
+            limit=limit,
+            cursor=cursor,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Commitment Detail (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_commitment_detail(
+    action_id: str,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/actions/{action_id}`` from the capture service.
+
+    Returns the full action payload including entity buckets
+    (projects/people/areas), delivery summary, and
+    ``next_follow_up_at``. On 404 the envelope's ``status_code`` is
+    404 and ``ok`` is False.
+
+    Args:
+        action_id: The action ULID (e.g. ``act_01HS...``).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+    """
+    from obsidian_connector.commitment_ops import get_service_action
+
+    try:
+        result = get_service_action(action_id, service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Commitment Stats (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_commitment_stats(
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/actions/stats`` from the capture service.
+
+    Returns ``total`` plus four grouped maps (``by_status``,
+    ``by_lifecycle_stage``, ``by_priority``, ``by_source_app``). Zero-
+    count keys are omitted.
+
+    Args:
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+    """
+    from obsidian_connector.commitment_ops import get_service_action_stats
+
+    try:
+        result = get_service_action_stats(service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 
