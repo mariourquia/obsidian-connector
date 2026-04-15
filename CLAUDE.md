@@ -63,6 +63,54 @@ See `CHANGELOG.md` for release notes.
   runtime (monkeypatched `atomic_write` must record the call).
 - Companion to obsidian-capture-service Task 35 (PR #19).
 
+## Delegation (Task 38)
+
+Companion to the capture-service ADR in
+`../obsidian-capture-service/docs/architecture/task_38_delegation.md`
+(service PR #24). Connector-side ADR:
+`docs/architecture/task_38_delegation_connector.md`.
+
+- `ActionInput` (`commitment_notes.py`) gains three optional frozen
+  fields: `delegated_to: str | None`, `delegated_at: str | None`,
+  `delegation_note: str | None`. All default to `None`. Frontmatter
+  slot sits between `postponed_until` and `requires_ack` so
+  pre-Task-38 notes diff cleanly on first-touch upgrade.
+- Body line `- Delegated to: <name> (YYYY-MM-DD)` (plus optional
+  `- Delegation note: <text>`) renders only when `delegated_to` is
+  truthy; non-delegated notes are unchanged.
+- Four HTTP wrappers in `commitment_ops.py`:
+  `delegate_commitment(action_id, *, to_person, note=None, ...)` ->
+  `POST /api/v1/actions/{id}/delegate`;
+  `reclaim_commitment(action_id, *, note=None, ...)` ->
+  `POST /api/v1/actions/{id}/reclaim`;
+  `list_delegated_to(person, *, limit, cursor, include_terminal, ...)` ->
+  `GET /api/v1/actions/delegated-to/{person}`;
+  `list_stale_delegations(*, threshold_days=14, limit=50, ...)` ->
+  `GET /api/v1/patterns/stale-delegations`. All four reuse
+  `_service_get_json` / `_service_post_json`; never raise.
+- CLI subcommands: `obsx delegate-commitment --action-id ... --to-person ... [--note ...]`,
+  `obsx reclaim-commitment --action-id ... [--note ...]`,
+  `obsx delegated-to --person ... [--limit N] [--cursor ...] [--include-terminal]`,
+  `obsx stale-delegations [--threshold-days N] [--limit N]` (each with
+  human + `--json` output).
+- MCP tools: `obsidian_delegate_commitment`,
+  `obsidian_reclaim_commitment`, `obsidian_delegated_to`,
+  `obsidian_stale_delegations`.
+- Review dashboard: `commitment_dashboards.generate_delegation_dashboard(vault, *, service_url, token, threshold_days=14, now_iso=None)`
+  writes `Dashboards/Review/Delegations.md` with two sections --
+  stale delegations (per-person buckets past the threshold) and open
+  delegations (per-person counts, alphabetical). Service-unreachable
+  and service-unconfigured render the page with a banner (never
+  silent skip).
+- `update_all_review_dashboards(..., include_delegations=True)` is
+  the new opt-out flag; default-on so the Delegations surface lands
+  in every review run. Pass `include_delegations=False` for
+  local-only review runs that should not touch the network.
+- Tests: `tests/test_delegation_connector.py` (39 cases covering
+  `ActionInput` kwargs, frontmatter order, body-row conditional,
+  HTTP wrappers, MCP passthrough, CLI human/JSON output, dashboard
+  render + integration, orchestrator opt-out).
+
 ## Onboarding (Task 34)
 
 New-install walkthrough lives at `docs/ONBOARDING.md` and is also

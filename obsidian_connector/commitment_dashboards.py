@@ -53,6 +53,7 @@ _DASHBOARD_WEEKLY_REVIEW_PATH = f"{REVIEW_DASHBOARDS_DIR}/Weekly.md"
 _DASHBOARD_STALE_PATH = f"{REVIEW_DASHBOARDS_DIR}/Stale.md"
 _DASHBOARD_MERGE_CANDIDATES_PATH = f"{REVIEW_DASHBOARDS_DIR}/Merge Candidates.md"
 _DASHBOARD_PATTERNS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Patterns.md"
+_DASHBOARD_DELEGATIONS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Delegations.md"
 _DASHBOARD_ADMIN_PATH = f"{DASHBOARDS_DIR}/Admin.md"
 _DASHBOARD_APPROVALS_PATH = f"{DASHBOARDS_DIR}/Admin/Approvals.md"
 _DASHBOARD_ANALYTICS_PATH = f"{DASHBOARDS_DIR}/Analytics.md"
@@ -1471,6 +1472,192 @@ def generate_patterns_dashboard(
 
 
 # ---------------------------------------------------------------------------
+# Task 38: Delegations review dashboard
+# ---------------------------------------------------------------------------
+
+
+def _render_delegations_md(
+    *,
+    now_iso: str,
+    threshold_days: int,
+    stale_items: list[dict] | None,
+    open_counts: list[tuple[str, int]] | None,
+    service_configured: bool,
+    service_error: str | None,
+) -> str:
+    """Render ``Dashboards/Review/Delegations.md``.
+
+    Pure function. Always produces a document. When the capture
+    service is not configured, the header banner explains the gap and
+    both sections render a polite "no data" note. When the service is
+    configured but unreachable, the error surfaces once at the top and
+    sections fall through to whatever the partial fetch returned.
+
+    Two sections:
+
+    - **Stale delegations (> N days)**: per-person buckets from
+      ``list_stale_delegations``. Each bucket shows the count + oldest
+      ``delegated_at`` + up to three sample items.
+    - **Open delegations**: per-person counts across every person who
+      currently has at least one open delegated action, sorted
+      alphabetically (case-insensitive). Sourced from
+      ``list_stale_delegations`` with ``threshold_days=1`` so the
+      service returns every active bucket, including fresh ones.
+    """
+    fm = _frontmatter("delegations", now_iso)
+    lines: list[str] = [fm, "", "# Delegations", ""]
+    lines.append(f"_Generated at {_now_display(now_iso)}._")
+    lines.append("")
+
+    if not service_configured:
+        lines.append(
+            "> Capture service not configured. Set "
+            "`OBSIDIAN_CAPTURE_SERVICE_URL` (and optionally "
+            "`OBSIDIAN_CAPTURE_SERVICE_TOKEN`) to populate the "
+            "delegation surfaces. All sections below are empty for "
+            "this run."
+        )
+        lines.append("")
+    elif service_error:
+        lines.append(
+            f"> Capture service unreachable: {service_error}. "
+            "Sections below show whatever the service returned before "
+            "the error."
+        )
+        lines.append("")
+
+    # Stale delegations
+    lines.append(f"## Stale delegations (>{int(threshold_days)} days)")
+    lines.append("")
+    if stale_items:
+        lines.append("| Person | Stale count | Oldest delegated | Sample titles |")
+        lines.append("|---|---:|---|---|")
+        for bucket in stale_items:
+            name = str(bucket.get("canonical_name") or "?").replace("|", "\\|")
+            count = int(bucket.get("count") or 0)
+            oldest = _fmt_date(
+                bucket.get("oldest_delegated_at"), fallback="\u2014",
+            )
+            samples = (bucket.get("items") or [])[:3]
+            titles = ", ".join(
+                str(s.get("title") or "(no title)").replace("|", "\\|")
+                for s in samples
+            )
+            if not titles:
+                titles = "\u2014"
+            lines.append(
+                f"| {name} | {count} | {oldest} | {titles} |"
+            )
+    else:
+        lines.append("- No stale delegations in the window.")
+    lines.append("")
+
+    # Open delegations (per-person counts, alphabetical)
+    lines.append("## Open delegations")
+    lines.append("")
+    if open_counts:
+        lines.append("| Person | Open count |")
+        lines.append("|---|---:|")
+        for name, count in open_counts:
+            safe_name = str(name or "?").replace("|", "\\|")
+            lines.append(f"| {safe_name} | {int(count)} |")
+    else:
+        lines.append("- No open delegations.")
+    lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def generate_delegation_dashboard(
+    vault_root: Path,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+    threshold_days: int = 14,
+    now_iso: str | None = None,
+) -> DashboardResult:
+    """Generate or update ``Dashboards/Review/Delegations.md`` (Task 38).
+
+    Pulls ``GET /api/v1/patterns/stale-delegations`` twice:
+
+    1. With the configured ``threshold_days`` (default 14) for the
+       "Stale delegations" section.
+    2. With ``threshold_days=1`` for the "Open delegations" section so
+       every person with at least one open delegated action is listed,
+       regardless of how fresh it is.
+
+    When no service URL is configured (neither argument nor
+    environment var), writes the dashboard with a "service not
+    configured" banner and empty sections so operators still see the
+    page. Never raises. ``DashboardResult.written`` counts the number
+    of stale buckets rendered.
+    """
+    import os as _os
+
+    from obsidian_connector.commitment_ops import list_stale_delegations
+
+    vault_root = Path(vault_root)
+    ts = now_iso or datetime.now(timezone.utc).isoformat()
+    resolved_url = service_url or _os.environ.get(
+        "OBSIDIAN_CAPTURE_SERVICE_URL"
+    )
+    service_configured = bool(resolved_url)
+
+    stale_items: list[dict] | None = None
+    open_counts: list[tuple[str, int]] | None = None
+    service_error: str | None = None
+
+    if service_configured:
+        stale = list_stale_delegations(
+            threshold_days=int(threshold_days),
+            limit=200,
+            service_url=service_url,
+            token=token,
+        )
+        if stale.get("ok"):
+            stale_items = (stale.get("data") or {}).get("items") or []
+        else:
+            service_error = service_error or str(stale.get("error") or "error")
+
+        all_open = list_stale_delegations(
+            threshold_days=1,
+            limit=200,
+            service_url=service_url,
+            token=token,
+        )
+        if all_open.get("ok"):
+            buckets = (all_open.get("data") or {}).get("items") or []
+            pairs: list[tuple[str, int]] = []
+            for bucket in buckets:
+                name = str(bucket.get("canonical_name") or "")
+                count = int(bucket.get("count") or 0)
+                if not name or count <= 0:
+                    continue
+                pairs.append((name, count))
+            pairs.sort(key=lambda t: (t[0].lower(), t[0]))
+            open_counts = pairs
+        else:
+            service_error = service_error or str(
+                all_open.get("error") or "error"
+            )
+
+    content = _render_delegations_md(
+        now_iso=ts,
+        threshold_days=int(threshold_days),
+        stale_items=stale_items,
+        open_counts=open_counts,
+        service_configured=service_configured,
+        service_error=service_error,
+    )
+    path = vault_root / _DASHBOARD_DELEGATIONS_PATH
+    atomic_write(
+        path, content, vault_root=vault_root, tool_name=_TOOL,
+        inject_generated_by=False,
+    )
+    return DashboardResult(path=path, written=len(stale_items or []))
+
+
+# ---------------------------------------------------------------------------
 # Task 44: Admin dashboard
 # ---------------------------------------------------------------------------
 
@@ -2182,22 +2369,29 @@ def update_all_review_dashboards(
     merge_jaccard: float = DEFAULT_MERGE_JACCARD,
     *,
     include_patterns: bool = False,
+    include_delegations: bool = True,
+    delegation_threshold_days: int = 14,
     service_url: str | None = None,
     token: str | None = None,
 ) -> list[DashboardResult]:
-    """Generate or update all four review dashboards.
+    """Generate or update the review dashboards.
 
-    All four are given the same *ts* timestamp so ``generated_at`` is
-    consistent across the set.  Each generator writes independently via
-    :func:`atomic_write` -- a later generator can still succeed if an
-    earlier one raises, matching the graceful-degradation semantics of
-    :func:`update_all_dashboards`.
+    All surfaces are given the same *ts* timestamp so ``generated_at``
+    is consistent across the set.  Each generator writes independently
+    via :func:`atomic_write` -- a later generator can still succeed if
+    an earlier one raises, matching the graceful-degradation semantics
+    of :func:`update_all_dashboards`.
 
-    Returns a list in this order: Daily, Weekly, Stale, Merge Candidates
-    (plus Patterns when ``include_patterns=True``). The Patterns
-    dashboard is opt-in because it contacts the capture service and we
-    don't want every ``obsx review-dashboards`` run to touch the
-    network when the operator only wants the local review surfaces.
+    Returns a list in this order: Daily, Weekly, Stale, Merge
+    Candidates, Delegations (when ``include_delegations=True``, the
+    default; flip off for local-only review runs that should not touch
+    the network), plus Patterns when ``include_patterns=True``. The
+    Patterns dashboard is opt-in because it contacts the capture
+    service for three pattern lenses; the Delegations dashboard is
+    default-on because it is the primary surface for Task 38's
+    waiting-on workflow, but when the service URL is not configured
+    it still renders locally with a "service not configured" banner
+    so the file exists in the vault.
     """
     vault_root = Path(vault_root)
     ts = now_iso or datetime.now(timezone.utc).isoformat()
@@ -2216,6 +2410,22 @@ def update_all_review_dashboards(
             merge_jaccard=merge_jaccard,
         ),
     ]
+    if include_delegations:
+        try:
+            results.append(
+                generate_delegation_dashboard(
+                    vault_root,
+                    service_url=service_url,
+                    token=token,
+                    threshold_days=delegation_threshold_days,
+                    now_iso=ts,
+                )
+            )
+        except Exception:
+            # Non-fatal: if delegation generation raises despite the
+            # wrapper's envelope contract, drop it and let the rest of
+            # the set complete.
+            pass
     if include_patterns:
         results.append(
             generate_patterns_dashboard(
@@ -2361,4 +2571,5 @@ __all__ = [
     "generate_admin_dashboard",
     "generate_approval_dashboard",
     "generate_analytics_index_dashboard",
+    "generate_delegation_dashboard",
 ]

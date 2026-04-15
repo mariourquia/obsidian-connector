@@ -27,6 +27,23 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `entity_notes.py`, and `commitment_dashboards.py` write exclusively through
   `write_manager.atomic_write` — asserted by AST scan + runtime monkeypatch in
   `tests/test_hardening.py`.
+- **Task 38 — Delegation and waiting-on workflows**: `ActionInput` gains
+  `delegated_to`, `delegated_at`, `delegation_note` (all optional); the
+  frontmatter slot lives between `postponed_until` and `requires_ack`
+  and the body renders a `- Delegated to: <name> (YYYY-MM-DD)` row only
+  when set. Four `commitment_ops` HTTP wrappers mirror the service
+  endpoints: `delegate_commitment`, `reclaim_commitment`,
+  `list_delegated_to`, `list_stale_delegations`. Four MCP tools and
+  four CLI subcommands (`obsx delegate-commitment`,
+  `obsx reclaim-commitment`, `obsx delegated-to`,
+  `obsx stale-delegations`) expose them. `commitment_dashboards`
+  gains `generate_delegation_dashboard` writing
+  `Dashboards/Review/Delegations.md` (stale buckets + open-per-person
+  counts); wired into `update_all_review_dashboards` as a default-on
+  opt-out via `include_delegations`. Companion to obsidian-capture-service
+  PR #24 (service ADR `task_38_delegation.md`, merge `67cc26b`).
+  Connector ADR: `docs/architecture/task_38_delegation_connector.md`.
+  Tests: `tests/test_delegation_connector.py` (+39 cases).
 
 ### Changed
 - CLAUDE.md/AGENTS.md now document the editable install flow (`pip install -e .`)

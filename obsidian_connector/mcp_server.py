@@ -3256,6 +3256,191 @@ def obsidian_explain_commitment(
 
 
 # ---------------------------------------------------------------------------
+# Task 38: delegation / waiting-on workflows
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Delegate Commitment (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_delegate_commitment(
+    action_id: str,
+    to_person: str,
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/{action_id}/delegate`` (Task 38).
+
+    Assigns the action to a named person, creating the person entity
+    on miss when the alias does not resolve. Moves ``lifecycle_stage``
+    to ``waiting`` unless already in ``waiting``/``done``/``archived``.
+    Idempotent on the same person (refreshes ``delegated_at``);
+    swapping to a different person updates the FK and is logged with
+    ``swapped_from_entity_id``.
+
+    Args:
+        action_id: The action ULID.
+        to_person: Canonical name or alias of the delegate.
+        note: Optional free-form delegation context.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import delegate_commitment
+
+    try:
+        result = delegate_commitment(
+            action_id,
+            to_person=to_person,
+            note=note,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Reclaim Commitment (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_reclaim_commitment(
+    action_id: str,
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/{action_id}/reclaim`` (Task 38).
+
+    Clears the action's delegation columns and flips
+    ``lifecycle_stage`` from ``waiting`` back to ``active`` when
+    applicable. Idempotent on a non-delegated row (still records the
+    audit ack).
+
+    Args:
+        action_id: The action ULID.
+        note: Optional reclaim context.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import reclaim_commitment
+
+    try:
+        result = reclaim_commitment(
+            action_id, note=note, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Delegated To Person (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_delegated_to(
+    person: str,
+    limit: int = 50,
+    cursor: str | None = None,
+    include_terminal: bool = False,
+    service_url: str | None = None,
+) -> str:
+    """Call ``GET /api/v1/actions/delegated-to/{person}`` (Task 38).
+
+    Returns actions delegated to the named person (canonical or
+    alias). By default only non-terminal rows are included; pass
+    ``include_terminal=True`` for audit views. Keyset-paginated.
+
+    Args:
+        person: Canonical name or alias of the delegate.
+        limit: Page size (default 50).
+        cursor: Opaque keyset cursor returned by a previous page.
+        include_terminal: Include done/cancelled/expired rows.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import list_delegated_to
+
+    try:
+        result = list_delegated_to(
+            person,
+            limit=limit,
+            cursor=cursor,
+            include_terminal=include_terminal,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Stale Delegations (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_stale_delegations(
+    threshold_days: int = 14,
+    limit: int = 50,
+    service_url: str | None = None,
+) -> str:
+    """Call ``GET /api/v1/patterns/stale-delegations`` (Task 38).
+
+    Returns per-person buckets of open actions whose ``delegated_at``
+    is older than the threshold, sorted
+    ``(count DESC, oldest_delegated_at ASC, canonical_name ASC)``.
+    Each bucket carries up to 10 sample items.
+
+    Args:
+        threshold_days: Age in days (default 14; server bounds [1, 365]).
+        limit: Max buckets (default 50; server bounds [1, 200]).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import list_stale_delegations
+
+    try:
+        result = list_stale_delegations(
+            threshold_days=threshold_days,
+            limit=limit,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Task 44: operational admin surfaces
 # ---------------------------------------------------------------------------
 
