@@ -2777,6 +2777,62 @@ def obsidian_sync_commitments(
         return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
 
 
+@mcp.tool(
+    title="Refresh Review Dashboards",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_review_dashboards(
+    stale_days: int = 14,
+    merge_window_days: int = 14,
+    merge_jaccard: float = 0.6,
+    now: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """Regenerate the four review dashboards under ``Dashboards/Review/``.
+
+    Writes ``Daily.md``, ``Weekly.md``, ``Stale.md``, and
+    ``Merge Candidates.md`` deterministically from the current vault
+    state.  Use this for on-demand inbox review; scheduled refresh uses
+    :func:`obsidian_connector.commitment_dashboards.update_all_dashboards`.
+
+    Args:
+        stale_days: Threshold for Weekly + Stale surfaces (default 14).
+        merge_window_days: Max days between created_at of candidate pairs.
+        merge_jaccard: Minimum title token-Jaccard for candidate pairs.
+        now: ISO 8601 reference timestamp (defaults to UTC now).
+        vault: Target vault name (uses default if omitted).
+    """
+    from obsidian_connector.commitment_dashboards import (
+        update_all_review_dashboards,
+    )
+
+    try:
+        vault_path = resolve_vault_path(vault)
+        results = update_all_review_dashboards(
+            vault_path,
+            now_iso=now,
+            stale_days=stale_days,
+            merge_window_days=merge_window_days,
+            merge_jaccard=merge_jaccard,
+        )
+        payload = [
+            {"path": str(r.path), "written": r.written} for r in results
+        ]
+        return json.dumps(
+            {"ok": True, "count": len(payload), "dashboards": payload},
+            indent=2,
+        )
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
 # ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
