@@ -1,4 +1,4 @@
-"""Entity note renderer and writer (Task 15.A).
+"""Entity note renderer and writer (Task 15.A / 30).
 
 Represents semantic-memory entities emitted by
 ``obsidian-capture-service`` as vault-native notes. Each entity is stored
@@ -15,11 +15,23 @@ Scope (Phase 15.A):
   across re-renders, mirroring the pattern used by
   :mod:`obsidian_connector.commitment_notes`.
 
-Out of scope for 15.A (tracked separately):
+Task 30 adds a deterministic first-pass wiki body rendered *inside* the
+``service:entity-wiki:begin/end`` fence when the caller does not supply
+``EntityInput.wiki_content``. It projects peer entities (projects /
+people / areas / topics / tools) computed upstream from
+``action_entities`` joins into kind-specific Markdown subsections.
 
-- Related-block regeneration on commitment notes.
-- LLM-generated wiki body (15.C).
-- Embedding-backed similarity list (15.B).
+The fence contract is preserved: when Task 15.C later supplies an
+LLM-generated overview via ``wiki_content``, the scaffold steps aside
+and the LLM output wins. The connector never parses the body; the
+fence is the only boundary it respects.
+
+Out of scope (tracked separately):
+
+- Related-block regeneration on commitment notes (Task 15.A.2).
+- LLM-generated wiki body (Task 15.C) — wraps the scaffold via
+  ``wiki_content``.
+- Embedding-backed similarity list (Task 15.B).
 """
 from __future__ import annotations
 
@@ -89,6 +101,19 @@ class EntityInput:
     # 15.C: LLM-generated wiki body. When set, written inside the wiki fence.
     # Preserved across re-renders when not supplied (wiki_content=None).
     wiki_content: str | None = None
+    # Task 30: deterministic projection payload supplied by the service
+    # so ``render_first_pass_wiki_body`` can render peer subsections
+    # (projects / people / areas / topics / tools) without a round-trip.
+    # Shape: ``{kind: [{entity_id, canonical_name, kind, slug?,
+    # co_occurrence_count?}, ...]}``. Every kind the service knows
+    # about should be present; missing kinds degrade gracefully.
+    related_entities_by_kind: dict[str, list[dict[str, Any]]] = field(
+        default_factory=dict
+    )
+    # Task 30: timestamps surfaced in the "At a glance" header. Both
+    # are optional — when absent the header drops those columns.
+    first_seen_at: str | None = None
+    last_activity_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -197,6 +222,239 @@ def _commitment_wikilink(action: LinkedAction) -> str:
     return f"- {action.title}"
 
 
+# ---------------------------------------------------------------------------
+# Task 30: deterministic first-pass wiki body
+# ---------------------------------------------------------------------------
+
+_EMPTY_PLACEHOLDER = "_No linked data yet._"
+
+# Which peer-entity kinds surface in which entity-kind wiki body. Order
+# is deliberate: more specific first. Kept as tuples for determinism.
+_SUBSECTIONS_BY_KIND: dict[str, tuple[tuple[str, str], ...]] = {
+    "person": (
+        ("Projects this person appears in", "project"),
+        ("Areas", "area"),
+    ),
+    "project": (
+        ("People involved", "person"),
+        ("Areas", "area"),
+    ),
+    "area": (
+        ("Projects in this area", "project"),
+        ("People", "person"),
+    ),
+    "topic": (
+        ("Related projects", "project"),
+        ("People", "person"),
+    ),
+    "tool": (
+        ("Related projects", "project"),
+        ("People", "person"),
+    ),
+    "org": (
+        ("Related projects", "project"),
+        ("People", "person"),
+    ),
+    "place": (
+        ("Related projects", "project"),
+        ("People", "person"),
+    ),
+}
+
+
+def _kind_display(kind: str) -> str:
+    return kind[:1].upper() + kind[1:]
+
+
+def _date_only(iso: str | None) -> str | None:
+    """Return the ``YYYY-MM-DD`` prefix of an ISO timestamp, or None.
+
+    Tolerant of trailing ``Z`` / timezone suffixes; never raises. Used
+    in the "At a glance" header so cross-run determinism does not depend
+    on preserving subsecond precision.
+    """
+    if not iso:
+        return None
+    # Fast path: the DB stores ``YYYY-MM-DDTHH:MM:SS...`` — slice the
+    # date prefix without parsing.
+    if len(iso) >= 10 and iso[4] == "-" and iso[7] == "-":
+        return iso[:10]
+    return None
+
+
+def _entity_kind_dir(kind: str) -> str:
+    return _KIND_DIRS.get(kind, _FALLBACK_DIR)
+
+
+def _entity_wikilink(entity: dict[str, Any]) -> str:
+    """Render a single peer entity as a ``[[Entities/<Kind>/<slug>|name]]``
+    wikilink bullet with its co-occurrence count.
+
+    Falls back to a plain name bullet when no slug is present (defence
+    against partial projections from older service versions).
+    """
+    name = entity.get("canonical_name") or ""
+    slug = entity.get("slug")
+    kind = entity.get("kind") or ""
+    count = entity.get("co_occurrence_count")
+
+    count_suffix = ""
+    if isinstance(count, int) and count > 0:
+        count_suffix = f" ({count})"
+
+    if slug and kind:
+        subdir = _entity_kind_dir(kind)
+        target = f"{ENTITIES_ROOT}/{subdir}/{slug}"
+        return f"- [[{target}|{name}]]{count_suffix}"
+    return f"- {name}{count_suffix}"
+
+
+def _render_peer_section(
+    heading: str,
+    peers: list[dict[str, Any]],
+) -> str:
+    if not peers:
+        return f"### {heading}\n{_EMPTY_PLACEHOLDER}"
+    # Sort: (co_occurrence_count DESC, canonical_name ASC). The service
+    # already sorts this way, but we re-sort here so any caller with a
+    # partial / unsorted projection gets stable output.
+    sorted_peers = sorted(
+        peers,
+        key=lambda p: (
+            -int(p.get("co_occurrence_count") or 0),
+            (p.get("canonical_name") or "").lower(),
+        ),
+    )
+    bullets = "\n".join(_entity_wikilink(p) for p in sorted_peers)
+    return f"### {heading}\n{bullets}"
+
+
+def _render_commitments_section(
+    heading: str, actions: list[LinkedAction]
+) -> str:
+    if not actions:
+        return f"### {heading}\n{_EMPTY_PLACEHOLDER}"
+    bullets = "\n".join(_commitment_wikilink(a) for a in actions)
+    return f"### {heading}\n{bullets}"
+
+
+def _render_at_a_glance(entity: EntityInput) -> str:
+    parts: list[str] = [f"kind: {entity.kind}"]
+    parts.append(f"{len(entity.open_actions)} open")
+    parts.append(f"{len(entity.done_actions)} done")
+    first = _date_only(entity.first_seen_at)
+    if first:
+        parts.append(f"first seen {first}")
+    last = _date_only(entity.last_activity_at)
+    if last:
+        parts.append(f"last active {last}")
+    return f"**At a glance:** {' \u00b7 '.join(parts)}"
+
+
+def _has_first_pass_inputs(entity: EntityInput) -> bool:
+    """Return True when *entity* carries enough data for a first-pass body.
+
+    The scaffold is always safe to render — it degrades to
+    ``_No linked data yet._`` placeholders for empty sections — but we
+    only *substitute* it for the legacy fence contents when the caller
+    has actually supplied Task 30 data. This keeps pre-Task-30 service
+    versions (which don't populate the new fields) writing the same
+    empty fence they always did.
+    """
+    if entity.related_entities_by_kind:
+        # A non-empty projection dict is the unambiguous signal.
+        return True
+    if entity.first_seen_at or entity.last_activity_at:
+        return True
+    # Actions alone indicate a Task 15.A capable service; treat that as
+    # enough to render the scaffold. The existing fence (if any) is
+    # replaced by a body whose sections accurately reflect the action
+    # state; wiping stale 15.A content this way is desired.
+    return bool(entity.open_actions or entity.done_actions)
+
+
+def render_first_pass_wiki_body(
+    entity: EntityInput,
+    related_entities_by_kind: dict[str, list[dict[str, Any]]] | None = None,
+) -> str:
+    """Return a deterministic Markdown body for the entity wiki fence.
+
+    Task 30 — this is the first-pass projection of an entity's neighborhood
+    used inside the ``service:entity-wiki:begin/end`` fence before Task
+    15.C supplies an LLM-generated overview.
+
+    The body is derived purely from relational inputs (kind, counts,
+    aliases, linked actions, and peer entities bucketed by kind). Given
+    the same ``EntityInput`` plus the same ``related_entities_by_kind``
+    map, this function produces byte-identical output.
+
+    Section layout:
+
+    - "At a glance" summary line (kind, open/done counts, first-seen,
+      last-activity).
+    - Zero or more peer subsections chosen by ``entity.kind`` (e.g.
+      a ``person`` page gets "Projects this person appears in" and
+      "Areas"; a ``project`` page gets "People involved" and "Areas").
+      Empty peer lists render ``_No linked data yet._``.
+    - An activity subsection listing open / done commitments linked to
+      the entity with stable wikilinks.
+
+    Parameters
+    ----------
+    entity:
+        The entity being rendered. Must carry aliases / actions /
+        timestamps.
+    related_entities_by_kind:
+        Optional override of ``entity.related_entities_by_kind``. When
+        ``None`` the field on ``entity`` is used. Passing an explicit
+        map is useful in tests where the caller constructs the
+        projection separately.
+    """
+    related = (
+        related_entities_by_kind
+        if related_entities_by_kind is not None
+        else dict(entity.related_entities_by_kind or {})
+    )
+
+    sections: list[str] = [_render_at_a_glance(entity)]
+
+    # Kind-specific peer subsections. If entity.kind is unknown (e.g. a
+    # future kind) we fall back to a generic projects + people view.
+    layout = _SUBSECTIONS_BY_KIND.get(
+        entity.kind,
+        (("Related projects", "project"), ("People", "person")),
+    )
+    for heading, peer_kind in layout:
+        peers = list(related.get(peer_kind, []))
+        sections.append(_render_peer_section(heading, peers))
+
+    # Activity subsections: kind-conditioned headings.
+    open_heading, done_heading = _activity_headings(entity.kind)
+    sections.append(_render_commitments_section(open_heading, entity.open_actions))
+    sections.append(
+        _render_commitments_section(done_heading, entity.done_actions)
+    )
+
+    return "\n\n".join(sections)
+
+
+def _activity_headings(kind: str) -> tuple[str, str]:
+    """Return ``(open, done)`` headings matched to the entity kind."""
+    if kind == "person":
+        return (
+            "Recent commitments with this person",
+            "Past commitments with this person",
+        )
+    if kind == "project":
+        return ("Open commitments on this project", "Completed on this project")
+    if kind == "area":
+        return ("Open commitments in this area", "Completed in this area")
+    if kind == "topic":
+        return ("Mentions (open)", "Mentions (done)")
+    # tool / org / place share a generic label.
+    return ("Seen on commitments", "Seen on completed commitments")
+
+
 def _render_body(entity: EntityInput, existing_user_notes: str, existing_wiki: str) -> str:
     sections: list[str] = [f"# {entity.canonical_name}"]
 
@@ -217,14 +475,23 @@ def _render_body(entity: EntityInput, existing_user_notes: str, existing_wiki: s
         items = "\n".join(_commitment_wikilink(a) for a in entity.done_actions)
         sections.append("## Completed commitments\n" + items)
 
-    # 15.C: Wiki fence — LLM-generated summary. When entity.wiki_content is set,
-    # it replaces the fence content. Otherwise the existing fence content is
-    # preserved across re-renders. New notes get an empty placeholder.
-    effective_wiki = (
-        entity.wiki_content.strip()
-        if entity.wiki_content is not None
-        else existing_wiki
-    )
+    # Wiki fence policy:
+    #
+    # - ``wiki_content`` is explicitly supplied -> that exact content
+    #   fills the fence. This is the Task 15.C handoff: an LLM body
+    #   replaces the scaffold without touching this renderer.
+    # - ``wiki_content`` is ``None`` AND ``EntityInput`` carries enough
+    #   data to render the Task 30 first-pass body -> we render the
+    #   deterministic scaffold from the projection.
+    # - ``wiki_content`` is ``None`` AND the entity carries no projection
+    #   -> preserve whatever existed before (legacy 15.A behavior, keeps
+    #   early vaults compatible).
+    if entity.wiki_content is not None:
+        effective_wiki = entity.wiki_content.strip()
+    elif _has_first_pass_inputs(entity):
+        effective_wiki = render_first_pass_wiki_body(entity).strip()
+    else:
+        effective_wiki = existing_wiki
     sections.append(
         f"## Overview\n{ENTITY_WIKI_BEGIN}\n{effective_wiki}\n{ENTITY_WIKI_END}"
     )
@@ -318,6 +585,7 @@ __all__ = [
     "EntityInput",
     "EntityWriteResult",
     "LinkedAction",
+    "render_first_pass_wiki_body",
     "resolve_entity_path",
     "write_entity_note",
 ]
