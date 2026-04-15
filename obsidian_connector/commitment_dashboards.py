@@ -57,7 +57,19 @@ _DASHBOARD_DELEGATIONS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Delegations.md"
 _DASHBOARD_ADMIN_PATH = f"{DASHBOARDS_DIR}/Admin.md"
 _DASHBOARD_APPROVALS_PATH = f"{DASHBOARDS_DIR}/Admin/Approvals.md"
 _DASHBOARD_ANALYTICS_PATH = f"{DASHBOARDS_DIR}/Analytics.md"
+_DASHBOARD_COACHING_PATH = f"{REVIEW_DASHBOARDS_DIR}/Coaching.md"
 _ANALYTICS_BASE_DIR = "Analytics/Weekly"
+
+# Task 40: human labels for each recommendation code. Kept near the
+# module top so a grep for the code string finds the label too.
+_COACHING_CODE_LABELS: dict[str, str] = {
+    "CONSIDER_CANCEL": "Consider cancel",
+    "CONSIDER_DELEGATE": "Consider delegate",
+    "CONSIDER_MERGE": "Consider merge",
+    "CONSIDER_RECLAIM": "Consider reclaim",
+    "CONSIDER_RESCHEDULE": "Consider reschedule",
+    "CONSIDER_UNBLOCK": "Consider unblock",
+}
 
 _TOOL = "obsidian-connector/dashboards"
 
@@ -2361,6 +2373,157 @@ def generate_analytics_index_dashboard(
     return DashboardResult(path=path, written=len(weeks_items or []))
 
 
+# ---------------------------------------------------------------------------
+# Task 40: Review coaching dashboard
+# ---------------------------------------------------------------------------
+
+
+def _render_coaching_md(
+    *,
+    now_iso: str,
+    since_days: int,
+    items: list[dict] | None,
+    service_configured: bool,
+    service_error: str | None,
+) -> str:
+    """Render ``Dashboards/Review/Coaching.md`` (Task 40).
+
+    Pure function. Always produces a document. Groups the review
+    recommendations by code so the operator can scan by action verb
+    rather than per-action. A header banner surfaces the service
+    state when it's not configured or unreachable.
+    """
+    fm = _frontmatter("coaching", now_iso)
+    lines: list[str] = [fm, "", "# Review coaching", ""]
+    lines.append(f"_Generated at {_now_display(now_iso)}._")
+    lines.append(f"_Window: last {int(since_days)} day(s)._")
+    lines.append("")
+
+    if not service_configured:
+        lines.append(
+            "> Capture service not configured. Set "
+            "`OBSIDIAN_CAPTURE_SERVICE_URL` (and optionally "
+            "`OBSIDIAN_CAPTURE_SERVICE_TOKEN`) to populate the review "
+            "coaching surface. All sections below are empty for this "
+            "run."
+        )
+        lines.append("")
+    elif service_error:
+        lines.append(
+            f"> Capture service unreachable: {service_error}. "
+            "Sections below show whatever the service returned before "
+            "the error."
+        )
+        lines.append("")
+
+    # Bucket items by recommendation code so each section collapses
+    # multiple actions sharing the same verb. Iterating in the fixed
+    # alphabetical order of ``_COACHING_CODE_LABELS`` keeps section
+    # order stable across runs.
+    buckets: dict[str, list[tuple[dict, dict]]] = {
+        code: [] for code in _COACHING_CODE_LABELS
+    }
+    items_list = items or []
+    for item in items_list:
+        for rec in item.get("recommendations") or []:
+            code = rec.get("code")
+            if code in buckets:
+                buckets[code].append((item, rec))
+
+    any_rendered = False
+    for code, label in _COACHING_CODE_LABELS.items():
+        rows = buckets.get(code) or []
+        lines.append(f"## {label} ({len(rows)})")
+        lines.append("")
+        if not rows:
+            lines.append("- (no candidates)")
+            lines.append("")
+            continue
+        any_rendered = True
+        for item, rec in rows:
+            title = str(item.get("title") or "(untitled)").strip()
+            aid = str(item.get("action_id") or "?")
+            verb = str(rec.get("action_verb") or "?")
+            rec_label = str(rec.get("label") or "").strip()
+            lines.append(f"- **{title}** — verb `{verb}`")
+            if rec_label:
+                lines.append(f"    - why: {rec_label}")
+            lines.append(f"    - action id: `{aid}`")
+        lines.append("")
+
+    if service_configured and not any_rendered and not service_error:
+        # The service responded but there's nothing actionable in the
+        # window. Make that obvious so operators know the empty
+        # dashboard is not a bug.
+        lines.append("_No review recommendations in the current window._")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def generate_coaching_dashboard(
+    vault_root: Path,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+    since_days: int = 7,
+    limit: int = 100,
+    now_iso: str | None = None,
+) -> DashboardResult:
+    """Generate or update ``Dashboards/Review/Coaching.md`` (Task 40).
+
+    Pulls ``GET /api/v1/coaching/review`` once and renders each
+    recommendation code as its own section. When no service URL is
+    configured, writes the dashboard with a "service not configured"
+    banner and empty sections so operators still see the page. Never
+    raises. ``DashboardResult.written`` counts the number of
+    recommendation rows rendered.
+    """
+    import os as _os
+
+    from obsidian_connector.coaching_ops import list_review_recommendations
+
+    vault_root = Path(vault_root)
+    ts = now_iso or datetime.now(timezone.utc).isoformat()
+    resolved_url = service_url or _os.environ.get(
+        "OBSIDIAN_CAPTURE_SERVICE_URL"
+    )
+    service_configured = bool(resolved_url)
+
+    items: list[dict] | None = None
+    service_error: str | None = None
+
+    if service_configured:
+        payload = list_review_recommendations(
+            since_days=int(since_days),
+            limit=int(limit),
+            service_url=service_url,
+            token=token,
+        )
+        if payload.get("ok"):
+            items = (payload.get("data") or {}).get("items") or []
+        else:
+            service_error = str(payload.get("error") or "error")
+
+    content = _render_coaching_md(
+        now_iso=ts,
+        since_days=int(since_days),
+        items=items,
+        service_configured=service_configured,
+        service_error=service_error,
+    )
+    path = vault_root / _DASHBOARD_COACHING_PATH
+    atomic_write(
+        path, content, vault_root=vault_root, tool_name=_TOOL,
+        inject_generated_by=False,
+    )
+    # Count the total number of recommendation rows rendered.
+    written = 0
+    for item in (items or []):
+        written += len(item.get("recommendations") or [])
+    return DashboardResult(path=path, written=written)
+
+
 def update_all_review_dashboards(
     vault_root: Path,
     now_iso: str | None = None,
@@ -2370,7 +2533,9 @@ def update_all_review_dashboards(
     *,
     include_patterns: bool = False,
     include_delegations: bool = True,
+    include_coaching: bool = True,
     delegation_threshold_days: int = 14,
+    coaching_since_days: int = 7,
     service_url: str | None = None,
     token: str | None = None,
 ) -> list[DashboardResult]:
@@ -2385,13 +2550,15 @@ def update_all_review_dashboards(
     Returns a list in this order: Daily, Weekly, Stale, Merge
     Candidates, Delegations (when ``include_delegations=True``, the
     default; flip off for local-only review runs that should not touch
-    the network), plus Patterns when ``include_patterns=True``. The
-    Patterns dashboard is opt-in because it contacts the capture
-    service for three pattern lenses; the Delegations dashboard is
-    default-on because it is the primary surface for Task 38's
-    waiting-on workflow, but when the service URL is not configured
-    it still renders locally with a "service not configured" banner
-    so the file exists in the vault.
+    the network), Coaching (when ``include_coaching=True``, the
+    default; Task 40), plus Patterns when ``include_patterns=True``.
+    The Patterns dashboard is opt-in because it contacts the capture
+    service for three pattern lenses; the Delegations and Coaching
+    dashboards are default-on because they are the primary surfaces
+    for the Task 38 waiting-on workflow and the Task 40 review
+    coaching loop, but when the service URL is not configured they
+    still render locally with a "service not configured" banner so
+    the files exist in the vault.
     """
     vault_root = Path(vault_root)
     ts = now_iso or datetime.now(timezone.utc).isoformat()
@@ -2423,6 +2590,22 @@ def update_all_review_dashboards(
             )
         except Exception:
             # Non-fatal: if delegation generation raises despite the
+            # wrapper's envelope contract, drop it and let the rest of
+            # the set complete.
+            pass
+    if include_coaching:
+        try:
+            results.append(
+                generate_coaching_dashboard(
+                    vault_root,
+                    service_url=service_url,
+                    token=token,
+                    since_days=coaching_since_days,
+                    now_iso=ts,
+                )
+            )
+        except Exception:
+            # Non-fatal: if coaching generation raises despite the
             # wrapper's envelope contract, drop it and let the rest of
             # the set complete.
             pass
@@ -2572,4 +2755,5 @@ __all__ = [
     "generate_approval_dashboard",
     "generate_analytics_index_dashboard",
     "generate_delegation_dashboard",
+    "generate_coaching_dashboard",
 ]
