@@ -1794,6 +1794,71 @@ def _fmt_weeks_available(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_import_plan(plan) -> str:  # plan: ImportPlan
+    """Human-readable import plan summary (Task 43)."""
+    lines = [
+        f"Import plan for {plan.root}",
+        f"  scanned: {plan.total_scanned}",
+        f"  ready_capture: {len(plan.to_import_as_capture)}",
+        f"  already_managed: {len(plan.to_skip_already_managed)}",
+        f"  size_out_of_range: {len(plan.to_skip_size_out_of_range)}",
+        f"  unknown_kind: {len(plan.to_skip_unknown_kind)}",
+    ]
+    if plan.warnings:
+        lines.append(f"  warnings: {len(plan.warnings)}")
+        for w in plan.warnings[:3]:
+            lines.append(f"    - {w}")
+        if len(plan.warnings) > 3:
+            lines.append(f"    (+{len(plan.warnings) - 3} more)")
+    if plan.to_import_as_capture:
+        lines.append("Planned imports (first 10):")
+        for p in plan.to_import_as_capture[:10]:
+            fc = p.candidate
+            lines.append(
+                f"  [{p.confidence}] {fc.relative_path}"
+                f" ({fc.size_bytes} B, key={p.idempotency_key})"
+            )
+    return "\n".join(lines)
+
+
+def _fmt_import_result(result, report_info: dict | None = None) -> str:
+    """Human-readable execute-import result summary (Task 43)."""
+    plan = result.plan
+    mode = "dry-run" if result.dry_run else "executed"
+    lines = [
+        f"Import {mode} -- {result.started_at} -> {result.finished_at}",
+        f"  root: {plan.root}",
+        f"  planned: {len(plan.to_import_as_capture)}",
+        f"  posted: {len(result.posted)}"
+        f" (succeeded: {result.succeeded},"
+        f" failed: {result.failed},"
+        f" duplicates: {result.duplicates})",
+    ]
+    if result.dry_run and plan.to_import_as_capture:
+        lines.append(
+            "  (no HTTP issued; pass --execute --yes to actually POST)"
+        )
+    if result.posted:
+        lines.append("Per-file:")
+        for r in result.posted[:20]:
+            status = "ok" if r.ok else f"FAIL [{r.status_code or '-'}]"
+            cap = r.capture_id or "-"
+            lines.append(
+                f"  {status} {r.relative_path} -> {cap}"
+                f" {'(dup)' if r.duplicate else ''}"
+            )
+        if len(result.posted) > 20:
+            lines.append(f"  (+{len(result.posted) - 20} more)")
+    if report_info is not None:
+        if report_info.get("ok"):
+            lines.append(f"Report written: {report_info.get('path')}")
+        else:
+            lines.append(
+                f"Report write failed: {report_info.get('error')}"
+            )
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -2718,6 +2783,113 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--service-url", dest="service_url", default=None,
         help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- plan-import (Task 43) -------------------------------------------
+    p = sub.add_parser(
+        "plan-import",
+        help="Scan + classify a vault directory; print a deterministic import plan.",
+    )
+    p.add_argument(
+        "--root", dest="root", required=True,
+        help="Vault directory to scan (absolute or relative).",
+    )
+    p.add_argument(
+        "--include", dest="include", action="append", default=None,
+        help="POSIX glob to whitelist (repeatable, e.g. --include 'Inbox/**/*.md').",
+    )
+    p.add_argument(
+        "--exclude", dest="exclude", action="append", default=None,
+        help="POSIX glob to drop (repeatable, e.g. --exclude 'Archive/**').",
+    )
+    p.add_argument(
+        "--min-size", dest="min_size", type=int, default=10,
+        help="Minimum file size in bytes (default 10).",
+    )
+    p.add_argument(
+        "--max-size", dest="max_size", type=int, default=100_000,
+        help="Maximum file size in bytes (default 100000).",
+    )
+    p.add_argument(
+        "--max-files", dest="max_files", type=int, default=1000,
+        help="Hard cap on candidate count (default 1000).",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- execute-import (Task 43) ----------------------------------------
+    p = sub.add_parser(
+        "execute-import",
+        help=(
+            "Plan + POST imports to /api/v1/ingest/text. Default dry-run; "
+            "use --yes to actually mutate."
+        ),
+    )
+    p.add_argument(
+        "--root", dest="root", required=True,
+        help="Vault directory to scan + import.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--token", dest="token", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_TOKEN.",
+    )
+    p.add_argument(
+        "--include", dest="include", action="append", default=None,
+        help="POSIX glob to whitelist (repeatable).",
+    )
+    p.add_argument(
+        "--exclude", dest="exclude", action="append", default=None,
+        help="POSIX glob to drop (repeatable).",
+    )
+    p.add_argument(
+        "--min-size", dest="min_size", type=int, default=10,
+        help="Minimum file size in bytes (default 10).",
+    )
+    p.add_argument(
+        "--max-size", dest="max_size", type=int, default=100_000,
+        help="Maximum file size in bytes (default 100000).",
+    )
+    p.add_argument(
+        "--max-files", dest="max_files", type=int, default=1000,
+        help="Hard cap on candidate count (default 1000).",
+    )
+    p.add_argument(
+        "--throttle", dest="throttle", type=float, default=0.1,
+        help="Seconds between successful POSTs (default 0.1).",
+    )
+    p.add_argument(
+        "--source-app", dest="source_app", default="vault_import",
+        help="source_app field on the ingest body (default 'vault_import').",
+    )
+    p.add_argument(
+        "--dry-run", dest="dry_run", action="store_true", default=True,
+        help="(default) Plan only; never POSTs. Use --execute to mutate.",
+    )
+    p.add_argument(
+        "--execute", dest="dry_run", action="store_false",
+        help="Disable --dry-run. Still requires --yes (or interactive prompt).",
+    )
+    p.add_argument(
+        "--yes", "-y", dest="yes", action="store_true",
+        help="Skip the interactive confirmation. Required with --execute.",
+    )
+    p.add_argument(
+        "--report", dest="report", action="store_true",
+        help="Also write a Markdown report under Analytics/Import/<ts>.md.",
+    )
+    p.add_argument(
+        "--vault-root", dest="vault_root", default=None,
+        help="Vault root for the report write (defaults to $OBSIDIAN_VAULT_PATH).",
     )
     p.add_argument(
         "--json", dest="sub_json", action="store_true",
@@ -4140,6 +4312,114 @@ def main(argv: list[str] | None = None) -> int:
                 human = (
                     f"Write failed: {result.get('error', 'unknown error')}"
                 )
+
+        elif args.command == "plan-import":
+            from obsidian_connector.import_tools import (
+                plan_import,
+                plan_to_dict,
+            )
+
+            try:
+                plan = plan_import(
+                    Path(args.root),
+                    include_globs=getattr(args, "include", None),
+                    exclude_globs=getattr(args, "exclude", None),
+                    min_size=int(getattr(args, "min_size", 10)),
+                    max_size=int(getattr(args, "max_size", 100_000)),
+                    max_files=int(getattr(args, "max_files", 1000)),
+                )
+            except ValueError as exc:
+                data = {"ok": False, "error": str(exc)}
+                human = f"Plan failed: {exc}"
+            else:
+                data = {"ok": True, "data": plan_to_dict(plan)}
+                human = _fmt_import_plan(plan)
+
+        elif args.command == "execute-import":
+            import sys as _sys
+
+            from obsidian_connector.config import resolve_vault_path
+            from obsidian_connector.import_tools import (
+                default_report_path,
+                execute_import,
+                plan_import,
+                result_to_dict,
+                write_import_report,
+            )
+
+            try:
+                plan = plan_import(
+                    Path(args.root),
+                    include_globs=getattr(args, "include", None),
+                    exclude_globs=getattr(args, "exclude", None),
+                    min_size=int(getattr(args, "min_size", 10)),
+                    max_size=int(getattr(args, "max_size", 100_000)),
+                    max_files=int(getattr(args, "max_files", 1000)),
+                )
+            except ValueError as exc:
+                data = {"ok": False, "error": str(exc)}
+                human = f"Plan failed: {exc}"
+            else:
+                requested_dry_run = bool(getattr(args, "dry_run", True))
+                yes_flag = bool(getattr(args, "yes", False))
+                want_real = (not requested_dry_run) and (
+                    not plan.to_import_as_capture == ()
+                )
+                # Decide whether to actually POST.
+                proceed = False
+                if not requested_dry_run:
+                    if yes_flag:
+                        proceed = True
+                    elif _sys.stdin is not None and _sys.stdin.isatty():
+                        try:
+                            print(
+                                f"About to POST {len(plan.to_import_as_capture)} "
+                                f"imports to "
+                                f"{getattr(args, 'service_url', None) or 'configured service URL'}.",
+                                file=_sys.stderr,
+                            )
+                            answer = input(
+                                "Proceed? Type 'yes' to confirm: "
+                            ).strip().lower()
+                            proceed = answer == "yes"
+                        except (EOFError, KeyboardInterrupt):
+                            proceed = False
+                # Final dry-run gate matches execute_import's safety
+                # contract (dry_run + confirm).
+                effective_dry_run = requested_dry_run or (
+                    want_real and not proceed
+                )
+                result = execute_import(
+                    plan,
+                    service_url=getattr(args, "service_url", None),
+                    token=getattr(args, "token", None),
+                    source_app=getattr(args, "source_app", "vault_import"),
+                    throttle_seconds=float(getattr(args, "throttle", 0.1)),
+                    dry_run=effective_dry_run,
+                    confirm=proceed and not effective_dry_run,
+                )
+                report_info: dict | None = None
+                if getattr(args, "report", False):
+                    root_override = getattr(args, "vault_root", None)
+                    try:
+                        vroot = (
+                            Path(root_override)
+                            if root_override
+                            else resolve_vault_path(args.vault)
+                        )
+                    except Exception:  # noqa: BLE001
+                        vroot = Path(args.root)
+                    target = default_report_path(vroot)
+                    try:
+                        write_import_report(result, target, vault_root=vroot)
+                        report_info = {"ok": True, "path": str(target)}
+                    except Exception as exc:  # noqa: BLE001
+                        report_info = {"ok": False, "error": str(exc)}
+                payload: dict = {"ok": True, "data": result_to_dict(result)}
+                if report_info is not None:
+                    payload["report"] = report_info
+                data = payload
+                human = _fmt_import_result(result, report_info)
 
         elif args.command == "onboarding":
             from obsidian_connector.onboarding import (
