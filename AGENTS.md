@@ -136,6 +136,21 @@ Dashboard: `commitment_dashboards.generate_approval_dashboard(vault, *, service_
 
 Task 36 service-side ADR: [docs/architecture/task_36_approval_ux.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_36_approval_ux.md).
 
+## Analytics (Task 39)
+
+Three HTTP wrappers in `obsidian_connector/analytics_ops.py` plus a vault projection helper:
+
+- `get_weekly_report(week_offset=0, *, service_url, token)` -> `GET /api/v1/analytics/weekly`. Envelope data: the full deterministic report dict — `{window, captures, actions_created, actions_completed, actions_postponed, lifecycle_transitions, delivery_stats, patterns_snapshot, health_snapshot}`. Every top-level key is always present on the service side.
+- `get_weekly_report_markdown(week_offset=0, *, service_url, token)` -> `GET /api/v1/analytics/weekly/markdown`. Returns `{ok, data: {markdown}}` on success (the body is a string, not JSON).
+- `list_weeks_available(weeks_back=12, *, service_url, token)` -> `GET /api/v1/analytics/weeks-available`. Envelope data: `{weeks_back, items[{start_iso, end_iso, week_label}]}`.
+- `write_weekly_report_note(vault_root, report_markdown, week_label, *, base_dir='Analytics/Weekly', generated_at=None)` writes `Analytics/Weekly/<year>/<week_label>.md` with stable frontmatter and a preserved `service:analytics-user-notes:{begin,end}` fence so operator commentary survives re-runs. `fetch_and_write_weekly_report_note(...)` wraps the two service calls + the write.
+
+CLI: `obsx weekly-report [--week-offset N]`, `obsx weekly-report-markdown [--week-offset N]`, `obsx weeks-available [--weeks-back N]`, `obsx write-weekly-report [--week-offset N] [--vault-root path]` (all support `--json`). MCP: `obsidian_weekly_report`, `obsidian_weekly_report_markdown`, `obsidian_weeks_available`, `obsidian_write_weekly_report`.
+
+Dashboard: `commitment_dashboards.generate_analytics_index_dashboard(vault, *, service_url, token, now_iso, weeks_back)` writes `Dashboards/Analytics.md` — "This week so far" (live) + "Past weeks" (links into `Analytics/Weekly/` for whichever weeks have been projected). Rides on `update_all_dashboards(..., include_analytics=True)` (default). `include_analytics=False` preserves the pre-Task-39 10-dashboard behavior.
+
+Task 39 service-side ADR: [docs/architecture/task_39_analytics.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_39_analytics.md).
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`
