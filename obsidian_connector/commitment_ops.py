@@ -766,6 +766,192 @@ def _try_service_patch(action_id: str, updates: dict) -> dict | None:
             conn.close()
 
 
+# ---------------------------------------------------------------------------
+# Task 28: thin wrappers over the service retrieval endpoints
+# ---------------------------------------------------------------------------
+
+def _service_get_json(
+    path_with_query: str,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+    timeout: float = 10.0,
+) -> dict:
+    """Issue a GET to the capture service and return the parsed JSON.
+
+    Returns a result dict:
+
+    - ``{"ok": True, "status_code": 200, "data": {...}}`` on 2xx.
+    - ``{"ok": False, "error": "..."}`` on any failure (network, auth,
+      malformed JSON, bad scheme, missing URL).
+
+    ``path_with_query`` is a path + query-string pair starting at ``/``
+    that is appended to the service base URL (minus trailing slash).
+    No string interpolation of untrusted input into the path should
+    happen here; callers encode query params via ``urllib.parse.urlencode``.
+    """
+    import http.client
+    import ssl
+
+    url = service_url or os.getenv("OBSIDIAN_CAPTURE_SERVICE_URL")
+    key = token or os.getenv("OBSIDIAN_CAPTURE_SERVICE_TOKEN")
+    if not url:
+        return {
+            "ok": False,
+            "error": "service not configured (set OBSIDIAN_CAPTURE_SERVICE_URL)",
+        }
+
+    parsed = urllib.parse.urlparse(url.rstrip("/"))
+    if parsed.scheme not in _ALLOWED_SCHEMES:
+        return {
+            "ok": False,
+            "error": (
+                f"service URL must use http or https, got: {parsed.scheme!r}"
+            ),
+        }
+
+    base_path = (parsed.path or "").rstrip("/")
+    full_path = base_path + path_with_query
+    headers: dict[str, str] = {"Accept": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+
+    conn: http.client.HTTPConnection | None = None
+    try:
+        if parsed.scheme == "https":
+            conn = http.client.HTTPSConnection(  # nosemgrep
+                parsed.netloc,
+                timeout=timeout,
+                context=ssl.create_default_context(),
+            )
+        else:
+            conn = http.client.HTTPConnection(parsed.netloc, timeout=timeout)
+        conn.request("GET", full_path, headers=headers)
+        resp = conn.getresponse()
+        body = resp.read().decode("utf-8")
+        if resp.status >= 400:
+            return {
+                "ok": False,
+                "status_code": resp.status,
+                "error": body or f"HTTP {resp.status}",
+            }
+        data = json.loads(body) if body else {}
+    except http.client.HTTPException as exc:
+        return {"ok": False, "error": f"HTTP error: {exc}"}
+    except OSError as exc:
+        return {"ok": False, "error": f"service unreachable: {exc}"}
+    except (json.JSONDecodeError, ValueError) as exc:
+        return {"ok": False, "error": f"service response malformed: {exc}"}
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return {"ok": True, "status_code": 200, "data": data}
+
+
+def list_service_actions(
+    *,
+    status: str | None = None,
+    lifecycle_stage: str | None = None,
+    project: str | None = None,
+    person: str | None = None,
+    area: str | None = None,
+    urgency: str | None = None,
+    priority: str | None = None,
+    source_app: str | None = None,
+    due_before: str | None = None,
+    due_after: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions`` on the capture service.
+
+    All filters are optional. ``project``/``person``/``area`` resolve
+    on the service side through its alias table (case-insensitive).
+    ``limit`` defaults to 50; the server enforces a cap of 200.
+    ``cursor`` is the opaque value returned in a prior response under
+    ``next_cursor``.
+
+    Returns the wrapper envelope from :func:`_service_get_json`. On
+    success the service response lives under ``data`` with the shape:
+
+    ``{"ok": True, "items": [...], "next_cursor": "..." | null}``
+
+    Never raises; always returns a dict.
+    """
+    params: list[tuple[str, str]] = []
+    if status is not None:
+        params.append(("status", status))
+    if lifecycle_stage is not None:
+        params.append(("lifecycle_stage", lifecycle_stage))
+    if project is not None:
+        params.append(("project", project))
+    if person is not None:
+        params.append(("person", person))
+    if area is not None:
+        params.append(("area", area))
+    if urgency is not None:
+        params.append(("urgency", urgency))
+    if priority is not None:
+        params.append(("priority", priority))
+    if source_app is not None:
+        params.append(("source_app", source_app))
+    if due_before is not None:
+        params.append(("due_before", due_before))
+    if due_after is not None:
+        params.append(("due_after", due_after))
+    if limit is not None:
+        params.append(("limit", str(int(limit))))
+    if cursor is not None:
+        params.append(("cursor", cursor))
+
+    query = urllib.parse.urlencode(params)
+    path = "/api/v1/actions" + (f"?{query}" if query else "")
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
+def get_service_action(
+    action_id: str,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions/{action_id}`` on the capture service.
+
+    Returns the :func:`_service_get_json` envelope. A 404 from the
+    service surfaces as ``{"ok": False, "status_code": 404, "error":
+    "..."}``. Never raises.
+    """
+    if not action_id or not isinstance(action_id, str):
+        return {"ok": False, "error": "action_id must be a non-empty string"}
+    # Quote defensively — action IDs are ULID-style but we never trust
+    # the caller not to pass something funky.
+    quoted = urllib.parse.quote(action_id, safe="")
+    path = f"/api/v1/actions/{quoted}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
+def get_service_action_stats(
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions/stats`` on the capture service.
+
+    Returns the :func:`_service_get_json` envelope. On success the
+    service payload contains ``total``, ``by_status``,
+    ``by_lifecycle_stage``, ``by_priority``, ``by_source_app``. Never
+    raises.
+    """
+    return _service_get_json(
+        "/api/v1/actions/stats",
+        service_url=service_url,
+        token=token,
+    )
+
+
 __all__ = [
     "CommitmentSummary",
     "list_commitments",
@@ -775,4 +961,7 @@ __all__ = [
     "postpone_commitment",
     "add_commitment_reason",
     "sync_commitments_from_service",
+    "list_service_actions",
+    "get_service_action",
+    "get_service_action_stats",
 ]
