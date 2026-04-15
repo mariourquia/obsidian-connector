@@ -151,6 +151,21 @@ Dashboard: `commitment_dashboards.generate_analytics_index_dashboard(vault, *, s
 
 Task 39 service-side ADR: [docs/architecture/task_39_analytics.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_39_analytics.md).
 
+## Vault import (Task 43)
+
+Connector half of the service-side Task 43 contract (PR #23, merge `496bb35`). Five pure phases in `obsidian_connector/import_tools.py`:
+
+- `scan_markdown_files(root, *, include_globs, exclude_globs, max_files)` walks a directory and yields deterministic `FileCandidate` rows (sorted path order). Skips non-markdown files; reads frontmatter / first-H1 for `title_guess`; computes full sha256.
+- `classify_candidate(fc)` is rule-based (no LLM): frontmatter `type: commitment|entity` -> `already_managed`; path under `Commitments/**`, `Entities/**`, `Dashboards/**`, `Analytics/**`, `Archive/**` -> `already_managed`; `#capture` (high-conf) / `#idea | #todo | #action` (low-conf) tag -> `ready_capture`; tags inside fenced code blocks ignored; otherwise `unknown`.
+- `plan_import(root, ...) -> ImportPlan` (frozen) groups into `to_import_as_capture`, `to_skip_already_managed`, `to_skip_size_out_of_range`, `to_skip_unknown_kind`, plus a `warnings` list (e.g., duplicate content hashes). Refuses cleanly with `ValueError` if more than `max_files` (default 1000) candidates are found.
+- `execute_import(plan, *, dry_run=True, confirm=False, throttle_seconds=0.1, ...)` POSTs each entry to `/api/v1/ingest/text` with deterministic `X-Idempotency-Key: vault-import-<sha256[:16]>` so re-runs collapse on the service's dedup substrate. **Defaults to dry-run; requires both `dry_run=False` AND `confirm=True` to actually POST.** Per-file failures non-fatal. Throttle injectable via `sleep` / `monotonic` for tests.
+- `write_import_report(result, path)` renders a Markdown report under `Analytics/Import/<ts>.md` via `atomic_write` (deterministic frontmatter + planned + posted + skipped tables).
+
+CLI: `obsx plan-import --root ... [--include glob] [--exclude glob] [--min-size / --max-size / --max-files] [--json]` (read-only), `obsx execute-import --root ... --service-url ... [--dry-run | --execute] [--yes] [--token ...] [--throttle 0.1] [--report] [--vault-root ...]` (default `--dry-run`; interactive prompt or `--yes` required when `--execute` is set).
+MCP: `obsidian_plan_import`, `obsidian_execute_import`.
+
+Walkthrough: [docs/import/IMPORT.md](./docs/import/IMPORT.md). Service-side ADR: [docs/architecture/task_43_import.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_43_import.md).
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`
