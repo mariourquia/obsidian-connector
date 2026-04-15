@@ -51,6 +51,102 @@ _TOOL_NAME = "obsidian-connector/commitment-notes"
 
 
 # ---------------------------------------------------------------------------
+# Task 29: human-readable provenance labels
+# ---------------------------------------------------------------------------
+#
+# The capture pipeline denormalizes ``(source_app, source_entrypoint)`` onto
+# every Action (Task 27). These tuples are precise but opaque to humans --
+# "ios_share_sheet / share_sheet" is accurate, not friendly. ``format_source_label``
+# is the single source of truth that turns a tuple into a sentence the
+# commitment note and review dashboards can render verbatim.
+#
+# The function is pure and deterministic: given the same inputs it always
+# returns the same string. The cloud-queue suffix is applied on top of the
+# base label so (wispr_flow, action_button) drained from the queue renders
+# as "Captured via Wispr Flow (Action Button) (via cloud queue)", preserving
+# the original entrypoint signal.
+#
+# Known tuples (kept in one place so docs in both repos can cite this):
+#
+#   (wispr_flow, action_button)       -> "Captured via Wispr Flow (Action Button)"
+#   (wispr_flow, share_sheet)         -> "Captured via Wispr Flow (Share Sheet)"
+#   (ios_share_sheet, share_sheet)    -> "Captured via iOS Share Sheet"
+#   (ios_share_sheet, *)              -> "Captured via iOS Share Sheet"
+#   (apple_notes, apple_notes_tag)    -> "Captured from Apple Notes (#capture)"
+#   (*, queue_poller)                 -> "{base label} (via cloud queue)"
+#   (queue_poller, *)                 -> "Captured via cloud queue"  (edge case)
+#
+# Anything unrecognised falls back to ``"Captured from {source_app}"`` so
+# the row is never empty when at least one field is present.
+
+_CLOUD_QUEUE_SUFFIX = " (via cloud queue)"
+
+
+def format_source_label(
+    source_app: str | None,
+    source_entrypoint: str | None,
+) -> str:
+    """Return a human-readable provenance label from Task 27 source fields.
+
+    Pure, deterministic, backward compatible with legacy rows where both
+    fields are ``None`` (returns ``"Unknown source"``). The ``queue_poller``
+    entrypoint is treated as a *transport* marker: it appends a
+    "(via cloud queue)" suffix on top of the base label derived from
+    ``source_app`` so the original entrypoint signal is preserved.
+
+    The function is deliberately tolerant -- whitespace-only strings and
+    empty strings degrade to ``None`` so callers do not need to sanitise
+    frontmatter-parsed values first.
+    """
+    app = (source_app or "").strip().lower() or None
+    entry = (source_entrypoint or "").strip().lower() or None
+
+    # Cloud-queue marker is an *entrypoint* signal layered on top of the
+    # original source_app. Compute the base label from source_app first,
+    # then tack on the suffix when entry == "queue_poller".
+    via_queue = entry == "queue_poller"
+
+    if app is None and via_queue:
+        # Queue rows sometimes land without a source_app populated.
+        return "Captured via cloud queue"
+
+    base: str
+    if app == "wispr_flow":
+        if entry == "action_button":
+            base = "Captured via Wispr Flow (Action Button)"
+        elif entry == "share_sheet":
+            base = "Captured via Wispr Flow (Share Sheet)"
+        else:
+            base = "Captured via Wispr Flow"
+    elif app == "ios_share_sheet":
+        # Entrypoint is almost always ``share_sheet`` here; render a single
+        # friendly label regardless.
+        base = "Captured via iOS Share Sheet"
+    elif app == "apple_notes":
+        if entry == "apple_notes_tag":
+            base = "Captured from Apple Notes (#capture)"
+        else:
+            base = "Captured from Apple Notes"
+    elif app == "queue_poller":
+        # Edge case: queue_poller recorded as the source_app itself. Treat
+        # it as a cloud-queue transport with no upstream.
+        return "Captured via cloud queue"
+    elif app is None and entry is None:
+        return "Unknown source"
+    elif app is None:
+        return f"Captured via {entry}"
+    else:
+        # Fallback: pretty-print the raw source_app so the row is never
+        # empty when the pipeline adds a new app we have not labelled.
+        pretty = (source_app or "").strip()
+        base = f"Captured from {pretty}" if pretty else "Unknown source"
+
+    if via_queue:
+        return base + _CLOUD_QUEUE_SUFFIX
+    return base
+
+
+# ---------------------------------------------------------------------------
 # Input model
 # ---------------------------------------------------------------------------
 
@@ -456,6 +552,10 @@ def _render_body(
         f"- Areas: {', '.join(action.areas) if action.areas else 'none'}",
         f"- Source: {action.source_app or 'unknown'}"
         f"{' via ' + action.source_entrypoint if action.source_entrypoint else ''}",
+        # Task 29: human-readable provenance label. Rendered alongside the
+        # raw Source line so both agent (machine) and user (prose) readers
+        # see the same information.
+        f"- Captured: {format_source_label(action.source_app, action.source_entrypoint)}",
     ]
     if action.status == "done" and action.completed_at:
         meta_lines.append(f"- Completed: {action.completed_at}")
@@ -696,6 +796,7 @@ __all__ = [
     "OPEN_DIR",
     "DONE_DIR",
     "find_commitment_note",
+    "format_source_label",
     "parse_frontmatter",
     "render_commitment_note",
     "resolve_commitment_path",

@@ -348,7 +348,8 @@ def _render_at_a_glance(entity: EntityInput) -> str:
     last = _date_only(entity.last_activity_at)
     if last:
         parts.append(f"last active {last}")
-    return f"**At a glance:** {' \u00b7 '.join(parts)}"
+    separator = " \u00b7 "
+    return f"**At a glance:** {separator.join(parts)}"
 
 
 def _has_first_pass_inputs(entity: EntityInput) -> bool:
