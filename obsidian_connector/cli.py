@@ -1244,6 +1244,89 @@ def _fmt_review_dashboards(results) -> str:
     return "\n".join(lines)
 
 
+def _fmt_find_commitments(result: dict) -> str:
+    """Human-readable find-commitments output."""
+    if not result.get("ok"):
+        return f"Find failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", [])
+    lines = [f"Found {len(items)} commitment(s):"]
+    for it in items:
+        due = it.get("due_at") or "(no due)"
+        urgency = it.get("urgency", "normal")
+        lines.append(
+            f"  [{urgency}] {it.get('title', '(untitled)')}"
+            f"  due: {due}  status: {it.get('status', '?')}"
+        )
+        lines.append(
+            f"    id: {it.get('action_id', '?')}"
+            f"  priority: {it.get('priority', '?')}"
+            f"  stage: {it.get('lifecycle_stage', '?')}"
+        )
+    if data.get("next_cursor"):
+        lines.append(f"  next_cursor: {data['next_cursor']}")
+    return "\n".join(lines)
+
+
+def _fmt_commitment_detail(result: dict) -> str:
+    """Human-readable commitment-detail output."""
+    if not result.get("ok"):
+        return f"Detail fetch failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    action = data.get("action", {})
+    if not action:
+        return "(no action in response)"
+    lines = [
+        f"Action: {action.get('title', '(untitled)')}",
+        f"  id:        {action.get('action_id', '?')}",
+        f"  status:    {action.get('status', '?')}"
+        f"  priority:  {action.get('priority', '?')}"
+        f"  urgency:   {action.get('urgency', '?')}",
+        f"  stage:     {action.get('lifecycle_stage', '?')}",
+        f"  due_at:    {action.get('due_at') or '(none)'}",
+        f"  next_fu:   {action.get('next_follow_up_at') or '(none)'}",
+    ]
+    proj = action.get("projects", [])
+    ppl = action.get("people", [])
+    areas = action.get("areas", [])
+    if proj:
+        lines.append(f"  projects:  {', '.join(proj)}")
+    if ppl:
+        lines.append(f"  people:    {', '.join(ppl)}")
+    if areas:
+        lines.append(f"  areas:     {', '.join(areas)}")
+    deliveries = action.get("deliveries", [])
+    if deliveries:
+        lines.append(f"  deliveries ({len(deliveries)}):")
+        for d in deliveries:
+            lines.append(
+                f"    {d.get('channel', '?')}: {d.get('status', '?')}"
+                f" @ {d.get('scheduled_at') or '-'}"
+            )
+    return "\n".join(lines)
+
+
+def _fmt_commitment_stats(result: dict) -> str:
+    """Human-readable commitment-stats output."""
+    if not result.get("ok"):
+        return f"Stats fetch failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    lines = [f"Total actions: {data.get('total', 0)}"]
+
+    def _render(title: str, mapping: dict) -> None:
+        if not mapping:
+            return
+        lines.append(title)
+        for k, v in sorted(mapping.items()):
+            lines.append(f"    {k}: {v}")
+
+    _render("by_status:", data.get("by_status", {}) or {})
+    _render("by_lifecycle_stage:", data.get("by_lifecycle_stage", {}) or {})
+    _render("by_priority:", data.get("by_priority", {}) or {})
+    _render("by_source_app:", data.get("by_source_app", {}) or {})
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -1711,6 +1794,73 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reference timestamp for deterministic output (default: now).",
     )
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    # -- find-commitments (Task 28) ---------------------------------------
+    p = sub.add_parser(
+        "find-commitments",
+        help="Query the capture service's GET /api/v1/actions endpoint with filters.",
+    )
+    p.add_argument("--status", default=None, help="Filter by action status.")
+    p.add_argument(
+        "--lifecycle-stage", dest="lifecycle_stage", default=None,
+        help="Filter by lifecycle stage.",
+    )
+    p.add_argument("--project", default=None, help="Filter by project (canonical or alias).")
+    p.add_argument("--person", default=None, help="Filter by person (canonical or alias).")
+    p.add_argument("--area", default=None, help="Filter by area (canonical or alias).")
+    p.add_argument("--urgency", default=None, help="low | normal | elevated | critical")
+    p.add_argument("--priority", default=None, help="low | normal | high | urgent")
+    p.add_argument(
+        "--source-app", dest="source_app", default=None,
+        help="Filter by source app (e.g. wispr_flow).",
+    )
+    p.add_argument(
+        "--due-before", dest="due_before", default=None, metavar="ISO",
+        help="Only actions with due_at <= ISO.",
+    )
+    p.add_argument(
+        "--due-after", dest="due_after", default=None, metavar="ISO",
+        help="Only actions with due_at >= ISO.",
+    )
+    p.add_argument("--limit", type=int, default=50, help="Page size (default 50, max 200).")
+    p.add_argument("--cursor", default=None, help="Opaque cursor from a prior response.")
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- commitment-detail (Task 28) --------------------------------------
+    p = sub.add_parser(
+        "commitment-detail",
+        help="Fetch a single action from the capture service by ID.",
+    )
+    p.add_argument("--action-id", dest="action_id", required=True, help="Action ULID.")
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- commitment-stats (Task 28) ---------------------------------------
+    p = sub.add_parser(
+        "commitment-stats",
+        help="Fetch grouped action counts from the capture service.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
 
     return parser
 
@@ -2850,6 +3000,46 @@ def main(argv: list[str] | None = None) -> int:
             ]
             data = {"count": len(payload), "dashboards": payload}
             human = _fmt_review_dashboards(results)
+
+        elif args.command == "find-commitments":
+            from obsidian_connector.commitment_ops import list_service_actions
+
+            result = list_service_actions(
+                status=getattr(args, "status", None),
+                lifecycle_stage=getattr(args, "lifecycle_stage", None),
+                project=getattr(args, "project", None),
+                person=getattr(args, "person", None),
+                area=getattr(args, "area", None),
+                urgency=getattr(args, "urgency", None),
+                priority=getattr(args, "priority", None),
+                source_app=getattr(args, "source_app", None),
+                due_before=getattr(args, "due_before", None),
+                due_after=getattr(args, "due_after", None),
+                limit=getattr(args, "limit", 50),
+                cursor=getattr(args, "cursor", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_find_commitments(result)
+
+        elif args.command == "commitment-detail":
+            from obsidian_connector.commitment_ops import get_service_action
+
+            result = get_service_action(
+                args.action_id,
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_commitment_detail(result)
+
+        elif args.command == "commitment-stats":
+            from obsidian_connector.commitment_ops import get_service_action_stats
+
+            result = get_service_action_stats(
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_commitment_stats(result)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore
