@@ -52,6 +52,7 @@ _DASHBOARD_DAILY_REVIEW_PATH = f"{REVIEW_DASHBOARDS_DIR}/Daily.md"
 _DASHBOARD_WEEKLY_REVIEW_PATH = f"{REVIEW_DASHBOARDS_DIR}/Weekly.md"
 _DASHBOARD_STALE_PATH = f"{REVIEW_DASHBOARDS_DIR}/Stale.md"
 _DASHBOARD_MERGE_CANDIDATES_PATH = f"{REVIEW_DASHBOARDS_DIR}/Merge Candidates.md"
+_DASHBOARD_PATTERNS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Patterns.md"
 
 _TOOL = "obsidian-connector/dashboards"
 
@@ -1276,12 +1277,205 @@ def generate_merge_candidates_dashboard(
     return DashboardResult(path=path, written=len(pairs))
 
 
+# ---------------------------------------------------------------------------
+# Task 31: Patterns dashboard
+# ---------------------------------------------------------------------------
+
+
+def _render_patterns_md(
+    *,
+    now_iso: str,
+    postponements: list[dict] | None,
+    blockers: list[dict] | None,
+    recurring_by_kind: dict[str, list[dict]] | None,
+    service_error: str | None,
+) -> str:
+    """Render the Patterns review dashboard markdown.
+
+    Pure; takes already-fetched payloads. When ``service_error`` is set
+    the body contains a banner + whatever local sections we can still
+    render (all omitted sections render as an empty bullet with "No data
+    from service.").
+    """
+    fm = _frontmatter("patterns", now_iso)
+    lines: list[str] = [fm, "", "# Patterns", ""]
+    lines.append(f"_Generated at {_now_display(now_iso)}._")
+    lines.append("")
+    if service_error:
+        lines.append(
+            f"> Capture service unreachable: {service_error}. "
+            "Showing no pattern data for this run."
+        )
+        lines.append("")
+
+    # Postponement loops
+    lines.append("## Postponement loops")
+    lines.append("")
+    if postponements:
+        lines.append(
+            "| Title | Count | Slipped (days) | Last reason | Last postponed |"
+        )
+        lines.append("|---|---:|---:|---|---|")
+        for item in postponements:
+            title = (item.get("title") or "").replace("|", "\\|")
+            count = int(item.get("count") or 0)
+            slipped = int(item.get("cumulative_days_slipped") or 0)
+            last_reason = (
+                (item.get("last_reason") or "").replace("|", "\\|").strip()
+            ) or "—"
+            last_at = _fmt_date(item.get("last_postponed_at"), fallback="—")
+            lines.append(
+                f"| {title} | {count} | {slipped} | {last_reason} | {last_at} |"
+            )
+    else:
+        lines.append("- No repeated postponements detected in the window.")
+    lines.append("")
+
+    # Blocker clusters
+    lines.append("## Blocker clusters")
+    lines.append("")
+    if blockers:
+        for item in blockers:
+            title = (item.get("title") or "untitled").strip()
+            count = int(item.get("blocks_count") or 0)
+            downstream = item.get("downstream_action_ids") or []
+            oldest = _fmt_date(item.get("oldest_edge_at"), fallback="—")
+            ds_preview = ", ".join(downstream[:5])
+            suffix = "…" if len(downstream) > 5 else ""
+            lines.append(
+                f"- **{title}** — blocks {count} "
+                f"(since {oldest}): {ds_preview}{suffix}"
+            )
+    else:
+        lines.append("- No open blockers in the window.")
+    lines.append("")
+
+    # Recurring unfinished
+    lines.append("## Recurring unfinished")
+    lines.append("")
+    by_kind = recurring_by_kind or {}
+    for kind in ("project", "person", "area"):
+        label = kind.capitalize()
+        lines.append(f"### By {label}")
+        lines.append("")
+        items = by_kind.get(kind) or []
+        if items:
+            for item in items:
+                name = (item.get("canonical_name") or "").strip() or "—"
+                open_count = int(item.get("open_count") or 0)
+                median_age = int(item.get("median_age_days") or 0)
+                lines.append(
+                    f"- **{name}** — {open_count} open "
+                    f"(median age {median_age}d)"
+                )
+        else:
+            lines.append(
+                f"- No recurring unfinished {label.lower()}s in the window."
+            )
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def generate_patterns_dashboard(
+    vault_root: Path,
+    *,
+    now_iso: str | None = None,
+    postponements_since_days: int = 30,
+    blockers_since_days: int = 60,
+    recurring_since_days: int = 90,
+    limit: int = 20,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> DashboardResult:
+    """Generate or update ``Dashboards/Review/Patterns.md``.
+
+    Pulls the three Task 31 pattern lenses from the capture service
+    when reachable. If the service is unreachable, writes a banner
+    at the top of the dashboard and leaves each section empty.
+    """
+    # Local import avoids a circular import at module load.
+    from obsidian_connector.commitment_ops import (
+        list_blocker_clusters,
+        list_recurring_unfinished,
+        list_repeated_postponements,
+    )
+
+    vault_root = Path(vault_root)
+    ts = now_iso or datetime.now(timezone.utc).isoformat()
+
+    postponements: list[dict] | None = None
+    blockers: list[dict] | None = None
+    recurring_by_kind: dict[str, list[dict]] = {}
+    service_error: str | None = None
+
+    pp_env = list_repeated_postponements(
+        since_days=postponements_since_days,
+        limit=limit,
+        service_url=service_url,
+        token=token,
+    )
+    if pp_env.get("ok"):
+        postponements = (pp_env.get("data") or {}).get("items") or []
+    else:
+        service_error = service_error or str(pp_env.get("error") or "error")
+
+    bl_env = list_blocker_clusters(
+        since_days=blockers_since_days,
+        limit=limit,
+        service_url=service_url,
+        token=token,
+    )
+    if bl_env.get("ok"):
+        blockers = (bl_env.get("data") or {}).get("items") or []
+    else:
+        service_error = service_error or str(bl_env.get("error") or "error")
+
+    for kind in ("project", "person", "area"):
+        env = list_recurring_unfinished(
+            by=kind,
+            since_days=recurring_since_days,
+            limit=limit,
+            service_url=service_url,
+            token=token,
+        )
+        if env.get("ok"):
+            recurring_by_kind[kind] = (env.get("data") or {}).get("items") or []
+        else:
+            service_error = service_error or str(env.get("error") or "error")
+            recurring_by_kind[kind] = []
+
+    content = _render_patterns_md(
+        now_iso=ts,
+        postponements=postponements,
+        blockers=blockers,
+        recurring_by_kind=recurring_by_kind,
+        service_error=service_error,
+    )
+    path = vault_root / _DASHBOARD_PATTERNS_PATH
+
+    written = (
+        (len(postponements or []))
+        + (len(blockers or []))
+        + sum(len(v) for v in recurring_by_kind.values())
+    )
+    atomic_write(
+        path, content, vault_root=vault_root, tool_name=_TOOL,
+        inject_generated_by=False,
+    )
+    return DashboardResult(path=path, written=written)
+
+
 def update_all_review_dashboards(
     vault_root: Path,
     now_iso: str | None = None,
     stale_days: int = DEFAULT_STALE_DAYS,
     merge_window_days: int = DEFAULT_MERGE_WINDOW_DAYS,
     merge_jaccard: float = DEFAULT_MERGE_JACCARD,
+    *,
+    include_patterns: bool = False,
+    service_url: str | None = None,
+    token: str | None = None,
 ) -> list[DashboardResult]:
     """Generate or update all four review dashboards.
 
@@ -1291,11 +1485,15 @@ def update_all_review_dashboards(
     earlier one raises, matching the graceful-degradation semantics of
     :func:`update_all_dashboards`.
 
-    Returns a list in this order: Daily, Weekly, Stale, Merge Candidates.
+    Returns a list in this order: Daily, Weekly, Stale, Merge Candidates
+    (plus Patterns when ``include_patterns=True``). The Patterns
+    dashboard is opt-in because it contacts the capture service and we
+    don't want every ``obsx review-dashboards`` run to touch the
+    network when the operator only wants the local review surfaces.
     """
     vault_root = Path(vault_root)
     ts = now_iso or datetime.now(timezone.utc).isoformat()
-    return [
+    results = [
         generate_daily_review_dashboard(vault_root, now_iso=ts),
         generate_weekly_review_dashboard(
             vault_root, now_iso=ts, stale_days=stale_days,
@@ -1310,6 +1508,16 @@ def update_all_review_dashboards(
             merge_jaccard=merge_jaccard,
         ),
     ]
+    if include_patterns:
+        results.append(
+            generate_patterns_dashboard(
+                vault_root,
+                now_iso=ts,
+                service_url=service_url,
+                token=token,
+            )
+        )
+    return results
 
 
 def update_all_dashboards(

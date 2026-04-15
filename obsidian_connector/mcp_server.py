@@ -3078,6 +3078,137 @@ def obsidian_merge_commitment(
 
 
 # ---------------------------------------------------------------------------
+# Task 31: pattern intelligence tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Repeated Postponements (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_repeated_postponements(
+    since_days: int = 30,
+    limit: int = 50,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/patterns/repeated-postponements``.
+
+    Returns actions with two or more ``postpone`` acknowledgements inside
+    the window, sorted by count desc. Each row surfaces ``count``,
+    ``cumulative_days_slipped``, ``last_reason``, and ISO timestamps
+    for first/last postponement inside the window.
+
+    Args:
+        since_days: Rolling window (default 30, max 365).
+        limit: Max rows (default 50, server caps at 200).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import list_repeated_postponements
+
+    try:
+        result = list_repeated_postponements(
+            since_days=since_days, limit=limit, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Blocker Clusters (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_blocker_clusters(
+    since_days: int = 60,
+    limit: int = 50,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/patterns/blocker-clusters``.
+
+    Returns actions that block many open downstream actions (via
+    ``action_edges.relation='blocks'``). Only clusters where both
+    endpoints are non-terminal. Each row carries ``blocks_count`` and a
+    sorted ``downstream_action_ids`` list.
+
+    Args:
+        since_days: Window for the edge (default 60, max 365).
+        limit: Max rows (default 50, server caps at 200).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import list_blocker_clusters
+
+    try:
+        result = list_blocker_clusters(
+            since_days=since_days, limit=limit, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Recurring Unfinished (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_recurring_unfinished(
+    by: str = "project",
+    since_days: int = 90,
+    limit: int = 50,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/patterns/recurring-unfinished``.
+
+    Buckets open/postponed actions by a semantic anchor
+    (``project`` | ``person`` | ``area``) and surfaces ``open_count``
+    and ``median_age_days`` per bucket. Useful for "where is my open
+    work concentrated?" reviews.
+
+    Args:
+        by: one of {"project", "person", "area"}.
+        since_days: Window (default 90, max 365).
+        limit: Max rows (default 50, server caps at 200).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import list_recurring_unfinished
+
+    try:
+        result = list_recurring_unfinished(
+            by=by, since_days=since_days, limit=limit,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 

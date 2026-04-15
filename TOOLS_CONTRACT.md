@@ -163,6 +163,9 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_commitment_stats` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, total, by_status, by_lifecycle_stage, by_priority, by_source_app}}`. Task 28. |
 | `obsidian_duplicate_candidates` | `action_id`, `limit?`, `within_days?`, `min_score?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, candidates[...], thresholds: {candidate, strong}}}`. Each candidate has `score`, `tier`, and a `reasons` dict (title_jaccard, same_project, shared_people, shared_areas, days_apart, due_close). Task 21.B. |
 | `obsidian_merge_commitment` | `loser_id`, `winner_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, loser_id, winner_id, edge_id, already_merged}}`. POST `/api/v1/actions/{loser_id}/merge`. Atomic + idempotent. Task 21.B. |
+| `obsidian_repeated_postponements` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[...]}}`. Each item: `action_id`, `title`, `status`, `count`, `first_postponed_at`, `last_postponed_at`, `last_reason`, `cumulative_days_slipped`. `GET /api/v1/patterns/repeated-postponements`. Task 31. |
+| `obsidian_blocker_clusters` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[...]}}`. Each item: `blocker_action_id`, `title`, `status`, `lifecycle_stage`, `blocks_count`, sorted `downstream_action_ids`, `oldest_edge_at`. `GET /api/v1/patterns/blocker-clusters`. Task 31. |
+| `obsidian_recurring_unfinished` | `by` (project\|person\|area), `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, by, since_days, items[...]}}`. Each item: `entity_id`, `canonical_name`, `slug`, `kind`, `open_count`, `median_age_days`, `oldest_open_at`, `action_ids`. `GET /api/v1/patterns/recurring-unfinished`. Task 31. |
 
 ### Idea routing (v0.5.0)
 

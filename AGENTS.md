@@ -76,6 +76,21 @@ Task 21.B service-side ADR: [docs/architecture/task_21b_dedup_intelligence.md](h
 
 TODO (deferred to a follow-up): the `Merge Candidates` review dashboard (`commitment_dashboards.py`) still uses the local token-Jaccard heuristic. A future pass can optionally consult `list_duplicate_candidates` when `OBSIDIAN_CAPTURE_SERVICE_URL` is set to supplement the client-side ranking with the service's full feature-weighted score. Gated behind a flag to avoid network dependency in the default renderer path.
 
+## Pattern intelligence (Task 31)
+
+Three more wrappers in `commitment_ops.py` cover the Task 31 pattern-intelligence endpoints:
+
+- `list_repeated_postponements(*, since_days=30, limit=50, service_url, token)` -> `GET /api/v1/patterns/repeated-postponements`. Returns an envelope whose `data` carries `{ok, since_days, items[...]}`. Each item: `action_id`, `title`, `status`, `count`, `first_postponed_at`, `last_postponed_at`, `last_reason`, `cumulative_days_slipped`.
+- `list_blocker_clusters(*, since_days=60, limit=50, service_url, token)` -> `GET /api/v1/patterns/blocker-clusters`. Each item: `blocker_action_id`, `title`, `status`, `lifecycle_stage`, `blocks_count`, sorted `downstream_action_ids`, `oldest_edge_at`.
+- `list_recurring_unfinished(*, by='project', since_days=90, limit=50, service_url, token)` -> `GET /api/v1/patterns/recurring-unfinished`. `by` must be one of `{'project', 'person', 'area'}` (rejected client-side). Each item: `entity_id`, `canonical_name`, `slug`, `kind`, `open_count`, `median_age_days`, `oldest_open_at`, sample `action_ids`.
+
+CLI: `obsx repeated-postponements [--since-days N] [--limit M]`, `obsx blocker-clusters [--since-days N] [--limit M]`, `obsx recurring-unfinished --by {project,person,area} [--since-days N] [--limit M]` (all support `--json`).
+MCP: `obsidian_repeated_postponements`, `obsidian_blocker_clusters`, `obsidian_recurring_unfinished`.
+
+Dashboard: `generate_patterns_dashboard(vault, *, service_url, token)` writes `Dashboards/Review/Patterns.md` — three sections (postponement loops, blocker clusters, recurring unfinished by project/person/area). Opt-in from `update_all_review_dashboards(..., include_patterns=True)`. Writes a "Capture service unreachable" banner when any of the three endpoints fails; empty sections render explicit placeholders.
+
+Task 31 service-side ADR: [docs/architecture/task_31_pattern_intelligence.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_31_pattern_intelligence.md).
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`
