@@ -201,8 +201,10 @@ DisableProgramGroupPage=yes
 LicenseFile=$StagingDir\LICENSE
 OutputDir=$DistDir
 OutputBaseFilename=$OutputExe
-Compression=lzma2
-SolidCompression=yes
+; Favor build throughput over maximum compression so CI can finish in a
+; predictable window when bundling the embedded Ix runtime.
+Compression=lzma
+SolidCompression=no
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
