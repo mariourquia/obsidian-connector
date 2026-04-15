@@ -1236,6 +1236,14 @@ def _fmt_sync_commitments(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_review_dashboards(results) -> str:
+    """Human-readable review-dashboards refresh output."""
+    lines = [f"Refreshed {len(results)} review dashboard(s):"]
+    for r in results:
+        lines.append(f"  {r.path}  ({r.written} entries)")
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -1680,6 +1688,29 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("sync-commitments", help="Sync commitments from obsidian-capture-service.")
     p.add_argument("--service-url", default=None, help="Base URL of the capture service (overrides env var).")
     p.add_argument("--dry-run", action="store_true", help="Show what would happen without writing.")
+
+    # -- review-dashboards -------------------------------------------------
+    p = sub.add_parser(
+        "review-dashboards",
+        help="Regenerate Daily/Weekly/Stale/Merge Candidates review dashboards.",
+    )
+    p.add_argument(
+        "--stale-days", type=int, default=14, metavar="N",
+        help="Threshold (days) for the Weekly + Stale surfaces (default 14).",
+    )
+    p.add_argument(
+        "--merge-window-days", type=int, default=14, metavar="N",
+        help="Max days between created_at of merge-candidate pairs (default 14).",
+    )
+    p.add_argument(
+        "--merge-jaccard", type=float, default=0.6, metavar="X",
+        help="Minimum title token-Jaccard for candidate pairs (default 0.6).",
+    )
+    p.add_argument(
+        "--now", default=None, metavar="ISO_TIMESTAMP",
+        help="Reference timestamp for deterministic output (default: now).",
+    )
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
     return parser
 
@@ -2799,6 +2830,26 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 data = result
                 human = _fmt_sync_commitments(result)
+
+        elif args.command == "review-dashboards":
+            from obsidian_connector.commitment_dashboards import (
+                update_all_review_dashboards,
+            )
+            from obsidian_connector.config import resolve_vault_path
+
+            vault_path = resolve_vault_path(args.vault)
+            results = update_all_review_dashboards(
+                vault_path,
+                now_iso=getattr(args, "now", None),
+                stale_days=getattr(args, "stale_days", 14),
+                merge_window_days=getattr(args, "merge_window_days", 14),
+                merge_jaccard=getattr(args, "merge_jaccard", 0.6),
+            )
+            payload = [
+                {"path": str(r.path), "written": r.written} for r in results
+            ]
+            data = {"count": len(payload), "dashboards": payload}
+            human = _fmt_review_dashboards(results)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore
