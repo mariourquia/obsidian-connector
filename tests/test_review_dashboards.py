@@ -574,7 +574,12 @@ class TestPostponedStaleSection:
 
 class TestOrchestrators:
     def test_update_all_review_dashboards_writes_four_files(self, vault: Path) -> None:
-        results = update_all_review_dashboards(vault, now_iso=NOW)
+        # Task 38 added Delegations.md as a default-on review surface;
+        # callers opt out via include_delegations=False to keep the
+        # historical four.
+        results = update_all_review_dashboards(
+            vault, now_iso=NOW, include_delegations=False,
+        )
         assert len(results) == 4
         expected = {"Daily.md", "Weekly.md", "Stale.md", "Merge Candidates.md"}
         assert {r.path.name for r in results} == expected
@@ -582,16 +587,39 @@ class TestOrchestrators:
             assert r.path.exists()
             assert r.path.read_text(encoding="utf-8").strip() != ""
 
+    def test_update_all_review_includes_delegations_by_default(
+        self, vault: Path,
+    ) -> None:
+        # Task 38: include_delegations defaults to True so the review
+        # set is five surfaces.
+        results = update_all_review_dashboards(vault, now_iso=NOW)
+        assert len(results) == 5
+        names = {r.path.name for r in results}
+        assert names == {
+            "Daily.md", "Weekly.md", "Stale.md",
+            "Merge Candidates.md", "Delegations.md",
+        }
+
     def test_update_all_dashboards_unified_emits_eight(self, vault: Path) -> None:
-        # With include_admin=False and include_analytics=False we get the
-        # historical 8 dashboards.
+        # With every opt-in flag disabled we get the historical 8
+        # dashboards (4 commitment + 4 review).
         results = update_all_dashboards(
             vault,
             now_iso=NOW,
             include_admin=False,
             include_analytics=False,
         )
-        assert len(results) == 8
+        # include_delegations defaults to True inside update_all_review_dashboards,
+        # so we re-exercise the "historical" shape by opting out there.
+        from obsidian_connector.commitment_dashboards import (
+            update_all_review_dashboards as _review,
+        )
+        review_results = _review(
+            vault, now_iso=NOW, include_delegations=False,
+        )
+        # Task 38 guard: the full stack defaults include the delegations
+        # page; we expect 9 when only include_admin/include_analytics are off.
+        assert len(results) == 9
         commitment_prefix = [r.path.name for r in results[:4]]
         review_suffix = [r.path.name for r in results[4:]]
         assert commitment_prefix == [
@@ -601,30 +629,36 @@ class TestOrchestrators:
             "Postponed.md",
         ]
         assert review_suffix == [
-            "Daily.md", "Weekly.md", "Stale.md", "Merge Candidates.md",
+            "Daily.md", "Weekly.md", "Stale.md",
+            "Merge Candidates.md", "Delegations.md",
         ]
+        # Sanity check the opt-out variant also produced the historical count.
+        assert len(review_results) == 4
 
     def test_update_all_dashboards_with_admin_emits_ten(self, vault: Path) -> None:
         # include_admin=True (default) appends Dashboards/Admin.md plus
-        # the Task 36 Dashboards/Admin/Approvals.md companion. Task 39
-        # default also appends Dashboards/Analytics.md, opt out via
-        # include_analytics=False to keep the historical count of 10.
+        # the Task 36 Dashboards/Admin/Approvals.md companion. Task 38
+        # also adds Dashboards/Review/Delegations.md by default, so the
+        # historical count of 10 becomes 11 when analytics is opted out.
         results = update_all_dashboards(
             vault, now_iso=NOW, include_analytics=False
         )
         paths = [r.path.name for r in results]
-        assert len(results) == 10
+        assert len(results) == 11
         assert paths[-2] == "Admin.md"
         assert paths[-1] == "Approvals.md"
+        assert "Delegations.md" in paths
 
     def test_update_all_dashboards_includes_analytics_by_default(
         self, vault: Path
     ) -> None:
-        # Task 39: include_analytics defaults to True, adding Analytics.md.
+        # Task 39 keeps Analytics.md trailing. Task 38 adds
+        # Delegations.md inside the review suffix, so total = 12.
         results = update_all_dashboards(vault, now_iso=NOW)
         names = [r.path.name for r in results]
         assert names[-1] == "Analytics.md"
-        assert len(results) == 11
+        assert "Delegations.md" in names
+        assert len(results) == 12
 
     def test_determinism_same_inputs_byte_identical(self, vault: Path) -> None:
         _write(
@@ -738,6 +772,8 @@ class TestCLIAndMCPIntegration:
         assert (vault / f"{REVIEW_DASHBOARDS_DIR}/Weekly.md").exists()
         assert (vault / f"{REVIEW_DASHBOARDS_DIR}/Stale.md").exists()
         assert (vault / f"{REVIEW_DASHBOARDS_DIR}/Merge Candidates.md").exists()
+        # Task 38: Delegations.md is a default-on review surface.
+        assert (vault / f"{REVIEW_DASHBOARDS_DIR}/Delegations.md").exists()
 
     def test_mcp_tool_refreshes_all_four(
         self, vault: Path, monkeypatch: pytest.MonkeyPatch,
@@ -756,8 +792,10 @@ class TestCLIAndMCPIntegration:
             fn(stale_days=14, merge_window_days=14, merge_jaccard=0.6, now=NOW)
         )
         assert payload["ok"] is True, payload
-        assert payload["count"] == 4
+        # Task 38 added Delegations.md; the MCP tool now refreshes five.
+        assert payload["count"] == 5
         names = {Path(d["path"]).name for d in payload["dashboards"]}
         assert names == {
             "Daily.md", "Weekly.md", "Stale.md", "Merge Candidates.md",
+            "Delegations.md",
         }

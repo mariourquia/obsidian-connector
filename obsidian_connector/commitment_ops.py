@@ -1242,6 +1242,131 @@ def list_recurring_unfinished(
     return _service_get_json(path, service_url=service_url, token=token)
 
 
+# ---------------------------------------------------------------------------
+# Task 38: delegation wrappers
+# ---------------------------------------------------------------------------
+
+
+def delegate_commitment(
+    action_id: str,
+    *,
+    to_person: str,
+    note: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/{action_id}/delegate`` (Task 38).
+
+    Returns the :func:`_service_post_json` envelope. On success
+    ``data`` is the standard ``ActionLifecycleResponse`` shape extended
+    with ``delegated_to``, ``delegated_to_entity_id``, ``delegated_at``,
+    ``delegation_note``. The service creates a person entity on miss
+    when ``to_person`` does not resolve via alias lookup. 404 / 409 /
+    422 surface via ``status_code``. Never raises.
+    """
+    if not action_id or not isinstance(action_id, str):
+        return {"ok": False, "error": "action_id must be a non-empty string"}
+    if not to_person or not isinstance(to_person, str) or not to_person.strip():
+        return {"ok": False, "error": "to_person must be a non-empty string"}
+
+    body: dict[str, str | None] = {"to_person": to_person.strip()}
+    if note is not None:
+        body["note"] = note
+
+    quoted = urllib.parse.quote(action_id, safe="")
+    path = f"/api/v1/actions/{quoted}/delegate"
+    return _service_post_json(
+        path, body=body, service_url=service_url, token=token,
+    )
+
+
+def reclaim_commitment(
+    action_id: str,
+    *,
+    note: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/{action_id}/reclaim`` (Task 38).
+
+    Clears the action's delegation columns and (when applicable) flips
+    ``lifecycle_stage`` from ``waiting`` back to ``active``. Idempotent
+    on a non-delegated row. Returns the :func:`_service_post_json`
+    envelope; on success ``data`` is the lifecycle response with
+    ``delegated_to == None``.
+    """
+    if not action_id or not isinstance(action_id, str):
+        return {"ok": False, "error": "action_id must be a non-empty string"}
+
+    body: dict[str, str | None] = {}
+    if note is not None:
+        body["note"] = note
+
+    quoted = urllib.parse.quote(action_id, safe="")
+    path = f"/api/v1/actions/{quoted}/reclaim"
+    return _service_post_json(
+        path, body=body, service_url=service_url, token=token,
+    )
+
+
+def list_delegated_to(
+    person: str,
+    *,
+    limit: int = 50,
+    cursor: str | None = None,
+    include_terminal: bool = False,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions/delegated-to/{person}`` (Task 38).
+
+    ``person`` is the canonical name or any alias of the delegate.
+    Returns the :func:`_service_get_json` envelope. On success
+    ``data`` is ``{ok, items: [...], next_cursor: "..." | null}``.
+    Unknown person yields an empty list.
+    """
+    if not person or not isinstance(person, str) or not person.strip():
+        return {"ok": False, "error": "person must be a non-empty string"}
+
+    params: list[tuple[str, str]] = [("limit", str(int(limit)))]
+    if cursor is not None:
+        params.append(("cursor", cursor))
+    if include_terminal:
+        params.append(("include_terminal", "true"))
+
+    quoted = urllib.parse.quote(person.strip(), safe="")
+    query = urllib.parse.urlencode(params)
+    path = f"/api/v1/actions/delegated-to/{quoted}"
+    if query:
+        path = f"{path}?{query}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
+def list_stale_delegations(
+    *,
+    threshold_days: int = 14,
+    limit: int = 50,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/patterns/stale-delegations`` (Task 38).
+
+    Returns the :func:`_service_get_json` envelope. On success ``data``
+    is ``{ok, threshold_days, items: [...]}`` where each item is a
+    per-person bucket with ``entity_id``, ``canonical_name``, ``count``,
+    ``oldest_delegated_at``, ``newest_delegated_at``, and up to 10
+    ``items: [{action_id, title, delegated_at, delegation_note}, ...]``.
+    Never raises.
+    """
+    params: list[tuple[str, str]] = [
+        ("threshold_days", str(int(threshold_days))),
+        ("limit", str(int(limit))),
+    ]
+    query = urllib.parse.urlencode(params)
+    path = f"/api/v1/patterns/stale-delegations?{query}"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
 __all__ = [
     "CommitmentSummary",
     "list_commitments",
@@ -1260,4 +1385,8 @@ __all__ = [
     "list_blocker_clusters",
     "list_recurring_unfinished",
     "explain_commitment",
+    "delegate_commitment",
+    "reclaim_commitment",
+    "list_delegated_to",
+    "list_stale_delegations",
 ]
