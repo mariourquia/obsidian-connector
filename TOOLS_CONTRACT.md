@@ -176,6 +176,10 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_bulk_approve` | `delivery_ids[]`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, decision: "approved", requested, approved[], rejected[], skipped[{delivery_id, reason, detail}]}}`. Atomic per-batch. `POST /api/v1/deliveries/bulk-approve`. Task 36. |
 | `obsidian_bulk_reject` | `delivery_ids[]`, `note?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_approve` with `decision: "rejected"`. `POST /api/v1/deliveries/bulk-reject`. Task 36. |
 | `obsidian_approval_digest` | `since_hours?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_hours, pending_total, counts_by_channel, counts_by_urgency, oldest_pending_age_seconds, top_pending[...], recent_decisions_count, generated_at}}`. `GET /api/v1/deliveries/approval-digest`. Task 36. |
+| `obsidian_weekly_report` | `week_offset?`, `service_url?` | JSON envelope `{ok, status_code, data: {window, captures, actions_created, actions_completed, actions_postponed, lifecycle_transitions, delivery_stats, patterns_snapshot, health_snapshot}}`. `GET /api/v1/analytics/weekly`. Task 39. |
+| `obsidian_weekly_report_markdown` | `week_offset?`, `service_url?` | JSON envelope `{ok, status_code, data: {markdown}}`. The `markdown` value is the rendered Markdown body as a string. `GET /api/v1/analytics/weekly/markdown`. Task 39. |
+| `obsidian_weeks_available` | `weeks_back?`, `service_url?` | JSON envelope `{ok, status_code, data: {weeks_back, items[{start_iso, end_iso, week_label}]}}`. `GET /api/v1/analytics/weeks-available`. Task 39. |
+| `obsidian_write_weekly_report` | `week_offset?`, `vault_root?`, `service_url?` | JSON envelope `{ok, path, week_label}` on success. Writes `Analytics/Weekly/<year>/<week_label>.md`. Preserves any `service:analytics-user-notes:{begin,end}` fence on re-runs. Task 39. |
 
 ### Idea routing (v0.5.0)
 

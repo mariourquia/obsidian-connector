@@ -55,6 +55,8 @@ _DASHBOARD_MERGE_CANDIDATES_PATH = f"{REVIEW_DASHBOARDS_DIR}/Merge Candidates.md
 _DASHBOARD_PATTERNS_PATH = f"{REVIEW_DASHBOARDS_DIR}/Patterns.md"
 _DASHBOARD_ADMIN_PATH = f"{DASHBOARDS_DIR}/Admin.md"
 _DASHBOARD_APPROVALS_PATH = f"{DASHBOARDS_DIR}/Admin/Approvals.md"
+_DASHBOARD_ANALYTICS_PATH = f"{DASHBOARDS_DIR}/Analytics.md"
+_ANALYTICS_BASE_DIR = "Analytics/Weekly"
 
 _TOOL = "obsidian-connector/dashboards"
 
@@ -1996,6 +1998,182 @@ def generate_approval_dashboard(
     return DashboardResult(path=path, written=len(detail_rows))
 
 
+def _render_analytics_md(
+    *,
+    now_iso: str,
+    weeks_items: list[dict] | None,
+    this_week_payload: dict | None,
+    present_labels: set[str],
+    service_configured: bool,
+    service_error: str | None,
+) -> str:
+    """Render ``Dashboards/Analytics.md`` (Task 39).
+
+    Pure function. Always produces a document. Sections are stable so
+    diffs are minimal week over week.
+    """
+    fm = _frontmatter("analytics", now_iso)
+    lines: list[str] = [fm, "", "# Analytics", ""]
+    lines.append(f"_Generated at {_now_display(now_iso)}._")
+    lines.append("")
+
+    if not service_configured:
+        lines.append(
+            "> Capture service not configured. Set "
+            "`OBSIDIAN_CAPTURE_SERVICE_URL` (and optionally "
+            "`OBSIDIAN_CAPTURE_SERVICE_TOKEN`) to populate the analytics "
+            "surface."
+        )
+        lines.append("")
+    elif service_error:
+        lines.append(
+            f"> Capture service unreachable: {service_error}."
+        )
+        lines.append("")
+
+    # --- This week so far --------------------------------------------------
+    lines.append("## This week so far")
+    lines.append("")
+    if this_week_payload:
+        window = this_week_payload.get("window") or {}
+        captures = this_week_payload.get("captures") or {}
+        ac = this_week_payload.get("actions_created") or {}
+        ad = this_week_payload.get("actions_completed") or {}
+        ap = this_week_payload.get("actions_postponed") or {}
+        health = this_week_payload.get("health_snapshot") or {}
+        lines.append(f"- **Week**: {window.get('week_label', '?')}")
+        lines.append(f"- **Captures**: {int(captures.get('total', 0))}")
+        lines.append(
+            f"- **Actions**: {int(ac.get('total', 0))} created,"
+            f" {int(ad.get('total', 0))} completed,"
+            f" {int(ap.get('count', 0))} postponed"
+        )
+        overall = str(health.get("overall_status") or "unknown")
+        lines.append(
+            f"- **Health**: `{overall}`"
+            f" · pending approvals: {int(health.get('pending_approvals', 0))}"
+            f" · delivery failures: {int(health.get('delivery_failures', 0))}"
+        )
+    else:
+        lines.append("- (live report unavailable)")
+    lines.append("")
+
+    # --- Past weeks index --------------------------------------------------
+    lines.append("## Past weeks")
+    lines.append("")
+    items = weeks_items or []
+    if not items:
+        lines.append("- (no weeks available)")
+    else:
+        for item in items:
+            label = item.get("week_label") or "?"
+            start = item.get("start_iso") or "?"
+            end = item.get("end_iso") or "?"
+            if label in present_labels:
+                year = label.split("-W")[0] if "-W" in label else ""
+                rel = (
+                    f"{_ANALYTICS_BASE_DIR}/{year}/{label}.md"
+                    if year
+                    else f"{_ANALYTICS_BASE_DIR}/{label}.md"
+                )
+                lines.append(f"- [[{rel}|{label}]] · {start} → {end}")
+            else:
+                lines.append(f"- {label} · {start} → {end} · (not written)")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _present_week_labels(
+    vault_root: Path, *, base_dir: str = _ANALYTICS_BASE_DIR
+) -> set[str]:
+    """Return the set of ISO-week labels whose note already exists.
+
+    Scans ``<vault_root>/<base_dir>/<year>/*.md`` — cheap glob over a
+    folder that only holds weekly reports, so no full-vault walk.
+    Silently tolerates a missing base dir.
+    """
+    root = Path(vault_root) / base_dir
+    if not root.exists():
+        return set()
+    found: set[str] = set()
+    for year_dir in root.iterdir():
+        if not year_dir.is_dir():
+            continue
+        for note in year_dir.glob("*.md"):
+            found.add(note.stem)
+    return found
+
+
+def generate_analytics_index_dashboard(
+    vault_root: Path,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+    now_iso: str | None = None,
+    weeks_back: int = 12,
+) -> DashboardResult:
+    """Generate or update ``Dashboards/Analytics.md`` (Task 39).
+
+    Lists the past ``weeks_back`` ISO-week windows with links to each
+    weekly report note when present in the vault, plus a live
+    "this week so far" subsection from the service. When the service
+    URL isn't configured the dashboard still renders (with a banner)
+    so operators see the page.
+
+    Never raises. Returns a :class:`DashboardResult`.
+    """
+    import os as _os
+
+    from obsidian_connector.analytics_ops import (
+        get_weekly_report,
+        list_weeks_available,
+    )
+
+    vault_root = Path(vault_root)
+    ts = now_iso or datetime.now(timezone.utc).isoformat()
+    resolved_url = service_url or _os.environ.get(
+        "OBSIDIAN_CAPTURE_SERVICE_URL"
+    )
+    service_configured = bool(resolved_url)
+
+    weeks_items: list[dict] | None = None
+    this_week_payload: dict | None = None
+    service_error: str | None = None
+
+    if service_configured:
+        w = list_weeks_available(
+            weeks_back=weeks_back, service_url=service_url, token=token
+        )
+        if w.get("ok"):
+            weeks_items = (w.get("data") or {}).get("items") or []
+        else:
+            service_error = service_error or str(w.get("error") or "error")
+
+        r = get_weekly_report(
+            week_offset=0, service_url=service_url, token=token
+        )
+        if r.get("ok"):
+            this_week_payload = r.get("data") or {}
+        else:
+            service_error = service_error or str(r.get("error") or "error")
+
+    present_labels = _present_week_labels(vault_root)
+    content = _render_analytics_md(
+        now_iso=ts,
+        weeks_items=weeks_items,
+        this_week_payload=this_week_payload,
+        present_labels=present_labels,
+        service_configured=service_configured,
+        service_error=service_error,
+    )
+    path = vault_root / _DASHBOARD_ANALYTICS_PATH
+    atomic_write(
+        path, content, vault_root=vault_root, tool_name=_TOOL,
+        inject_generated_by=False,
+    )
+    return DashboardResult(path=path, written=len(weeks_items or []))
+
+
 def update_all_review_dashboards(
     vault_root: Path,
     now_iso: str | None = None,
@@ -2059,6 +2237,7 @@ def update_all_dashboards(
     merge_jaccard: float = DEFAULT_MERGE_JACCARD,
     *,
     include_admin: bool = True,
+    include_analytics: bool = True,
     service_url: str | None = None,
     token: str | None = None,
 ) -> list[DashboardResult]:
@@ -2144,6 +2323,20 @@ def update_all_dashboards(
             )
         except Exception:
             pass
+    if include_analytics:
+        # Task 39: analytics index dashboard. Independent try so a
+        # service error never masks the other dashboards.
+        try:
+            results.append(
+                generate_analytics_index_dashboard(
+                    vault_root,
+                    service_url=service_url,
+                    token=token,
+                    now_iso=ts,
+                )
+            )
+        except Exception:
+            pass
     return results
 
 
@@ -2167,4 +2360,5 @@ __all__ = [
     "update_all_review_dashboards",
     "generate_admin_dashboard",
     "generate_approval_dashboard",
+    "generate_analytics_index_dashboard",
 ]

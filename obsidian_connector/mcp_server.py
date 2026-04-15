@@ -3603,6 +3603,174 @@ def obsidian_approval_digest(
 
 
 # ---------------------------------------------------------------------------
+# Task 39: Analytics (weekly activity report)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Weekly Activity Report (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_weekly_report(
+    week_offset: int = 0,
+    service_url: str | None = None,
+) -> str:
+    """Fetch the Task 39 weekly activity report as JSON.
+
+    Calls ``GET /api/v1/analytics/weekly?week_offset=...``. Returns the
+    full envelope with ``window``, ``captures``, ``actions_created``,
+    ``actions_completed``, ``actions_postponed``, ``lifecycle_transitions``,
+    ``delivery_stats``, ``patterns_snapshot``, ``health_snapshot``.
+
+    Args:
+        week_offset: Shift from the current ISO week (``0`` = current,
+            ``-1`` = last week). Bounded on the server to ``[-104, 104]``.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.analytics_ops import get_weekly_report
+
+    try:
+        result = get_weekly_report(
+            week_offset=week_offset, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Weekly Activity Report - Markdown (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_weekly_report_markdown(
+    week_offset: int = 0,
+    service_url: str | None = None,
+) -> str:
+    """Fetch the Task 39 weekly activity report rendered as Markdown.
+
+    Calls ``GET /api/v1/analytics/weekly/markdown?week_offset=...``.
+    On success the envelope's ``data.markdown`` key holds the body.
+
+    Args:
+        week_offset: Shift from the current ISO week.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.analytics_ops import get_weekly_report_markdown
+
+    try:
+        result = get_weekly_report_markdown(
+            week_offset=week_offset, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Analytics Weeks Available (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_weeks_available(
+    weeks_back: int = 12,
+    service_url: str | None = None,
+) -> str:
+    """List past ISO-week windows with labels.
+
+    Calls ``GET /api/v1/analytics/weeks-available?weeks_back=...``.
+    Each item is ``{start_iso, end_iso, week_label}``.
+
+    Args:
+        weeks_back: How many past weeks to return (default 12, max 104).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.analytics_ops import list_weeks_available
+
+    try:
+        result = list_weeks_available(
+            weeks_back=weeks_back, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Write Weekly Report Note (Analytics/Weekly/)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_write_weekly_report(
+    week_offset: int = 0,
+    vault_root: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Fetch the weekly Markdown and project it into the vault.
+
+    Writes ``Analytics/Weekly/<year>/<week_label>.md`` with deterministic
+    frontmatter and a preserved ``service:analytics-user-notes:*`` fence.
+    The path is idempotent — re-running with the same week produces the
+    same file and never clobbers the user-notes block.
+
+    Args:
+        week_offset: Shift from the current ISO week (``0`` = current).
+        vault_root: Vault root override. Defaults to ``$OBSIDIAN_VAULT_PATH``.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from pathlib import Path as _Path
+
+    from obsidian_connector.analytics_ops import (
+        fetch_and_write_weekly_report_note,
+    )
+    from obsidian_connector.config import resolve_vault_path
+
+    try:
+        root = _Path(vault_root) if vault_root else resolve_vault_path()
+        result = fetch_and_write_weekly_report_note(
+            root,
+            week_offset=week_offset,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 
