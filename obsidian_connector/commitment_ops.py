@@ -1367,6 +1367,197 @@ def list_stale_delegations(
     return _service_get_json(path, service_url=service_url, token=token)
 
 
+# ---------------------------------------------------------------------------
+# Task 41: Mobile bulk actions
+# ---------------------------------------------------------------------------
+
+
+def bulk_ack_commitments(
+    action_ids: list[str] | tuple[str, ...],
+    *,
+    note: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/bulk-ack`` (Task 41).
+
+    Batches ``awaiting_ack -> in_progress`` transitions. Returns the
+    :func:`_service_post_json` envelope. On success ``data`` is
+    ``{ok, decision: "ack", requested, processed: [...], skipped:
+    [...]}``. Per-row skips (``missing | wrong_status | duplicate_id``)
+    are reported without aborting the batch. The server caps the batch
+    at ``MAX_BULK_ACTION_IDS`` (default 50); exceeding returns a 400
+    surfaced as ``{ok: False, status_code: 400, error: "..."}``.
+
+    Args:
+        action_ids: Non-empty sequence of action ids.
+        note: Optional note recorded on every ack audit row
+            (<=500 chars).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+        token: Overrides ``OBSIDIAN_CAPTURE_SERVICE_TOKEN``.
+    """
+    return _bulk_action_call(
+        "/api/v1/actions/bulk-ack",
+        action_ids=action_ids,
+        extra_body={"note": note} if note is not None else None,
+        service_url=service_url,
+        token=token,
+    )
+
+
+def bulk_done_commitments(
+    action_ids: list[str] | tuple[str, ...],
+    *,
+    note: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/bulk-done`` (Task 41).
+
+    Batches non-terminal actions to ``done``. Sets ``completed_at``
+    server-side. Same response shape as :func:`bulk_ack_commitments`.
+    """
+    return _bulk_action_call(
+        "/api/v1/actions/bulk-done",
+        action_ids=action_ids,
+        extra_body={"note": note} if note is not None else None,
+        service_url=service_url,
+        token=token,
+    )
+
+
+def bulk_postpone_commitments(
+    action_ids: list[str] | tuple[str, ...],
+    *,
+    preset: str | None = None,
+    postponed_until: str | None = None,
+    note: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/bulk-postpone`` (Task 41).
+
+    Batches non-terminal non-``postponed`` actions to ``postponed``.
+    Exactly one of ``preset`` or ``postponed_until`` must be supplied;
+    validating this client-side saves a network round-trip. The server
+    echoes the resolved UTC ISO in ``data.resolved_postponed_until``.
+
+    Args:
+        action_ids: Non-empty sequence of action ids.
+        preset: Named preset (e.g. ``"tomorrow_9am"``). Exclusive with
+            ``postponed_until``. See :func:`list_postpone_presets`.
+        postponed_until: Explicit ISO 8601 datetime. Exclusive with
+            ``preset``. Accepts the trailing ``Z`` that iOS Shortcuts
+            emits.
+        note: Optional note recorded on the ack row and in
+            ``actions.postpone_reason``.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+        token: Overrides ``OBSIDIAN_CAPTURE_SERVICE_TOKEN``.
+    """
+    has_preset = preset is not None and str(preset).strip() != ""
+    has_explicit = postponed_until is not None and str(postponed_until).strip() != ""
+    if has_preset == has_explicit:
+        return {
+            "ok": False,
+            "error": (
+                "exactly one of preset or postponed_until must be supplied"
+            ),
+        }
+
+    extra: dict[str, str] = {}
+    if has_preset:
+        extra["preset"] = str(preset).strip()
+    else:
+        extra["postponed_until"] = str(postponed_until).strip()
+    if note is not None:
+        extra["note"] = str(note)
+
+    return _bulk_action_call(
+        "/api/v1/actions/bulk-postpone",
+        action_ids=action_ids,
+        extra_body=extra,
+        service_url=service_url,
+        token=token,
+    )
+
+
+def bulk_cancel_commitments(
+    action_ids: list[str] | tuple[str, ...],
+    *,
+    reason: str | None = None,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/actions/bulk-cancel`` (Task 41).
+
+    Batches non-terminal actions to ``cancelled``. Optional ``reason``
+    is recorded on the ack row.
+    """
+    return _bulk_action_call(
+        "/api/v1/actions/bulk-cancel",
+        action_ids=action_ids,
+        extra_body={"reason": reason} if reason is not None else None,
+        service_url=service_url,
+        token=token,
+    )
+
+
+def list_postpone_presets(
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions/postpone-presets`` (Task 41).
+
+    Read-only. Returns the :func:`_service_get_json` envelope. On
+    success ``data`` is ``{ok, presets: [{name, label, description}]}``
+    with entries sorted alphabetically by ``name``. Useful for
+    rendering a ``Choose from Menu`` step in a Shortcut, or the CLI
+    ``obsx postpone-presets`` subcommand.
+    """
+    return _service_get_json(
+        "/api/v1/actions/postpone-presets",
+        service_url=service_url,
+        token=token,
+    )
+
+
+def _bulk_action_call(
+    path: str,
+    *,
+    action_ids: list[str] | tuple[str, ...],
+    extra_body: dict | None,
+    service_url: str | None,
+    token: str | None,
+) -> dict:
+    """Shared implementation for every ``/api/v1/actions/bulk-*`` POST.
+
+    Validates ``action_ids`` is a non-empty list of non-empty strings
+    before touching the network. Mirrors the Task 36 ``_bulk_call``
+    contract so the connector's two bulk paths share identical
+    preflight semantics.
+    """
+    if not action_ids:
+        return {
+            "ok": False,
+            "error": "action_ids must be a non-empty list of strings",
+        }
+    ids = [str(a) for a in action_ids]
+    if not all(ids):
+        return {
+            "ok": False,
+            "error": "action_ids must be a non-empty list of strings",
+        }
+    body: dict = {"action_ids": ids}
+    if extra_body:
+        for key, val in extra_body.items():
+            if val is not None:
+                body[key] = val
+    return _service_post_json(
+        path, body=body, service_url=service_url, token=token,
+    )
+
+
 __all__ = [
     "CommitmentSummary",
     "list_commitments",
@@ -1389,4 +1580,9 @@ __all__ = [
     "reclaim_commitment",
     "list_delegated_to",
     "list_stale_delegations",
+    "bulk_ack_commitments",
+    "bulk_done_commitments",
+    "bulk_postpone_commitments",
+    "bulk_cancel_commitments",
+    "list_postpone_presets",
 ]

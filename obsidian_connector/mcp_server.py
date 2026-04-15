@@ -3535,6 +3535,195 @@ def obsidian_review_recommendations(
 
 
 # ---------------------------------------------------------------------------
+# Task 41: Mobile bulk actions
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Bulk Ack Commitments (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_bulk_ack(
+    action_ids: list[str],
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/bulk-ack`` (Task 41).
+
+    Batches ``awaiting_ack -> in_progress`` transitions atomically.
+    Per-row skips (``missing | wrong_status | duplicate_id``) are
+    reported without aborting. Server caps the batch at
+    ``MAX_BULK_ACTION_IDS`` (default 50).
+
+    Args:
+        action_ids: Non-empty list of action ids.
+        note: Optional note recorded on every ack audit row.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import bulk_ack_commitments
+
+    try:
+        result = bulk_ack_commitments(
+            action_ids, note=note, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Bulk Done Commitments (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_bulk_done(
+    action_ids: list[str],
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/bulk-done`` (Task 41).
+
+    Batches non-terminal actions to ``done`` atomically. Sets
+    ``completed_at`` server-side. Per-row skip envelope matches
+    :func:`obsidian_bulk_ack`.
+    """
+    from obsidian_connector.commitment_ops import bulk_done_commitments
+
+    try:
+        result = bulk_done_commitments(
+            action_ids, note=note, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Bulk Postpone Commitments (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_bulk_postpone(
+    action_ids: list[str],
+    preset: str | None = None,
+    postponed_until: str | None = None,
+    note: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/bulk-postpone`` (Task 41).
+
+    Exactly one of ``preset`` or ``postponed_until`` must be supplied.
+    The client-side wrapper validates exclusivity before hitting the
+    network. The server echoes the resolved UTC ISO in
+    ``data.resolved_postponed_until`` so callers never run their own
+    preset math.
+
+    Args:
+        action_ids: Non-empty list of action ids.
+        preset: Named preset (e.g. ``"tomorrow_9am"``). See
+            :func:`obsidian_postpone_presets` for the current catalog.
+        postponed_until: Explicit ISO 8601 datetime; accepts trailing
+            ``Z``.
+        note: Optional note recorded on the ack row and in
+            ``actions.postpone_reason``.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+    """
+    from obsidian_connector.commitment_ops import bulk_postpone_commitments
+
+    try:
+        result = bulk_postpone_commitments(
+            action_ids, preset=preset, postponed_until=postponed_until,
+            note=note, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Bulk Cancel Commitments (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
+def obsidian_bulk_cancel(
+    action_ids: list[str],
+    reason: str | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/bulk-cancel`` (Task 41).
+
+    Batches non-terminal actions to ``cancelled`` atomically.
+    Optional ``reason`` is recorded on every ack row.
+    """
+    from obsidian_connector.commitment_ops import bulk_cancel_commitments
+
+    try:
+        result = bulk_cancel_commitments(
+            action_ids, reason=reason, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Postpone Presets (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_postpone_presets(
+    service_url: str | None = None,
+) -> str:
+    """Call ``GET /api/v1/actions/postpone-presets`` (Task 41).
+
+    Read-only catalog of the named postpone presets the server
+    accepts. Each entry carries ``name``, ``label``, and
+    ``description``. Use the ``name`` field as the ``preset`` argument
+    on :func:`obsidian_bulk_postpone`.
+    """
+    from obsidian_connector.commitment_ops import list_postpone_presets
+
+    try:
+        result = list_postpone_presets(service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Task 44: operational admin surfaces
 # ---------------------------------------------------------------------------
 
