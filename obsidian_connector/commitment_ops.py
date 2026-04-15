@@ -617,14 +617,15 @@ def sync_commitments_from_service(
         req_headers["Authorization"] = f"Bearer {key}"
 
     conn: http.client.HTTPConnection | None = None
+    sync_timeout = _service_timeout()
     try:
         if parsed.scheme == "https":
             import ssl
             conn = http.client.HTTPSConnection(  # nosemgrep
-                parsed.netloc, timeout=10, context=ssl.create_default_context()
+                parsed.netloc, timeout=sync_timeout, context=ssl.create_default_context()
             )
         else:
-            conn = http.client.HTTPConnection(parsed.netloc, timeout=10)
+            conn = http.client.HTTPConnection(parsed.netloc, timeout=sync_timeout)
         conn.request("GET", get_path, headers=req_headers)
         resp = conn.getresponse()
         body = resp.read().decode("utf-8")
@@ -770,12 +771,33 @@ def _try_service_patch(action_id: str, updates: dict) -> dict | None:
 # Task 28: thin wrappers over the service retrieval endpoints
 # ---------------------------------------------------------------------------
 
+
+def _service_timeout(default: float = 10.0) -> float:
+    """Resolve the HTTP client timeout (Task 35).
+
+    ``SERVICE_REQUEST_TIMEOUT_SECONDS`` env overrides the per-call
+    default. Values <= 0 or unparseable fall back to ``default`` so a
+    typo never disables the ceiling silently. Kept as a tiny helper so
+    every wrapper uses the same knob.
+    """
+    raw = os.environ.get("SERVICE_REQUEST_TIMEOUT_SECONDS", "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    if value <= 0:
+        return default
+    return value
+
+
 def _service_get_json(
     path_with_query: str,
     *,
     service_url: str | None = None,
     token: str | None = None,
-    timeout: float = 10.0,
+    timeout: float | None = None,
 ) -> dict:
     """Issue a GET to the capture service and return the parsed JSON.
 
@@ -795,6 +817,8 @@ def _service_get_json(
 
     url = service_url or os.getenv("OBSIDIAN_CAPTURE_SERVICE_URL")
     key = token or os.getenv("OBSIDIAN_CAPTURE_SERVICE_TOKEN")
+    if timeout is None:
+        timeout = _service_timeout()
     if not url:
         return {
             "ok": False,
@@ -963,7 +987,7 @@ def _service_post_json(
     body: dict | None = None,
     service_url: str | None = None,
     token: str | None = None,
-    timeout: float = 10.0,
+    timeout: float | None = None,
 ) -> dict:
     """POST JSON to the capture service and return the parsed response.
 
@@ -980,6 +1004,8 @@ def _service_post_json(
 
     url = service_url or os.getenv("OBSIDIAN_CAPTURE_SERVICE_URL")
     key = token or os.getenv("OBSIDIAN_CAPTURE_SERVICE_TOKEN")
+    if timeout is None:
+        timeout = _service_timeout()
     if not url:
         return {
             "ok": False,
