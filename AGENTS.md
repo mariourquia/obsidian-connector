@@ -151,6 +151,10 @@ Dashboard: `commitment_dashboards.generate_analytics_index_dashboard(vault, *, s
 
 Task 39 service-side ADR: [docs/architecture/task_39_analytics.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_39_analytics.md).
 
+## Vault import (Task 43)
+
+`obsidian_connector/import_tools.py` -- pure scan / classify / plan / execute / report pipeline. Default dry-run; `execute_import` requires both `dry_run=False` AND `confirm=True` to POST. Each POST carries deterministic `X-Idempotency-Key: vault-import-<sha256[:16]>` so re-runs collapse on the service-side dedup substrate. CLI: `obsx plan-import`, `obsx execute-import` (default `--dry-run`; `--execute --yes` required for real). MCP: `obsidian_plan_import`, `obsidian_execute_import`. Walkthrough: [docs/import/IMPORT.md](./docs/import/IMPORT.md). Service-side ADR: [docs/architecture/task_43_import.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_43_import.md).
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`

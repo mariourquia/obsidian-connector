@@ -61,6 +61,7 @@ jobs:
           coverage run --append --source=obsidian_connector scripts/scheduler_test.py
           coverage run --append --source=obsidian_connector scripts/reports_test.py
           coverage run --append --source=obsidian_connector scripts/project_intelligence_test.py
+          coverage run --append --source=obsidian_connector scripts/import_tools_test.py
           if [ "$RUNNER_OS" = "Windows" ]; then
             coverage run --append --source=obsidian_connector scripts/automation_test.py || true  # timing assertion flaky on Windows
           else

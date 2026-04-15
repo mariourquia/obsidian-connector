@@ -3771,6 +3771,178 @@ def obsidian_write_weekly_report(
 
 
 # ---------------------------------------------------------------------------
+# Task 43: Vault import / migration tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Plan Vault Import (scan + classify, no HTTP)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_plan_import(
+    root: str,
+    include_globs: list[str] | None = None,
+    exclude_globs: list[str] | None = None,
+    min_size: int = 10,
+    max_size: int = 100_000,
+    max_files: int = 1000,
+) -> str:
+    """Scan + classify a vault and return a deterministic import plan.
+
+    Walks ``root`` recursively, classifies each ``*.md`` file
+    (already-managed / ready-capture / unknown), and groups results
+    into actionable buckets. **No HTTP. No mutation.** Pure planning.
+
+    Args:
+        root: Vault directory to scan. Absolute path or relative to cwd.
+        include_globs: Optional list of POSIX globs to whitelist
+            (e.g. ``["Inbox/**/*.md"]``).
+        exclude_globs: Optional list of POSIX globs to drop
+            (e.g. ``["Archive/**", ".obsidian/**"]``).
+        min_size: Files smaller than this many bytes are skipped.
+        max_size: Files larger than this many bytes are skipped.
+        max_files: Hard cap; refuses cleanly if more than this many
+            ``*.md`` files exist under ``root``.
+
+    Returns a JSON envelope ``{ok: true, data: <plan_dict>}`` on
+    success or ``{ok: false, error: "..."}`` on failure. Never raises.
+    """
+    from pathlib import Path as _Path
+
+    from obsidian_connector.import_tools import plan_import, plan_to_dict
+
+    try:
+        plan = plan_import(
+            _Path(root),
+            include_globs=include_globs,
+            exclude_globs=exclude_globs,
+            min_size=int(min_size),
+            max_size=int(max_size),
+            max_files=int(max_files),
+        )
+        return json.dumps({"ok": True, "data": plan_to_dict(plan)}, indent=2)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Execute Vault Import (POST /api/v1/ingest/text)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_execute_import(
+    root: str,
+    dry_run: bool = True,
+    confirm: bool = False,
+    include_globs: list[str] | None = None,
+    exclude_globs: list[str] | None = None,
+    min_size: int = 10,
+    max_size: int = 100_000,
+    max_files: int = 1000,
+    throttle_seconds: float = 0.1,
+    source_app: str = "vault_import",
+    service_url: str | None = None,
+    write_report: bool = False,
+    vault_root: str | None = None,
+) -> str:
+    """Plan then execute a vault import against ``/api/v1/ingest/text``.
+
+    **Defaults to dry-run.** Requires both ``dry_run=False`` AND
+    ``confirm=True`` to actually POST -- either alone returns a no-op
+    result so a misconfigured agent cannot accidentally mutate.
+
+    Each entry posts with deterministic
+    ``X-Idempotency-Key: vault-import-<sha256[:16]>`` so re-runs
+    collapse on the service-side Task 43 dedup substrate. Per-file
+    failures are non-fatal: the loop continues and surfaces them in
+    the result.
+
+    Args:
+        root: Directory to scan + import.
+        dry_run: When True (default), no HTTP issued. Returns the
+            planned result with ``dry_run=true``.
+        confirm: Must be True (in addition to ``dry_run=False``) to
+            actually issue HTTP. Belt-and-suspenders.
+        include_globs / exclude_globs: Forwarded to ``plan_import``.
+        min_size / max_size / max_files: Forwarded to ``plan_import``.
+        throttle_seconds: Wait between successful POSTs (default 0.1s).
+        source_app: ``source_app`` field on the ingest request body.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+        write_report: When True, also writes a Markdown report to
+            ``<vault_root>/Analytics/Import/<ts>.md``.
+        vault_root: Vault root for the report write. Defaults to
+            ``$OBSIDIAN_VAULT_PATH`` when ``write_report=True``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from pathlib import Path as _Path
+
+    from obsidian_connector.config import resolve_vault_path
+    from obsidian_connector.import_tools import (
+        default_report_path,
+        execute_import,
+        plan_import,
+        result_to_dict,
+        write_import_report,
+    )
+
+    try:
+        plan = plan_import(
+            _Path(root),
+            include_globs=include_globs,
+            exclude_globs=exclude_globs,
+            min_size=int(min_size),
+            max_size=int(max_size),
+            max_files=int(max_files),
+        )
+        result = execute_import(
+            plan,
+            service_url=service_url,
+            source_app=source_app,
+            throttle_seconds=float(throttle_seconds),
+            dry_run=bool(dry_run),
+            confirm=bool(confirm),
+        )
+        report_info: dict | None = None
+        if write_report:
+            try:
+                vroot = (
+                    _Path(vault_root) if vault_root else resolve_vault_path()
+                )
+            except Exception:  # noqa: BLE001
+                vroot = _Path(root)
+            target = default_report_path(vroot)
+            try:
+                write_import_report(result, target, vault_root=vroot)
+                report_info = {"ok": True, "path": str(target)}
+            except Exception as exc:  # noqa: BLE001
+                report_info = {"ok": False, "error": str(exc)}
+        payload = {"ok": True, "data": result_to_dict(result)}
+        if report_info is not None:
+            payload["report"] = report_info
+        return json.dumps(payload, indent=2)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 
