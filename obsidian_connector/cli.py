@@ -1327,6 +1327,68 @@ def _fmt_commitment_stats(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_duplicate_candidates(result: dict) -> str:
+    """Human-readable duplicate-candidates output (Task 21.B)."""
+    if not result.get("ok"):
+        return f"Candidates lookup failed: {result.get('error', 'unknown error')}"
+    data = result.get("data", {}) or {}
+    candidates = data.get("candidates", [])
+    thresholds = data.get("thresholds", {}) or {}
+    action_id = data.get("action_id", "?")
+    lines = [
+        f"Duplicate candidates for {action_id}:",
+        (
+            f"  thresholds: candidate={thresholds.get('candidate', '?')} "
+            f"strong={thresholds.get('strong', '?')}"
+        ),
+    ]
+    if not candidates:
+        lines.append("  (no candidates above min_score)")
+        return "\n".join(lines)
+    for c in candidates:
+        reasons = c.get("reasons", {}) or {}
+        lines.append(
+            f"  [{c.get('tier', '?')}] {c.get('title', '(untitled)')}"
+            f"  score={c.get('score', 0)}"
+        )
+        lines.append(
+            f"    id: {c.get('action_id', '?')}"
+            f"  status: {c.get('status', '?')}"
+            f"  days_apart: {reasons.get('days_apart', '?')}"
+        )
+        extras: list[str] = []
+        if reasons.get("same_project"):
+            extras.append("same_project")
+        if reasons.get("shared_people"):
+            extras.append(f"people={','.join(reasons.get('shared_people') or [])}")
+        if reasons.get("shared_areas"):
+            extras.append(f"areas={','.join(reasons.get('shared_areas') or [])}")
+        if reasons.get("due_close"):
+            extras.append("due_close")
+        if extras:
+            lines.append(f"    signals: {' | '.join(extras)}")
+    return "\n".join(lines)
+
+
+def _fmt_merge_commitment(result: dict) -> str:
+    """Human-readable merge-commitment output (Task 21.B)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Merge failed (HTTP {status}): {err}"
+        return f"Merge failed: {err}"
+    data = result.get("data", {}) or {}
+    already = data.get("already_merged", False)
+    header = "Merge already applied" if already else "Merge applied"
+    return (
+        f"{header}.\n"
+        f"  loser_id:   {data.get('loser_id', '?')}\n"
+        f"  winner_id:  {data.get('winner_id', '?')}\n"
+        f"  edge_id:    {data.get('edge_id', '(none)')}"
+    )
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -1852,6 +1914,57 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "commitment-stats",
         help="Fetch grouped action counts from the capture service.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- duplicate-candidates (Task 21.B) --------------------------------
+    p = sub.add_parser(
+        "duplicate-candidates",
+        help="List likely-duplicate actions for a given action_id via the service.",
+    )
+    p.add_argument(
+        "--action-id", dest="action_id", required=True, help="Action ULID.",
+    )
+    p.add_argument(
+        "--limit", type=int, default=10,
+        help="Max candidates to return (default 10, server caps at 50).",
+    )
+    p.add_argument(
+        "--within-days", dest="within_days", type=int, default=30,
+        help="Rolling window for the peer pool (default 30).",
+    )
+    p.add_argument(
+        "--min-score", dest="min_score", type=float, default=None,
+        help="Override the server-side candidate threshold.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- merge-commitment (Task 21.B) ------------------------------------
+    p = sub.add_parser(
+        "merge-commitment",
+        help="Merge one action (loser) into another (winner) via the service.",
+    )
+    p.add_argument(
+        "--loser", dest="loser_id", required=True,
+        help="Action ULID that will be cancelled + archived.",
+    )
+    p.add_argument(
+        "--winner", dest="winner_id", required=True,
+        help="Action ULID that survives.",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -3040,6 +3153,30 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_commitment_stats(result)
+
+        elif args.command == "duplicate-candidates":
+            from obsidian_connector.commitment_ops import list_duplicate_candidates
+
+            result = list_duplicate_candidates(
+                args.action_id,
+                limit=getattr(args, "limit", 10),
+                within_days=getattr(args, "within_days", 30),
+                min_score=getattr(args, "min_score", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_duplicate_candidates(result)
+
+        elif args.command == "merge-commitment":
+            from obsidian_connector.commitment_ops import merge_commitments
+
+            result = merge_commitments(
+                args.loser_id,
+                args.winner_id,
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_merge_commitment(result)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore

@@ -2983,6 +2983,100 @@ def obsidian_commitment_stats(
         )
 
 
+@mcp.tool(
+    title="Duplicate Candidates (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_duplicate_candidates(
+    action_id: str,
+    limit: int = 10,
+    within_days: int = 30,
+    min_score: float | None = None,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/actions/{action_id}/duplicate-candidates``.
+
+    Returns the top-N likely duplicates for an action ranked by the
+    service's deterministic score. Each candidate includes ``score``,
+    ``tier`` (``strong`` | ``candidate`` | ``below_threshold``), and a
+    ``reasons`` dict with title-Jaccard, shared people/areas, days
+    apart, and due-close flags. Useful for a reviewer UI that wants to
+    show *why* a pair was surfaced.
+
+    Args:
+        action_id: The base action ULID.
+        limit: Page size (default 10, server caps at 50).
+        within_days: Rolling window for the peer pool (default 30).
+        min_score: Override the env-configured candidate threshold
+            (defaults to 0.55 on the service side).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import list_duplicate_candidates
+
+    try:
+        result = list_duplicate_candidates(
+            action_id,
+            limit=limit,
+            within_days=within_days,
+            min_score=min_score,
+            service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Merge Commitment (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_merge_commitment(
+    loser_id: str,
+    winner_id: str,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/actions/{loser_id}/merge`` on the capture service.
+
+    Merges the loser action into the winner. The loser transitions to
+    ``status='cancelled'``, ``lifecycle_stage='archived'`` and records
+    ``postpone_reason="merged into {winner_id}"``. A duplicates edge is
+    recorded ``loser -> winner`` at confidence 1.0. Idempotent on
+    re-merge of the same pair.
+
+    Args:
+        loser_id: The action that will be cancelled + archived.
+        winner_id: The action that survives (must be open-ish).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.commitment_ops import merge_commitments
+
+    try:
+        result = merge_commitments(
+            loser_id, winner_id, service_url=service_url
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
 # ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
