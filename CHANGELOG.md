@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Task 40 -- Review coaching and recommendation layer (connector)**: new
+  `obsidian_connector/coaching_ops.py` with two thin HTTP wrappers --
+  `get_action_recommendations(action_id, ...)` over
+  `GET /api/v1/coaching/action/{id}` and `list_review_recommendations(since_days=7, limit=50, ...)`
+  over `GET /api/v1/coaching/review`. Both reuse
+  `commitment_ops._service_get_json` so the Task 35 timeout / scheme /
+  auth behavior is shared. Two MCP tools (`obsidian_action_recommendations`,
+  `obsidian_review_recommendations`) and two CLI subcommands
+  (`obsx action-recommendations --action-id ...`,
+  `obsx review-recommendations [--since-days N] [--limit N]`) with human +
+  `--json` output. `commitment_dashboards.generate_coaching_dashboard(vault, ...)`
+  writes `Dashboards/Review/Coaching.md` with one section per
+  recommendation code (`CONSIDER_CANCEL`, `CONSIDER_DELEGATE`,
+  `CONSIDER_MERGE`, `CONSIDER_RECLAIM`, `CONSIDER_RESCHEDULE`,
+  `CONSIDER_UNBLOCK`). `update_all_review_dashboards(..., include_coaching=True)`
+  is the new default-on opt-out flag; orchestrator default count goes
+  5 -> 6 (review) and 12 -> 13 (full stack). Service-unreachable and
+  service-unconfigured render with a banner, never silent skip.
+  Companion to capture-service PR #25. ADR:
+  `docs/architecture/task_40_review_coaching_connector.md`.
 - **Task 33 — Packaging and distribution surfaces**: added `obsidian-connector-mcp`
   console script entry point (`obsidian_connector.mcp_server:main`) alongside the
   existing `obsidian-connector` / `obsx` CLI entry points so `pip install -e .`

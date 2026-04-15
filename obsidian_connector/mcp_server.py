@@ -3441,6 +3441,100 @@ def obsidian_stale_delegations(
 
 
 # ---------------------------------------------------------------------------
+# Task 40: review coaching and recommendation layer
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Action Recommendations (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_action_recommendations(
+    action_id: str,
+    service_url: str | None = None,
+) -> str:
+    """Call ``GET /api/v1/coaching/action/{action_id}`` (Task 40).
+
+    Returns deterministic review recommendations for a single open
+    action. Each recommendation carries a machine code
+    (``CONSIDER_CANCEL`` / ``CONSIDER_DELEGATE`` / ``CONSIDER_MERGE``
+    / ``CONSIDER_RECLAIM`` / ``CONSIDER_RESCHEDULE`` /
+    ``CONSIDER_UNBLOCK``), human label, action verb, fixed
+    confidence score (0.6 / 0.7 / 0.8 / 0.9), rationale dict, and
+    suggested inputs the caller can pass straight to the matching
+    mutation endpoint. Recommendations are sorted alphabetically by
+    ``code``.
+
+    Args:
+        action_id: The action ULID.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    Returns 404 when the action is missing, 409 when it is already
+    terminal (done / cancelled / expired).
+    """
+    from obsidian_connector.coaching_ops import get_action_recommendations
+
+    try:
+        result = get_action_recommendations(
+            action_id, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Review Recommendations (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_review_recommendations(
+    since_days: int = 7,
+    limit: int = 50,
+    service_url: str | None = None,
+) -> str:
+    """Call ``GET /api/v1/coaching/review`` (Task 40).
+
+    Bulk review surface over open actions touched in the window.
+    Returns the top-N recommendable actions sorted by
+    ``(impact_score DESC, action_id ASC)`` where impact blends
+    urgency and recommendation count. Actions with zero
+    recommendations are omitted from the response.
+
+    Args:
+        since_days: Rolling window against ``updated_at`` (default 7,
+            max 365).
+        limit: Max items (default 50, server cap 200).
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.coaching_ops import list_review_recommendations
+
+    try:
+        result = list_review_recommendations(
+            since_days=since_days, limit=limit, service_url=service_url,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Task 44: operational admin surfaces
 # ---------------------------------------------------------------------------
 
