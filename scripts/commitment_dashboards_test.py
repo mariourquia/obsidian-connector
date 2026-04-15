@@ -134,13 +134,17 @@ def _assert_links_valid(vault: Path, content: str):
 
 
 # ---------------------------------------------------------------------------
-# 1. Empty vault: all four dashboards created without error
+# 1. Empty vault: all dashboards (commitment + review) created without error
 # ---------------------------------------------------------------------------
+
+# Task 26: update_all_dashboards now also writes the four Review dashboards,
+# so the result list grew from 4 to 8.  The prefix (first 4) is stable.
+
 
 def test_empty_vault_all_four_dashboards():
     vault, _td = _make_vault()
     results = update_all_dashboards(vault, now_iso=NOW)
-    assert len(results) == 4, f"expected 4 results, got {len(results)}"
+    assert len(results) == 8, f"expected 8 results (4 commitment + 4 review), got {len(results)}"
     for r in results:
         assert isinstance(r, DashboardResult)
         assert r.path.exists(), f"dashboard file not created: {r.path}"
@@ -472,14 +476,19 @@ def test_idempotent_same_output_for_same_state():
 # ---------------------------------------------------------------------------
 
 def test_update_all_creates_four_files():
+    # Task 26: update_all_dashboards now emits 8 files total.
     vault, _td = _make_vault()
     results = update_all_dashboards(vault, now_iso=NOW)
-    assert len(results) == 4
+    assert len(results) == 8
     expected_names = {
         "Commitments.md",
         "Due Soon.md",
         "Waiting On Me.md",
         "Postponed.md",
+        "Daily.md",
+        "Weekly.md",
+        "Stale.md",
+        "Merge Candidates.md",
     }
     created = {r.path.name for r in results}
     assert created == expected_names, f"unexpected files: {created}"
