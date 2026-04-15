@@ -1462,6 +1462,34 @@ def _fmt_recurring_unfinished(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_explain_commitment(result: dict) -> str:
+    """Human-readable why-still-open output (Task 32)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Explain failed (HTTP {status}): {err}"
+        return f"Explain failed: {err}"
+    data = result.get("data", {}) or {}
+    action_id = data.get("action_id", "?")
+    status_val = data.get("status", "?")
+    stage = data.get("lifecycle_stage", "?")
+    urgency = data.get("urgency", "?")
+    reasons = data.get("reasons", []) or []
+    lines = [
+        f"Why still open: {action_id}",
+        f"  status: {status_val}  lifecycle: {stage}  urgency: {urgency}",
+    ]
+    if not reasons:
+        lines.append("  (no reasons returned)")
+        return "\n".join(lines)
+    for reason in reasons:
+        code = reason.get("code", "?")
+        label = reason.get("label", "")
+        lines.append(f"  [{code}] {label}")
+    return "\n".join(lines)
+
+
 # Map command names to their human-readable formatter.
 _HUMAN_FORMATTERS: dict[str, callable] = {
     "search": _fmt_search,
@@ -2109,6 +2137,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--limit", type=int, default=50,
         help="Max rows (default 50, server caps at 200).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- explain-commitment (Task 32) ------------------------------------
+    p = sub.add_parser(
+        "explain-commitment",
+        help="Fetch a deterministic 'why is this still open?' explanation.",
+    )
+    p.add_argument(
+        "--action-id", dest="action_id", required=True, help="Action ULID.",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -3361,6 +3406,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_recurring_unfinished(result)
+
+        elif args.command == "explain-commitment":
+            from obsidian_connector.commitment_ops import explain_commitment
+
+            result = explain_commitment(
+                args.action_id,
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_explain_commitment(result)
 
         elif args.command == "index-status":
             from obsidian_connector.index_store import IndexStore

@@ -91,6 +91,18 @@ Dashboard: `generate_patterns_dashboard(vault, *, service_url, token)` writes `D
 
 Task 31 service-side ADR: [docs/architecture/task_31_pattern_intelligence.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_31_pattern_intelligence.md).
 
+## Why-still-open reasoning (Task 32)
+
+One wrapper in `commitment_ops.py`:
+
+- `explain_commitment(action_id, *, service_url, token)` -> `GET /api/v1/actions/{action_id}/why-still-open`. Returns an envelope whose `data` carries `{ok, action_id, status, lifecycle_stage, urgency, reasons: [{code, label, data}], inputs: {...}}`. 404 surfaces as `{ok: False, status_code: 404}` when the action doesn't exist; 409 when it is already terminal.
+
+CLI: `obsx explain-commitment --action-id ...` (supports `--json`). MCP: `obsidian_explain_commitment`.
+
+Commitment-note projection: `ActionInput.why_open_summary: str | None`. When supplied, the renderer writes a `## Why still open` section inside the `service:why-open:begin/end` fence (bounded at 1500 chars, idempotent). When `None` on a re-sync, the existing fence content is preserved from disk — only an explicit CLI/MCP refresh replaces the block. No auto-fetch on every sync.
+
+Task 32 service-side ADR: [docs/architecture/task_32_why_still_open.md](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/architecture/task_32_why_still_open.md).
+
 ## How to navigate fast
 
 - Use ripgrep: `rg "keyword" obsidian_connector/ docs/`
