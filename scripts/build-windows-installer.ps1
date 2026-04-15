@@ -109,10 +109,8 @@ $IxExcludeDirs = @(
     'ix_engine\ix-cli\dist\cli\__tests__'
 )
 $IxExcludeFiles = @(
-    'ix_engine\core-ingestion\package-lock*.json',
-    'ix_engine\core-ingestion\tsconfig*.json',
-    'ix_engine\ix-cli\package-lock*.json',
-    'ix_engine\ix-cli\tsconfig*.json'
+    'package-lock*.json',
+    'tsconfig*.json'
 )
 
 if (Test-Path $StagingDir) { Remove-Item -Recurse -Force $StagingDir }
@@ -171,7 +169,7 @@ if (Test-Path $BuildDir) {
     $ExcludeFiles = @(
         '*.pyc', '.DS_Store', 'firebase-debug.log',
         'AGENTS.md', 'Makefile', 'main.py', 'Install.command'
-    ) + ($IxExcludeFiles | ForEach-Object { Join-Path 'obsidian_connector' $_ })
+    ) + $IxExcludeFiles
 
     Invoke-Robocopy -Source $RepoRoot -Destination $StagingDir -ExcludeDirs $ExcludeDirs -ExcludeFiles $ExcludeFiles
 }
