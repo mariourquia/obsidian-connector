@@ -1164,6 +1164,27 @@ def list_blocker_clusters(
     return _service_get_json(path, service_url=service_url, token=token)
 
 
+def explain_commitment(
+    action_id: str,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/actions/{action_id}/why-still-open`` (Task 32).
+
+    Returns the :func:`_service_get_json` envelope. On success the
+    payload is ``{ok, action_id, status, lifecycle_stage, urgency,
+    reasons: [{code, label, data}, ...], inputs: {...}}``. 404 surfaces
+    as ``{ok: False, status_code: 404}``; 409 (terminal action) as
+    ``{ok: False, status_code: 409}``. Never raises.
+    """
+    if not action_id or not isinstance(action_id, str):
+        return {"ok": False, "error": "action_id must be a non-empty string"}
+    quoted = urllib.parse.quote(action_id, safe="")
+    path = f"/api/v1/actions/{quoted}/why-still-open"
+    return _service_get_json(path, service_url=service_url, token=token)
+
+
 def list_recurring_unfinished(
     *,
     by: str = "project",
@@ -1212,4 +1233,5 @@ __all__ = [
     "list_repeated_postponements",
     "list_blocker_clusters",
     "list_recurring_unfinished",
+    "explain_commitment",
 ]

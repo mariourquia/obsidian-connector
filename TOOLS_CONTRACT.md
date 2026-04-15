@@ -166,6 +166,7 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_repeated_postponements` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[...]}}`. Each item: `action_id`, `title`, `status`, `count`, `first_postponed_at`, `last_postponed_at`, `last_reason`, `cumulative_days_slipped`. `GET /api/v1/patterns/repeated-postponements`. Task 31. |
 | `obsidian_blocker_clusters` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[...]}}`. Each item: `blocker_action_id`, `title`, `status`, `lifecycle_stage`, `blocks_count`, sorted `downstream_action_ids`, `oldest_edge_at`. `GET /api/v1/patterns/blocker-clusters`. Task 31. |
 | `obsidian_recurring_unfinished` | `by` (project\|person\|area), `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, by, since_days, items[...]}}`. Each item: `entity_id`, `canonical_name`, `slug`, `kind`, `open_count`, `median_age_days`, `oldest_open_at`, `action_ids`. `GET /api/v1/patterns/recurring-unfinished`. Task 31. |
+| `obsidian_explain_commitment` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, status, lifecycle_stage, urgency, reasons[{code,label,data}], inputs}}`. `GET /api/v1/actions/{id}/why-still-open`. Returns 404 when missing, 409 when terminal. Task 32. |
 
 ### Idea routing (v0.5.0)
 

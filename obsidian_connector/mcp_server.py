@@ -3209,6 +3209,53 @@ def obsidian_recurring_unfinished(
 
 
 # ---------------------------------------------------------------------------
+# Task 32: why-still-open reasoning tool
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Explain Commitment (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_explain_commitment(
+    action_id: str,
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/actions/{action_id}/why-still-open``.
+
+    Returns a deterministic explanation of why a still-open action has
+    not closed yet — a list of reason bullets with machine codes
+    (``OVERDUE_NO_MOVEMENT``, ``BLOCKED_BY_OPEN``,
+    ``REPEATEDLY_POSTPONED``, ``WAITING_ON_PERSON``, ``STALE_INBOX``,
+    ``HAS_DUPLICATES``, ``NO_OWNER_OR_PROJECT``,
+    ``LOW_PRIORITY_NO_DUE``, ``NOT_YET_DUE``), human labels, and the
+    input snippet that justifies each.
+
+    Args:
+        action_id: The action ULID.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    Returns 404 when the action is missing, 409 when it is already
+    terminal (done/cancelled/expired).
+    """
+    from obsidian_connector.commitment_ops import explain_commitment
+
+    try:
+        result = explain_commitment(action_id, service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ix Memory commands (v0.9.0)
 # ---------------------------------------------------------------------------
 
