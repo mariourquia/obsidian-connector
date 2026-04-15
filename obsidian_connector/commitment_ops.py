@@ -52,7 +52,13 @@ _ALLOWED_SCHEMES: frozenset[str] = frozenset({"http", "https"})
 
 @dataclass
 class CommitmentSummary:
-    """Lightweight view of a commitment note parsed from frontmatter + body."""
+    """Lightweight view of a commitment note parsed from frontmatter + body.
+
+    Task 26 adds ``created_at``, ``updated_at``, ``lifecycle_stage``,
+    ``urgency``, ``source_app``, ``source_entrypoint``, ``people``, and
+    ``areas`` in backward-compatible slots.  Pre-Task-26 scanners keep
+    working because the new fields carry safe defaults.
+    """
 
     action_id: str
     title: str
@@ -63,6 +69,15 @@ class CommitmentSummary:
     postponed_until: str | None
     requires_ack: bool
     path: str  # vault-relative POSIX path
+    # Task 26 additions (all optional, safe defaults for legacy notes).
+    created_at: str | None = None  # body-line "- Created: ..."
+    updated_at: str | None = None  # frontmatter "service_last_synced_at"
+    lifecycle_stage: str = "inbox"
+    urgency: str = "normal"
+    source_app: str | None = None
+    source_entrypoint: str | None = None
+    people: tuple[str, ...] = ()
+    areas: tuple[str, ...] = ()
 
 
 def _bool_from_fm(value: str) -> bool:
@@ -74,14 +89,44 @@ def _null_or(value: str) -> str | None:
     return None if (not value or value.lower() == "null") else value
 
 
+_FM_CREATED_AT_RE = re.compile(r"^-\s+Created:\s*(.+)$", re.MULTILINE)
+_FM_FLOW_LIST_RE = re.compile(r"\[([^\]]*)\]")
+
+
+def _parse_fm_flow_list(raw: str) -> tuple[str, ...]:
+    """Parse a YAML flow list like ``[alice, bob]`` into a tuple of strings.
+
+    Empty input, ``[]`` or a malformed value yields ``()``.  Values are
+    trimmed and unquoted.  Tuples are used so :class:`CommitmentSummary`
+    stays hashable for dedup checks in tests and heuristics.
+    """
+    if not raw:
+        return ()
+    m = _FM_FLOW_LIST_RE.match(raw.strip())
+    if not m:
+        return ()
+    inner = m.group(1).strip()
+    if not inner:
+        return ()
+    items: list[str] = []
+    for piece in inner.split(","):
+        v = piece.strip().strip('"').strip("'")
+        if v:
+            items.append(v)
+    return tuple(items)
+
+
 def _parse_commitment_file(path: Path, vault_root: Path) -> CommitmentSummary | None:
     """Parse frontmatter of *path* into a CommitmentSummary.
 
     Returns ``None`` when the file is unreadable, has no frontmatter, or is
     not a commitment note.
+
+    Reads up to 8 KiB so the ``- Created:`` body line (Task 26) lands in
+    the parsed slice even for notes with long frontmatter flow lists.
     """
     try:
-        head = path.read_text(encoding="utf-8", errors="ignore")[:4096]
+        head = path.read_text(encoding="utf-8", errors="ignore")[:8192]
     except OSError:
         return None
     fm = parse_frontmatter(head)
@@ -91,6 +136,9 @@ def _parse_commitment_file(path: Path, vault_root: Path) -> CommitmentSummary | 
     if not action_id:
         return None
     rel = path.relative_to(vault_root).as_posix()
+    # Body-side Created: line -- authoritative for Task 26 review windows.
+    cm = _FM_CREATED_AT_RE.search(head)
+    created_at = cm.group(1).strip() if cm else None
     return CommitmentSummary(
         action_id=action_id,
         title=fm.get("title", ""),
@@ -101,6 +149,14 @@ def _parse_commitment_file(path: Path, vault_root: Path) -> CommitmentSummary | 
         postponed_until=_null_or(fm.get("postponed_until", "")),
         requires_ack=_bool_from_fm(fm.get("requires_ack", "false")),
         path=rel,
+        created_at=created_at,
+        updated_at=_null_or(fm.get("service_last_synced_at", "")),
+        lifecycle_stage=fm.get("lifecycle_stage", "inbox") or "inbox",
+        urgency=fm.get("urgency", "normal") or "normal",
+        source_app=_null_or(fm.get("source_app", "")),
+        source_entrypoint=_null_or(fm.get("source_entrypoint", "")),
+        people=_parse_fm_flow_list(fm.get("people", "")),
+        areas=_parse_fm_flow_list(fm.get("areas", "")),
     )
 
 

@@ -124,12 +124,22 @@ from obsidian_connector.commitment_notes import (
 )
 from obsidian_connector.commitment_dashboards import (
     DASHBOARDS_DIR,
+    DEFAULT_MERGE_JACCARD,
+    DEFAULT_MERGE_WINDOW_DAYS,
+    DEFAULT_STALE_DAYS,
+    REVIEW_DASHBOARDS_DIR,
     DashboardResult,
     generate_commitments_dashboard,
+    generate_daily_review_dashboard,
     generate_due_soon_dashboard,
+    generate_merge_candidates_dashboard,
     generate_postponed_dashboard,
+    generate_stale_dashboard,
     generate_waiting_on_me_dashboard,
+    generate_weekly_review_dashboard,
+    title_jaccard,
     update_all_dashboards,
+    update_all_review_dashboards,
 )
 from obsidian_connector.entity_notes import (
     EntityInput,
@@ -260,10 +270,20 @@ __all__ = [
     "write_commitment_note",
     # commitment dashboards
     "DASHBOARDS_DIR",
+    "REVIEW_DASHBOARDS_DIR",
+    "DEFAULT_STALE_DAYS",
+    "DEFAULT_MERGE_WINDOW_DAYS",
+    "DEFAULT_MERGE_JACCARD",
     "DashboardResult",
     "generate_commitments_dashboard",
+    "generate_daily_review_dashboard",
     "generate_due_soon_dashboard",
+    "generate_merge_candidates_dashboard",
     "generate_postponed_dashboard",
+    "generate_stale_dashboard",
     "generate_waiting_on_me_dashboard",
+    "generate_weekly_review_dashboard",
+    "title_jaccard",
     "update_all_dashboards",
+    "update_all_review_dashboards",
 ]
