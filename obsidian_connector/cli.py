@@ -1835,6 +1835,71 @@ def _fmt_stale_delegations(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_action_recommendations(result: dict) -> str:
+    """Human-readable action-recommendations output (Task 40)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status == 404:
+            return f"Action recommendations failed: action not found."
+        if status == 409:
+            return f"Action recommendations failed: action is terminal (cannot review)."
+        if status:
+            return f"Action recommendations failed (HTTP {status}): {err}"
+        return f"Action recommendations failed: {err}"
+    data = result.get("data", {}) or {}
+    action_id = data.get("action_id", "?")
+    recs = data.get("recommendations", []) or []
+    lines = [f"Review recommendations for {action_id}:"]
+    if not recs:
+        lines.append("  (no recommendations)")
+        return "\n".join(lines)
+    for rec in recs:
+        code = rec.get("code", "?")
+        label = rec.get("label", "")
+        verb = rec.get("action_verb", "?")
+        conf = rec.get("confidence", 0.0)
+        lines.append(f"  [{code}] ({verb}, confidence {conf})")
+        lines.append(f"    {label}")
+        suggested = rec.get("suggested_inputs") or {}
+        if suggested:
+            parts = ", ".join(f"{k}={v!r}" for k, v in suggested.items())
+            lines.append(f"    suggested: {parts}")
+    return "\n".join(lines)
+
+
+def _fmt_review_recommendations(result: dict) -> str:
+    """Human-readable review-recommendations output (Task 40)."""
+    if not result.get("ok"):
+        return (
+            f"Review recommendations failed: "
+            f"{result.get('error', 'unknown error')}"
+        )
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    since_days = data.get("since_days", "?")
+    limit = data.get("limit", "?")
+    lines = [
+        f"Top-{limit} recommendable actions (window {since_days}d):",
+    ]
+    if not items:
+        lines.append("  (no recommendable actions in the window)")
+        return "\n".join(lines)
+    for item in items:
+        aid = item.get("action_id", "?")
+        title = item.get("title", "(untitled)")
+        urgency = item.get("urgency", "?")
+        impact = item.get("impact_score", 0)
+        codes = ", ".join(
+            str(r.get("code") or "?") for r in (item.get("recommendations") or [])
+        )
+        lines.append(
+            f"  [{impact}] {title} ({urgency})"
+        )
+        lines.append(f"    id: {aid}  recs: {codes}")
+    return "\n".join(lines)
+
+
 def _fmt_weekly_report(result: dict) -> str:
     """Human-readable weekly-report output (Task 39)."""
     if not result.get("ok"):
@@ -2889,6 +2954,45 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--limit", type=int, default=50,
         help="Max buckets (default 50, server bounds [1, 200]).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- action-recommendations (Task 40) --------------------------------
+    p = sub.add_parser(
+        "action-recommendations",
+        help="Fetch deterministic review recommendations for a single action.",
+    )
+    p.add_argument(
+        "--action-id", dest="action_id", required=True, help="Action ULID.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- review-recommendations (Task 40) --------------------------------
+    p = sub.add_parser(
+        "review-recommendations",
+        help="Bulk coaching: top-N recommendable actions in the window.",
+    )
+    p.add_argument(
+        "--since-days", dest="since_days", type=int, default=7,
+        help="Window in days against updated_at (default 7, max 365).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=50,
+        help="Max items (default 50, server cap 200).",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -4481,6 +4585,31 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_stale_delegations(result)
+
+        elif args.command == "action-recommendations":
+            from obsidian_connector.coaching_ops import (
+                get_action_recommendations,
+            )
+
+            result = get_action_recommendations(
+                args.action_id,
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_action_recommendations(result)
+
+        elif args.command == "review-recommendations":
+            from obsidian_connector.coaching_ops import (
+                list_review_recommendations,
+            )
+
+            result = list_review_recommendations(
+                since_days=getattr(args, "since_days", 7),
+                limit=getattr(args, "limit", 50),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_review_recommendations(result)
 
         elif args.command == "weekly-report":
             from obsidian_connector.analytics_ops import get_weekly_report
