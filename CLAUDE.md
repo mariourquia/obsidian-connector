@@ -22,6 +22,32 @@ Read files in this order (progressive disclosure):
 2. `TOOLS_CONTRACT.md` -- JSON envelope schema, typed errors, command reference
 3. `docs/index.md` -> leaf docs (only as needed)
 
+## Install (Task 33)
+
+Editable install from the repo root exposes the three console scripts the
+package ships:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
+
+| Command | Module | Purpose |
+|---------|--------|---------|
+| `obsidian-connector` | `obsidian_connector.cli:main` | Primary CLI dispatcher |
+| `obsx` | `obsidian_connector.cli:main` | Short alias for the CLI |
+| `obsidian-connector-mcp` | `obsidian_connector.mcp_server:main` | MCP server (stdio) |
+
+## Update
+
+```bash
+git pull --ff-only
+pip install -e . --upgrade
+obsx doctor                       # sanity check after upgrade
+```
+
+See `CHANGELOG.md` for release notes.
+
 ## Build system
 
 Plugin artifacts live in `src/` (skills, hooks, manifest, MCP config, bin). Python package stays at `obsidian_connector/`. Build pipeline in `tools/` (TypeScript, tsx).
