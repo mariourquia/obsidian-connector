@@ -62,6 +62,13 @@ class ActionInput:
     possible, plus a handful of presentation-layer additions
     (``channels``, ``escalation_policy`` as a human-readable label,
     ``source_note``).
+
+    Task 27 adds ``urgency`` (derived at push time by the service),
+    ``lifecycle_stage`` (enum separate from status), ``source_app``,
+    ``source_entrypoint``, plus the semantic-layer entity buckets
+    ``people`` and ``areas``. Projects stay in the single-project
+    ``project`` field — a future iteration can add a ``projects`` list
+    if multi-project actions become common.
     """
 
     action_id: str
@@ -84,6 +91,15 @@ class ActionInput:
     # related_actions: list of dicts with keys: entity_name, entity_kind, actions (list of {title, path})
     related_edges: list[dict] = field(default_factory=list)
     related_actions: list[dict] = field(default_factory=list)
+    # Task 27: rich metadata. All optional/default so older service
+    # versions (pre-migration-v008) continue to work unchanged.
+    urgency: str = "normal"
+    lifecycle_stage: str = "inbox"
+    source_app: str | None = None
+    source_entrypoint: str | None = None
+    projects: list[str] = field(default_factory=list)
+    people: list[str] = field(default_factory=list)
+    areas: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -196,7 +212,13 @@ def _render_frontmatter(
     action: ActionInput,
     sync_at: str,
 ) -> str:
-    """Produce the YAML frontmatter block (including fences)."""
+    """Produce the YAML frontmatter block (including fences).
+
+    Task 27 adds ``urgency``, ``lifecycle_stage``, ``source_app``,
+    ``source_entrypoint``, ``people``, and ``areas`` in stable slots.
+    Field order is preserved across writes so existing notes diff
+    cleanly on upgrade (no spurious reorderings).
+    """
     lines = [
         "---",
         f"type: {NOTE_TYPE}",
@@ -205,13 +227,19 @@ def _render_frontmatter(
         f"title: {_yaml_scalar(action.title)}",
         f"project: {_yaml_scalar(action.project)}",
         f"status: {_yaml_scalar(action.status)}",
+        f"lifecycle_stage: {_yaml_scalar(action.lifecycle_stage)}",
         f"priority: {_yaml_scalar(action.priority)}",
+        f"urgency: {_yaml_scalar(action.urgency)}",
         f"due_at: {_yaml_scalar(action.due_at)}",
         f"postponed_until: {_yaml_scalar(action.postponed_until)}",
         f"requires_ack: {_yaml_scalar(action.requires_ack)}",
         f"escalation_policy: {_yaml_scalar(action.escalation_policy)}",
         f"channels: {_yaml_flow_list(action.channels)}",
+        f"people: {_yaml_flow_list(action.people)}",
+        f"areas: {_yaml_flow_list(action.areas)}",
         f"source_note: {_yaml_scalar(action.source_note)}",
+        f"source_app: {_yaml_scalar(action.source_app)}",
+        f"source_entrypoint: {_yaml_scalar(action.source_entrypoint)}",
         f"service_last_synced_at: {_yaml_scalar(sync_at)}",
         "---",
     ]
@@ -416,12 +444,18 @@ def _render_body(
         "## Metadata",
         f"- Created: {action.created_at}",
         f"- Status: {action.status}",
+        f"- Lifecycle: {action.lifecycle_stage}",
         f"- Priority: {action.priority}",
+        f"- Urgency: {action.urgency}",
         f"- Due: {action.due_at or 'null'}",
         f"- Postponed until: {action.postponed_until or 'null'}",
         f"- Requires acknowledgement: {'yes' if action.requires_ack else 'no'}",
         f"- Escalation policy: {action.escalation_policy or 'null'}",
         f"- Channels: {', '.join(action.channels) if action.channels else 'none'}",
+        f"- People: {', '.join(action.people) if action.people else 'none'}",
+        f"- Areas: {', '.join(action.areas) if action.areas else 'none'}",
+        f"- Source: {action.source_app or 'unknown'}"
+        f"{' via ' + action.source_entrypoint if action.source_entrypoint else ''}",
     ]
     if action.status == "done" and action.completed_at:
         meta_lines.append(f"- Completed: {action.completed_at}")
