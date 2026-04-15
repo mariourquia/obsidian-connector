@@ -211,6 +211,18 @@ class ActionInput:
     # carried forward. Explicit refresh required (CLI/MCP), never
     # auto-fetched, to keep vault writes minimal.
     why_open_summary: str | None = None
+    # Task 38: delegation surface. ``delegated_to`` is the resolved
+    # canonical name (string) of the person entity an action has been
+    # assigned to; ``delegated_at`` is the ISO timestamp of the most
+    # recent delegate event; ``delegation_note`` is optional context.
+    # All three NULL = "not delegated". Frontmatter slot lives between
+    # ``postponed_until`` and ``requires_ack`` so older notes diff
+    # cleanly on first-touch upgrade. The body adds a single
+    # "Delegated to: X (YYYY-MM-DD)" line in the metadata block when
+    # a delegation is active.
+    delegated_to: str | None = None
+    delegated_at: str | None = None
+    delegation_note: str | None = None
 
 
 @dataclass(frozen=True)
@@ -343,6 +355,11 @@ def _render_frontmatter(
         f"urgency: {_yaml_scalar(action.urgency)}",
         f"due_at: {_yaml_scalar(action.due_at)}",
         f"postponed_until: {_yaml_scalar(action.postponed_until)}",
+        # Task 38: delegation slot, between postponed_until and
+        # requires_ack. Pre-Task-38 notes hydrate as null.
+        f"delegated_to: {_yaml_scalar(action.delegated_to)}",
+        f"delegated_at: {_yaml_scalar(action.delegated_at)}",
+        f"delegation_note: {_yaml_scalar(action.delegation_note)}",
         f"requires_ack: {_yaml_scalar(action.requires_ack)}",
         f"escalation_policy: {_yaml_scalar(action.escalation_policy)}",
         f"channels: {_yaml_flow_list(action.channels)}",
@@ -587,6 +604,23 @@ def _render_body(
         # see the same information.
         f"- Captured: {format_source_label(action.source_app, action.source_entrypoint)}",
     ]
+    # Task 38: a single, prose-friendly delegation row. Rendered only when
+    # the action is delegated so non-delegated notes diff cleanly. We
+    # condense ``delegated_at`` to a date-only string when it parses; if
+    # not, we fall back to the raw timestamp.
+    if action.delegated_to:
+        when = ""
+        if action.delegated_at:
+            try:
+                _dt = datetime.fromisoformat(
+                    action.delegated_at.replace("Z", "+00:00")
+                )
+                when = f" ({_dt.strftime('%Y-%m-%d')})"
+            except (TypeError, ValueError):
+                when = f" ({action.delegated_at})"
+        meta_lines.append(f"- Delegated to: {action.delegated_to}{when}")
+        if action.delegation_note:
+            meta_lines.append(f"- Delegation note: {action.delegation_note}")
     if action.status == "done" and action.completed_at:
         meta_lines.append(f"- Completed: {action.completed_at}")
 

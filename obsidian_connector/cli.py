@@ -1748,6 +1748,93 @@ def _fmt_explain_commitment(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_delegate_commitment(result: dict, verb: str) -> str:
+    """Human-readable delegate / reclaim output (Task 38)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"{verb.capitalize()} failed (HTTP {status}): {err}"
+        return f"{verb.capitalize()} failed: {err}"
+    data = result.get("data", {}) or {}
+    action_id = data.get("action_id", "?")
+    status_val = data.get("status", "?")
+    stage = data.get("lifecycle_stage", "?")
+    delegated_to = data.get("delegated_to")
+    delegated_at = data.get("delegated_at")
+    note = data.get("delegation_note")
+    lines = [
+        f"{verb.capitalize()} ok: {action_id}",
+        f"  status: {status_val}  lifecycle: {stage}",
+    ]
+    if delegated_to:
+        when = delegated_at or "?"
+        lines.append(f"  delegated to: {delegated_to}  at: {when}")
+        if note:
+            lines.append(f"  note: {note}")
+    else:
+        lines.append("  delegation: (cleared)")
+    return "\n".join(lines)
+
+
+def _fmt_delegated_to(result: dict) -> str:
+    """Human-readable delegated-to listing output (Task 38)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Delegated-to lookup failed (HTTP {status}): {err}"
+        return f"Delegated-to lookup failed: {err}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    cursor = data.get("next_cursor")
+    lines = [f"Actions delegated to person (returned {len(items)}):"]
+    if not items:
+        lines.append("  (none)")
+    else:
+        for item in items:
+            title = item.get("title") or "(no title)"
+            aid = item.get("action_id", "?")
+            lc = item.get("lifecycle_stage", "?")
+            when = item.get("delegated_at") or "?"
+            lines.append(f"  {title}")
+            lines.append(
+                f"    action_id: {aid}  lifecycle: {lc}  delegated_at: {when}"
+            )
+            if item.get("delegation_note"):
+                lines.append(f"    note: {item.get('delegation_note')}")
+    if cursor:
+        lines.append(f"  next_cursor: {cursor}")
+    return "\n".join(lines)
+
+
+def _fmt_stale_delegations(result: dict) -> str:
+    """Human-readable stale-delegations output (Task 38)."""
+    if not result.get("ok"):
+        status = result.get("status_code")
+        err = result.get("error", "unknown error")
+        if status:
+            return f"Stale delegations failed (HTTP {status}): {err}"
+        return f"Stale delegations failed: {err}"
+    data = result.get("data", {}) or {}
+    items = data.get("items", []) or []
+    threshold = data.get("threshold_days", "?")
+    lines = [f"Stale delegations (> {threshold}d):"]
+    if not items:
+        lines.append("  (none)")
+        return "\n".join(lines)
+    for bucket in items:
+        name = bucket.get("canonical_name") or "(unknown person)"
+        count = int(bucket.get("count") or 0)
+        oldest = bucket.get("oldest_delegated_at") or "?"
+        lines.append(f"  {name}: {count} stale (oldest {oldest})")
+        for sample in (bucket.get("items") or [])[:3]:
+            stitle = sample.get("title") or "(no title)"
+            sdate = sample.get("delegated_at") or "?"
+            lines.append(f"    - {stitle} (delegated {sdate})")
+    return "\n".join(lines)
+
+
 def _fmt_weekly_report(result: dict) -> str:
     """Human-readable weekly-report output (Task 39)."""
     if not result.get("ok"):
@@ -2703,6 +2790,105 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--since-hours", dest="since_hours", type=int, default=24,
         help="Recent-decisions window in hours (default 24, max 720).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- delegate-commitment (Task 38) -----------------------------------
+    p = sub.add_parser(
+        "delegate-commitment",
+        help="Delegate an action to a named person (waiting-on workflow).",
+    )
+    p.add_argument(
+        "--action-id", dest="action_id", required=True, help="Action ULID.",
+    )
+    p.add_argument(
+        "--to-person", dest="to_person", required=True,
+        help="Canonical name or alias of the delegate.",
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional free-form delegation context.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- reclaim-commitment (Task 38) ------------------------------------
+    p = sub.add_parser(
+        "reclaim-commitment",
+        help="Clear an action's delegation and flip waiting -> active.",
+    )
+    p.add_argument(
+        "--action-id", dest="action_id", required=True, help="Action ULID.",
+    )
+    p.add_argument(
+        "--note", default=None,
+        help="Optional reclaim context.",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- delegated-to (Task 38) ------------------------------------------
+    p = sub.add_parser(
+        "delegated-to",
+        help="List actions delegated to a named person (canonical or alias).",
+    )
+    p.add_argument(
+        "--person", dest="person", required=True,
+        help="Canonical name or alias of the delegate.",
+    )
+    p.add_argument(
+        "--limit", type=int, default=50,
+        help="Page size (default 50).",
+    )
+    p.add_argument(
+        "--cursor", dest="cursor", default=None,
+        help="Opaque keyset cursor returned by a previous page.",
+    )
+    p.add_argument(
+        "--include-terminal", dest="include_terminal",
+        action="store_true", default=False,
+        help="Include done/cancelled/expired rows (audit mode).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- stale-delegations (Task 38) -------------------------------------
+    p = sub.add_parser(
+        "stale-delegations",
+        help="Per-person buckets of open actions delegated more than N days ago.",
+    )
+    p.add_argument(
+        "--threshold-days", dest="threshold_days", type=int, default=14,
+        help="Staleness threshold in days (default 14, server bounds [1, 365]).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=50,
+        help="Max buckets (default 50, server bounds [1, 200]).",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -4248,6 +4434,53 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_approval_digest(result)
+
+        elif args.command == "delegate-commitment":
+            from obsidian_connector.commitment_ops import delegate_commitment
+
+            result = delegate_commitment(
+                args.action_id,
+                to_person=args.to_person,
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_delegate_commitment(result, "delegate")
+
+        elif args.command == "reclaim-commitment":
+            from obsidian_connector.commitment_ops import reclaim_commitment
+
+            result = reclaim_commitment(
+                args.action_id,
+                note=getattr(args, "note", None),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_delegate_commitment(result, "reclaim")
+
+        elif args.command == "delegated-to":
+            from obsidian_connector.commitment_ops import list_delegated_to
+
+            result = list_delegated_to(
+                args.person,
+                limit=getattr(args, "limit", 50),
+                cursor=getattr(args, "cursor", None),
+                include_terminal=bool(getattr(args, "include_terminal", False)),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_delegated_to(result)
+
+        elif args.command == "stale-delegations":
+            from obsidian_connector.commitment_ops import list_stale_delegations
+
+            result = list_stale_delegations(
+                threshold_days=getattr(args, "threshold_days", 14),
+                limit=getattr(args, "limit", 50),
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_stale_delegations(result)
 
         elif args.command == "weekly-report":
             from obsidian_connector.analytics_ops import get_weekly_report
