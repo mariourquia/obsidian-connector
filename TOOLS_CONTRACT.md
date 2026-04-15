@@ -157,6 +157,7 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_add_reason` | `action_id`, `reason`, `vault?` | JSON `{ok, action_id, reason_added, timestamp, path, status}` |
 | `obsidian_due_soon` | `within_days?`, `vault?` | JSON `{ok, count, commitments[...+overdue]}` sorted earliest-due first |
 | `obsidian_sync_commitments` | `service_url?`, `vault?` | JSON `{ok, synced, errors[], source_url}` or `{ok: false, error}` |
+| `obsidian_review_dashboards` | `stale_days?`, `merge_window_days?`, `merge_jaccard?`, `now?`, `vault?` | JSON `{ok, count, dashboards[{path, written}]}` -- refreshes Daily, Weekly, Stale, Merge Candidates under `Dashboards/Review/` |
 
 ### Idea routing (v0.5.0)
 
