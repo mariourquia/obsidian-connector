@@ -412,8 +412,8 @@ def test_generate_admin_dashboard_happy_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OBSIDIAN_CAPTURE_SERVICE_URL", "http://host:8787")
-    # Service returns five responses in this order: system-health, queue-health,
-    # delivery-failures, pending-approvals, stale-sync-devices.
+    # Service returns six responses in this order: system-health, queue-health,
+    # delivery-failures, pending-approvals, stale-sync-devices, mobile-devices (Task 42).
     responses = [
         (200, {
             "overall_status": "warn",
@@ -471,6 +471,21 @@ def test_generate_admin_dashboard_happy_path(
                 }
             ],
         }),
+        (200, {
+            "ok": True,
+            "devices": [
+                {
+                    "device_id": "iphone-15",
+                    "device_label": "Mario's iPhone",
+                    "platform": "ios",
+                    "app_version": "1.0",
+                    "first_seen_at": "2026-04-01T00:00:00+00:00",
+                    "last_sync_at": "2026-04-10T00:00:00+00:00",
+                    "pending_ops_count": 2,
+                    "last_cursor": None,
+                }
+            ],
+        }),
     ]
     _install_fake_http_sequence(monkeypatch, responses)
 
@@ -481,7 +496,9 @@ def test_generate_admin_dashboard_happy_path(
     assert "Email Dan" in text
     assert "SMS Sally" in text
     assert "iphone-15" in text
-    assert res.written == 3  # 1 failure + 1 approval + 1 device
+    assert "Mario's iPhone" in text
+    # 1 failure + 1 approval + 1 stale-device + 1 mobile-device
+    assert res.written == 4
 
 
 def test_generate_admin_dashboard_service_error(

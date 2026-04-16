@@ -1554,6 +1554,56 @@ def _fmt_stale_sync_devices(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_mobile_devices(result: dict) -> str:
+    """Human-readable mobile-devices output (Task 42)."""
+    if not result.get("ok"):
+        return f"Mobile devices lookup failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    devices = d.get("devices", []) or []
+    lines = ["Mobile devices:"]
+    if not devices:
+        lines.append("  (no devices registered)")
+        return "\n".join(lines)
+    for item in devices:
+        label = item.get("device_label") or "(unlabeled)"
+        platform = item.get("platform") or "?"
+        version = item.get("app_version") or "?"
+        lines.append(
+            f"  {label}  [{platform}/{version}]"
+        )
+        lines.append(
+            f"    id: {item.get('device_id', '?')}"
+            f"  last sync: {item.get('last_sync_at', 'never')}"
+        )
+        lines.append(
+            f"    first seen: {item.get('first_seen_at', '?')}"
+            f"  pending ops: {item.get('pending_ops_count', 0)}"
+        )
+        last_cursor = item.get("last_cursor")
+        if last_cursor:
+            lines.append(f"    cursor: {last_cursor}")
+    return "\n".join(lines)
+
+
+def _fmt_forget_mobile_device(result: dict) -> str:
+    """Human-readable forget-mobile-device output (Task 42)."""
+    if not result.get("ok"):
+        return f"Forget failed: {result.get('error', 'unknown error')}"
+    d = result.get("data", {}) or {}
+    device_id = d.get("device_id", "?")
+    deleted = bool(d.get("deleted"))
+    cancelled = int(d.get("cancelled_ops", 0) or 0)
+    if deleted:
+        return (
+            f"Forgot device {device_id}: row removed, "
+            f"{cancelled} pending op(s) cancelled."
+        )
+    return (
+        f"Device {device_id} was not registered (nothing to forget). "
+        f"{cancelled} pending op(s) cancelled."
+    )
+
+
 def _fmt_system_health(result: dict) -> str:
     """Human-readable composite system-health output (Task 44)."""
     if not result.get("ok"):
@@ -2858,6 +2908,42 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "system-health",
         help="One-call operator summary (doctor + queue + failures + approvals + devices).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- mobile-devices (Task 42) ----------------------------------------
+    p = sub.add_parser(
+        "mobile-devices",
+        help="List every registered mobile sync device (label, platform, last sync, pending ops).",
+    )
+    p.add_argument(
+        "--service-url", dest="service_url", default=None,
+        help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- forget-mobile-device (Task 42) ----------------------------------
+    p = sub.add_parser(
+        "forget-mobile-device",
+        help="Drop a mobile device row + cancel its pending sync ops (atomic, idempotent).",
+    )
+    p.add_argument(
+        "--device-id", dest="device_id", required=True,
+        help="Device id to forget (as listed by `obsx mobile-devices`).",
+    )
+    p.add_argument(
+        "--yes", "-y", dest="yes", action="store_true",
+        help="Skip the interactive confirmation prompt.",
     )
     p.add_argument(
         "--service-url", dest="service_url", default=None,
@@ -4697,6 +4783,54 @@ def main(argv: list[str] | None = None) -> int:
             )
             data = result
             human = _fmt_system_health(result)
+
+        elif args.command == "mobile-devices":
+            from obsidian_connector.admin_ops import list_mobile_devices
+
+            result = list_mobile_devices(
+                service_url=getattr(args, "service_url", None),
+            )
+            data = result
+            human = _fmt_mobile_devices(result)
+
+        elif args.command == "forget-mobile-device":
+            from obsidian_connector.admin_ops import forget_mobile_device
+
+            device_id = args.device_id
+            skip_prompt = bool(getattr(args, "yes", False))
+            # Interactive confirmation unless --yes or --json. When the
+            # caller is piping JSON we skip the prompt to keep the output
+            # parseable; the --yes flag is the manual equivalent.
+            if not skip_prompt and not _resolve_json(args):
+                try:
+                    prompt = (
+                        f"Forget device {device_id!r}? "
+                        f"This cancels pending sync ops and removes the row. [y/N] "
+                    )
+                    answer = input(prompt).strip().lower()
+                except EOFError:
+                    answer = ""
+                if answer not in ("y", "yes"):
+                    result = {
+                        "ok": False,
+                        "error": "cancelled by user",
+                    }
+                    data = result
+                    human = "Cancelled."
+                else:
+                    result = forget_mobile_device(
+                        device_id,
+                        service_url=getattr(args, "service_url", None),
+                    )
+                    data = result
+                    human = _fmt_forget_mobile_device(result)
+            else:
+                result = forget_mobile_device(
+                    device_id,
+                    service_url=getattr(args, "service_url", None),
+                )
+                data = result
+                human = _fmt_forget_mobile_device(result)
 
         elif args.command == "delivery-detail":
             from obsidian_connector.approval_ops import get_delivery_detail
