@@ -1,6 +1,6 @@
 """obsidian-connector: Python wrapper for the Obsidian CLI."""
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 
 from obsidian_connector.cache import CLICache
 from obsidian_connector.audit import log_action
