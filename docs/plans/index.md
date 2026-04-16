@@ -16,7 +16,3 @@ Feature designs, implementation plans, and product roadmap.
 ## Roadmap
 
 - [Roadmap](./ROADMAP.md) -- prioritized v0.3.0+ backlog (v0.2.0 and v0.2.1 shipped)
-
-## Archived
-
-- [Archived Plans](./archived/index.md) -- completed features (second brain assistant, daily optimization guide, cache layer)
