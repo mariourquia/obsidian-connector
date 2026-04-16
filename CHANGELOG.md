@@ -6,6 +6,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-16
+
 ### Added
 - **Task 37 -- Shared / collaborative vault (first pass)**: single-user,
   multi-device vault scenarios on iCloud Drive, Dropbox, OneDrive, and
