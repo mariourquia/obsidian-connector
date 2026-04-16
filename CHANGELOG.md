@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Task 37 -- Shared / collaborative vault (first pass)**: single-user,
+  multi-device vault scenarios on iCloud Drive, Dropbox, OneDrive, and
+  Obsidian Sync. Adds `obsidian_connector/vault_conflicts.py` with a
+  pure `detect_vault_conflicts(vault_root)` scanner surfacing
+  provider-specific conflict patterns (Dropbox's
+  `conflicted copy YYYY-MM-DD`, iCloud's `iPhone`/`iPad`/`Mac`
+  variants and ` N` twin-required weak signal, OneDrive's
+  `-DEVICENAME` suffix, Obsidian Sync's hex vault-id suffix).
+  Deterministic output, never raises, skips `.git` / `.obsidian` /
+  `.trash` / `_*` directories. 17 new tests. New doc
+  `docs/implementation/shared_vault.md`. Scope is single-user
+  multi-device; team collaboration remains out-of-scope per the
+  product spec. CLI / MCP / dashboard wiring deferred to a second
+  pass once operator usage validates the pattern set.
 - **Task 42 -- Cross-device sync (connector)**: two new HTTP wrappers
   in `obsidian_connector/admin_ops.py`: `list_mobile_devices(*, service_url, token)`
   over `GET /api/v1/mobile/devices`, and
