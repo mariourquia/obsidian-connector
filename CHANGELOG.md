@@ -6,6 +6,48 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Task 37 phase 2 -- shared-vault CLI + MCP surface**:
+  `obsx vault-conflicts [--vault-root] [--json]` subcommand and
+  matching `obsidian_vault_conflicts` MCP tool wrap the pure scanner
+  from v0.10.0. Human formatter groups results by sync provider
+  (iCloud / Dropbox / OneDrive / Obsidian Sync), shows
+  bytes-per-file, and prints a reconciliation hint pointing at
+  `docs/implementation/shared_vault.md`. Read-only and idempotent;
+  closed-world MCP annotations.
+- **Doctor expansion (9 -> 14 checks)**: `python_runtime` detects the
+  Microsoft Store stub on Windows plus any sub-3.11 interpreter;
+  `node_runtime` (optional) covers plugin rebuilds + Ix; `textual_available`
+  (optional) covers the TUI; `vault_sync_location` is informational and
+  surfaces iCloud / Dropbox / OneDrive vault paths;
+  `full_disk_access_hint` is macOS-only and ships a static TCC
+  remediation hint because TCC grants are not introspectable.
+- **Client retry + remediation hints**: `run_obsidian()` gains optional
+  `retries=` (also via `OBSIDIAN_CLI_RETRIES` env, default 0) and
+  `retry_backoff=`. Retries fire only for transient `ObsidianNotRunning`;
+  `VaultNotFound` / `ObsidianNotFound` / `CommandTimeout` fail fast.
+  Every error now carries a one-line remediation hint.
+- **Filename scrubber**: `obsidian_connector.platform.safe_filename_fragment()`
+  replaces NTFS-reserved chars and control codes. Canonical helper for
+  any future caller or upstream-bug workaround.
+- **Windows platform docs**: new `docs/platform/windows.md` documents
+  the Microsoft Store stub workflow, MCP log path colons (upstream
+  Claude Code bug), plugin-not-showing-up troubleshooting, venv
+  failures on fresh installs, and Obsidian CLI posture on Windows.
+
+### Changed
+- Tool count refreshed to 113 (was 112) across README / CLAUDE /
+  ARCHITECTURE / TOOLS_CONTRACT / installers / setup-guide /
+  daily-optimization / mcpb.json. CLI subcommand count refreshed
+  to 116.
+
+### Tests
+- 50 new tests: `tests/test_vault_conflicts_cli_mcp.py` (+10),
+  `tests/test_doctor_extensions.py` (+16),
+  `tests/test_client_retry.py` (+13),
+  `tests/test_platform_filename.py` (+11). Full suite 632 -> 682,
+  1 skipped.
+
 ## [0.10.0] - 2026-04-16
 
 ### Added

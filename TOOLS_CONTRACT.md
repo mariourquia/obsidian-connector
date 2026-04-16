@@ -12,7 +12,7 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-112 tools are available to Claude and other MCP clients.  All `vault`
+100+ tools are available to Claude and other MCP clients.  All `vault`
 parameters are optional -- when omitted, the configured default vault is used.
 
 ### Core vault operations
@@ -246,7 +246,7 @@ Core CLI commands do not require Textual. The optional `menu` and
 `setup-wizard` commands require `pip install 'obsidian-connector[tui]'`
 (first-party installers and `scripts/setup.sh` include it).
 
-### CLI subcommands (115 add_parser registrations, including 6 parent groups)
+### CLI subcommands (100+ add_parser registrations, with parent groups)
 
 Parent groups (`graduate`, `drafts`, `vaults`, `templates`, `schedule`, `project`)
 are not directly runnable -- they contain the sub-subcommands listed below.
@@ -547,9 +547,9 @@ obsidian-connector/
   obsidian_connector/              Core Python package
     __init__.py                    Public API re-exports
     __main__.py                    Module entry point
-    cli.py                         CLI entry point (115 subcommands)
+    cli.py                         CLI entry point (100+ subcommands)
     startup.py                     First-run marker + shared startup helpers
-    mcp_server.py                  MCP server (112 tools for Claude Desktop)
+    mcp_server.py                  MCP server (100+ tools for Claude Desktop)
     client.py                      Core CLI wrapper + batch reads
     client_fallback.py             Adapter: auto file_backend fallback when CLI unavailable
     file_backend.py                CLI-less vault access via direct file reads
