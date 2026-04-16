@@ -63,10 +63,10 @@ their `src/` counterparts (same underlying files).
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
-| `cli.py` | CLI entry point (`obsx`): 65 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `cli.py` | CLI entry point (`obsx`): 115 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
 | `startup.py` | Shared first-run marker and non-UI startup helpers used by the CLI and onboarding flow |
 | `ui_dashboard.py` | Optional Textual dashboard and setup wizard, loaded lazily from CLI-only paths |
-| `mcp_server.py` | MCP server (FastMCP): 62 tools for Claude Desktop (stdio + HTTP transports) |
+| `mcp_server.py` | MCP server (FastMCP): 112 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
 | `write_manager.py` | Atomic writes, pre-write snapshots, rollback, file locks, diff preview, protected folders |
