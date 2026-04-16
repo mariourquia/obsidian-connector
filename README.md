@@ -10,7 +10,7 @@
 
 Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
 
-62 MCP tools. 65 CLI commands. 17 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
+112 MCP tools. 115 CLI commands. 17 skills. 13 vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
 
 ## What it does
 
@@ -52,11 +52,11 @@ This repo is a self-contained Claude marketplace. Pick the method that fits your
 
 | Method | Best for | What you get |
 |--------|----------|-------------|
-| **Marketplace install** | Claude Code users (CLI or Desktop Code tab) | Full: 17 skills + hooks + 62 MCP tools |
+| **Marketplace install** | Claude Code users (CLI or Desktop Code tab) | Full: 17 skills + hooks + 112 MCP tools |
 | **macOS DMG** | Non-technical macOS users | Full plugin + Desktop MCP registration |
 | **Windows EXE** | Non-technical Windows users | Full plugin + Desktop MCP registration |
 | **Cowork upload** | Cowork tab users | Skills + MCP tools (no hooks) |
-| **Manual MCP config** | Chat tab only | 62 MCP tools only |
+| **Manual MCP config** | Chat tab only | 112 MCP tools only |
 | **pip install** | Python developers | Core CLI + Python API (`menu` / `setup-wizard` via optional `tui` extra) |
 
 > See [Install Surfaces](docs/INSTALL.md) for a detailed comparison of all methods.
@@ -78,7 +78,7 @@ After installing, run the setup script to create the Python environment:
 bash <plugin-dir>/scripts/setup.sh
 ```
 
-This gives you 62 MCP tools, 17 skills (`/capture`, `/ritual`, `/sync`, `/explore`, `/float`, `/morning`, `/evening`, `/idea`, `/weekly`, and more), and a SessionStart hook that suggests workflows based on time of day.
+This gives you 112 MCP tools, 17 skills (`/capture`, `/ritual`, `/sync`, `/explore`, `/float`, `/morning`, `/evening`, `/idea`, `/weekly`, and more), and a SessionStart hook that suggests workflows based on time of day.
 The setup script also installs the optional dashboard dependency, so `obsx menu` and `obsx setup-wizard` work out of the box.
 
 > **Note:** Plugin mode (`.mcp.json`) uses Unix venv paths. On Windows, use `scripts/Install.ps1` instead.
@@ -208,7 +208,7 @@ Without the optional extra, `obsx menu` and `obsx setup-wizard` exit with a shor
 
 **Claude Code:** Start a new session. The SessionStart hook prints a greeting with time-aware suggestions. Type `/morning` or `/evening` to confirm skills load.
 
-**Claude Desktop:** Open a new conversation. Click the tools icon (hammer) in the input area. You should see 62 tools prefixed with `obsidian_`. Try asking Claude to run `obsidian_doctor`.
+**Claude Desktop:** Open a new conversation. Click the tools icon (hammer) in the input area. You should see 112 tools prefixed with `obsidian_`. Try asking Claude to run `obsidian_doctor`.
 
 **CLI:**
 
@@ -582,7 +582,7 @@ bash <plugin-dir>/scripts/setup.sh
 **What the plugin provides:**
 - 17 skills: `/capture`, `/ritual`, `/new-vault`, `/sync`, `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
 - SessionStart hook: suggests `/morning` or `/evening` based on time of day
-- 62 MCP tools: full vault access (search, read, write, graph, thinking, workflows, drafts, templates, reports, project intelligence)
+- 112 MCP tools: full vault access (search, read, write, graph, thinking, workflows, drafts, templates, reports, project intelligence)
 - Post-install setup: `scripts/setup.sh` creates the Python venv
 
 **Plugin structure:**

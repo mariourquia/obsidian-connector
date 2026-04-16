@@ -63,10 +63,10 @@ their `src/` counterparts (same underlying files).
 | Module | Purpose |
 |--------|---------|
 | `client.py` | Core CLI wrapper: `run_obsidian()`, `search_notes()`, `read_note()`, `list_tasks()`, `log_to_daily()`, `batch_read_notes()` |
-| `cli.py` | CLI entry point (`obsx`): 65 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
+| `cli.py` | CLI entry point (`obsx`): 115 argparse subcommands, `--json` / `--vault` / `--dry-run` flags |
 | `startup.py` | Shared first-run marker and non-UI startup helpers used by the CLI and onboarding flow |
 | `ui_dashboard.py` | Optional Textual dashboard and setup wizard, loaded lazily from CLI-only paths |
-| `mcp_server.py` | MCP server (FastMCP): 62 tools for Claude Desktop (stdio + HTTP transports) |
+| `mcp_server.py` | MCP server (FastMCP): 112 tools for Claude Desktop (stdio + HTTP transports) |
 | `platform.py` | Cross-platform OS abstraction (path resolution, scheduling, notifications, process detection for macOS/Linux/Windows) |
 | `uninstall.py` | Artifact discovery and removal (venv, skills, hooks, plist/systemd/schtasks, Claude Desktop config, audit logs) |
 | `write_manager.py` | Atomic writes, pre-write snapshots, rollback, file locks, diff preview, protected folders |
@@ -101,6 +101,18 @@ their `src/` counterparts (same underlying files).
 | `idea_router.py` | Idea routing to project idea files via keyword matching against repo registry |
 | `automation.py` | Event-triggered automation: tool registry, chain runner, event bus |
 | `product_registry.py` | Single source of truth for product metadata (version, counts, skill/surface registries) |
+| `smart_triage.py` | Three-way rule-based classifier (action / idea / raw) with LLM fallback, used by capture-service ingest |
+| `commitment_notes.py` | Idempotent commitment-note renderer (frontmatter + body), preserved user-notes fences |
+| `commitment_ops.py` | HTTP client for capture-service endpoints (service-retrieval, dedup, patterns, bulk-actions, timeout knob) |
+| `commitment_dashboards.py` | Vault dashboard writers: commitments + review surfaces + admin + analytics |
+| `entity_notes.py` | Entity wiki note writer under `Entities/<Kind>/<slug>.md` with preserved fence + deterministic first-pass wiki body |
+| `admin_ops.py` | HTTP client for `/api/v1/admin/*` and `/api/v1/mobile/*` endpoints (Task 44 + Task 42) |
+| `approval_ops.py` | HTTP client for `/api/v1/deliveries/*` approval UX endpoints (Task 36) |
+| `analytics_ops.py` | HTTP client + vault projection for `/api/v1/analytics/*` weekly reports (Task 39) |
+| `coaching_ops.py` | HTTP client for `/api/v1/coaching/*` review recommendations (Task 40) |
+| `import_tools.py` | Vault import pipeline: scan / classify / plan / execute / report (Task 43), default dry-run |
+| `onboarding.py` | Pure-Python onboarding step catalog, shared between `obsx onboarding` CLI and `docs/ONBOARDING.md` |
+| `recipes.py` | Preset workflow recipes for common flows |
 
 ## Dependency flow
 

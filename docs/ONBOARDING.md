@@ -5,7 +5,7 @@ paired with the obsidian-capture-service. Read top to bottom once; the
 same six steps are available programmatically via `obsx onboarding`.
 
 Companion doc: the capture-service side is at
-[`../obsidian-capture-service/docs/onboarding/ONBOARDING.md`](../../obsidian-capture-service/docs/onboarding/ONBOARDING.md).
+[`obsidian-capture-service/docs/onboarding/ONBOARDING.md`](https://github.com/mariourquia/obsidian-capture-service/blob/main/docs/onboarding/ONBOARDING.md).
 If you are starting from the iPhone / Mac ingest side, open that one
 first — most of the steps below depend on the capture service already
 running.
