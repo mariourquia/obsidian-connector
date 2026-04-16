@@ -199,7 +199,7 @@ Write-Blue @"
 "@
 
 Write-Bold  "  Obsidian Connector Installer v$InstallerVersionConst"
-Write-Dim   "  62 MCP tools | 17 skills | 13 presets"
+Write-Dim   "  112 MCP tools | 17 skills | 13 presets"
 Write-Host  ""
 if ($NonInteractive) {
     Write-Dim "  Running in non-interactive mode"
@@ -850,9 +850,10 @@ if os.path.exists(config_path):
     backup = config_path + '.backup-' + datetime.now().strftime('%Y%m%d-%H%M%S')
     shutil.copy2(config_path, backup)
 
-# Read or create config
+# Read or create config. utf-8-sig tolerates the BOM that PowerShell's
+# Set-Content -Encoding UTF8 prepends on older Windows builds.
 if os.path.exists(config_path):
-    with open(config_path, 'r', encoding='utf-8') as f:
+    with open(config_path, 'r', encoding='utf-8-sig') as f:
         config = json.load(f)
 else:
     config = {}
@@ -886,7 +887,7 @@ print('OK')
 
         if ($result -match "OK") {
             Write-Green "  MCP server registered in Claude Desktop config"
-            Write-Dim  "  Restart Claude Desktop to load 62 MCP tools."
+            Write-Dim  "  Restart Claude Desktop to load 112 MCP tools."
             $InstalledSomewhere = $true
             $StepResults["desktop"] = "ok"
         } else {
@@ -1095,7 +1096,7 @@ if ($HasClaudeCode) {
     Write-Host "  Claude Code: Try /capture, /ritual, /sync in any conversation"
 }
 if ($HasClaudeDesktop) {
-    Write-Host "  Claude Desktop: Restart Desktop to load 62 MCP tools"
+    Write-Host "  Claude Desktop: Restart Desktop to load 112 MCP tools"
 }
 
 Write-Host ""
