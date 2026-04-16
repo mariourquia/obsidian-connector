@@ -199,7 +199,7 @@ Write-Blue @"
 "@
 
 Write-Bold  "  Obsidian Connector Installer v$InstallerVersionConst"
-Write-Dim   "  112 MCP tools | 17 skills | 13 presets"
+Write-Dim   "  100+ MCP tools | 15+ skills | 10+ presets"
 Write-Host  ""
 if ($NonInteractive) {
     Write-Dim "  Running in non-interactive mode"
@@ -887,7 +887,7 @@ print('OK')
 
         if ($result -match "OK") {
             Write-Green "  MCP server registered in Claude Desktop config"
-            Write-Dim  "  Restart Claude Desktop to load 112 MCP tools."
+            Write-Dim  "  Restart Claude Desktop to load 100+ MCP tools."
             $InstalledSomewhere = $true
             $StepResults["desktop"] = "ok"
         } else {
@@ -1096,7 +1096,7 @@ if ($HasClaudeCode) {
     Write-Host "  Claude Code: Try /capture, /ritual, /sync in any conversation"
 }
 if ($HasClaudeDesktop) {
-    Write-Host "  Claude Desktop: Restart Desktop to load 112 MCP tools"
+    Write-Host "  Claude Desktop: Restart Desktop to load 100+ MCP tools"
 }
 
 Write-Host ""
