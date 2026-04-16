@@ -1604,6 +1604,33 @@ def _fmt_forget_mobile_device(result: dict) -> str:
     )
 
 
+def _fmt_vault_conflicts(result: dict) -> str:
+    """Human-readable vault-conflicts output (Task 37 phase 2)."""
+    if not result.get("ok"):
+        return f"Vault conflict scan failed: {result.get('error', 'unknown error')}"
+    items = result.get("items", []) or []
+    vault_root = result.get("vault_root", "?")
+    scanned = int(result.get("scanned", 0) or 0)
+    if not items:
+        return f"No conflict files detected under {vault_root} ({scanned} markdown files scanned)."
+    lines = [f"Conflict files under {vault_root} ({scanned} markdown files scanned):"]
+    by_provider: dict[str, list[dict]] = {}
+    for item in items:
+        by_provider.setdefault(item.get("provider", "unknown"), []).append(item)
+    for provider in sorted(by_provider):
+        lines.append(f"  {provider} ({len(by_provider[provider])}):")
+        for item in by_provider[provider]:
+            size = int(item.get("size_bytes", 0) or 0)
+            lines.append(
+                f"    {item.get('relative_path', '?')}  [{item.get('pattern_label','?')}, {size} bytes]"
+            )
+    lines.append("")
+    lines.append(
+        "Reconcile manually in Obsidian then delete the conflict copy. See docs/implementation/shared_vault.md."
+    )
+    return "\n".join(lines)
+
+
 def _fmt_system_health(result: dict) -> str:
     """Human-readable composite system-health output (Task 44)."""
     if not result.get("ok"):
@@ -2948,6 +2975,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--service-url", dest="service_url", default=None,
         help="Overrides OBSIDIAN_CAPTURE_SERVICE_URL.",
+    )
+    p.add_argument(
+        "--json", dest="sub_json", action="store_true",
+        help="(alias for global --json)",
+    )
+
+    # -- vault-conflicts (Task 37 phase 2) -------------------------------
+    p = sub.add_parser(
+        "vault-conflicts",
+        help="Scan a vault for iCloud / Dropbox / OneDrive / Obsidian Sync conflict files.",
+    )
+    p.add_argument(
+        "--vault-root", dest="vault_root", default=None,
+        help="Path to the vault root. Defaults to OBSIDIAN_VAULT_ROOT env or the configured vault path.",
     )
     p.add_argument(
         "--json", dest="sub_json", action="store_true",
@@ -4831,6 +4872,24 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 data = result
                 human = _fmt_forget_mobile_device(result)
+
+        elif args.command == "vault-conflicts":
+            import os
+            from obsidian_connector.vault_conflicts import detect_vault_conflicts
+
+            vault_root = (
+                getattr(args, "vault_root", None)
+                or os.environ.get("OBSIDIAN_VAULT_ROOT")
+            )
+            if not vault_root:
+                result = {
+                    "ok": False,
+                    "error": "no vault root resolved (pass --vault-root or set OBSIDIAN_VAULT_ROOT)",
+                }
+            else:
+                result = detect_vault_conflicts(vault_root)
+            data = result
+            human = _fmt_vault_conflicts(result)
 
         elif args.command == "delivery-detail":
             from obsidian_connector.approval_ops import get_delivery_detail
