@@ -12,7 +12,7 @@ error detection, audit logging, and output parsing.
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),
-62 tools are available to Claude and other MCP clients.  All `vault`
+112 tools are available to Claude and other MCP clients.  All `vault`
 parameters are optional -- when omitted, the configured default vault is used.
 
 ### Core vault operations
@@ -182,6 +182,31 @@ Mutating commands optionally sync status to `obsidian-capture-service` via
 | `obsidian_write_weekly_report` | `week_offset?`, `vault_root?`, `service_url?` | JSON envelope `{ok, path, week_label}` on success. Writes `Analytics/Weekly/<year>/<week_label>.md`. Preserves any `service:analytics-user-notes:{begin,end}` fence on re-runs. Task 39. |
 | `obsidian_plan_import` | `root`, `include_globs?`, `exclude_globs?`, `min_size?`, `max_size?`, `max_files?` | JSON envelope `{ok, data: {root, total_scanned, to_import_as_capture[{path, title_guess, size_bytes, modified_at, content_sha256, idempotency_key, confidence}], to_skip_already_managed[], to_skip_size_out_of_range[], to_skip_unknown_kind[], warnings[]}}`. Pure planning -- no HTTP, no mutation. Refuses with `ok=false` when scan exceeds `max_files` (default 1000). Task 43. |
 | `obsidian_execute_import` | `root`, `dry_run?` (default `true`), `confirm?` (default `false`), `include_globs?`, `exclude_globs?`, `min_size?`, `max_size?`, `max_files?`, `throttle_seconds?`, `source_app?`, `service_url?`, `write_report?`, `vault_root?` | JSON envelope `{ok, data: {dry_run, started_at, finished_at, succeeded, failed, duplicates, posted[{relative_path, idempotency_key, ok, capture_id, duplicate, status_code, error, import_metadata_echoed}], plan: {...}}, report?: {ok, path}}`. POSTs each `to_import_as_capture` entry to `/api/v1/ingest/text` with deterministic `X-Idempotency-Key: vault-import-<sha256[:16]>` so re-runs collapse on the service-side Task 43 dedup substrate. **Defaults to dry-run.** Both `dry_run=false` AND `confirm=true` are required to actually POST -- either alone yields a no-op result. Per-file failures non-fatal. Task 43. |
+| `obsidian_delegate_commitment` | `action_id`, `to_person`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, delegated_to, delegated_to_entity_id, delegated_at, delegation_note, lifecycle_stage}}`. `POST /api/v1/actions/{id}/delegate`. Resolves person via alias / creates on miss. Idempotent on same person. Task 38. |
+| `obsidian_reclaim_commitment` | `action_id`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, status, lifecycle_stage}}`. `POST /api/v1/actions/{id}/reclaim`. Clears delegation + flips `waiting -> active`. Idempotent on a non-delegated row. Task 38. |
+| `obsidian_delegated_to` | `person`, `limit?`, `cursor?`, `include_terminal?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, person, items[...], next_cursor}}`. `GET /api/v1/actions/delegated-to/{person}`. Alias-aware. Keyset paginated. Task 38. |
+| `obsidian_stale_delegations` | `threshold_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, threshold_days, items[...]}}`. Per-person buckets of open actions delegated > N days ago. `GET /api/v1/patterns/stale-delegations`. Task 38. |
+| `obsidian_action_recommendations` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, recommendations[{code, label, action_verb, confidence, rationale, suggested_inputs}]}}`. `GET /api/v1/coaching/action/{id}`. 404 missing / 409 terminal. Task 40. |
+| `obsidian_review_recommendations` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[{action_id, title, urgency, recommendations[...], impact_score}]}}`. `GET /api/v1/coaching/review`. Sorted by `(impact_score DESC, action_id ASC)`. Task 40. |
+| `obsidian_bulk_ack` | `action_ids[]`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, verb: "ack", requested, succeeded[], skipped[{action_id, reason, detail}]}}`. Atomic per-batch. `POST /api/v1/actions/bulk-ack`. Cap `MAX_BULK_ACTION_IDS` (default 50). Task 41. |
+| `obsidian_bulk_done` | `action_ids[]`, `note?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_ack` with `verb: "done"`. `POST /api/v1/actions/bulk-done`. Task 41. |
+| `obsidian_bulk_postpone` | `action_ids[]`, `preset?` \| `postponed_until?`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, verb: "postpone", resolved_postponed_until, requested, succeeded[], skipped[...]}}`. Client-side enforces exactly one of `preset` / `postponed_until`. `POST /api/v1/actions/bulk-postpone`. Task 41. |
+| `obsidian_bulk_cancel` | `action_ids[]`, `reason?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_ack` with `verb: "cancel"`. `POST /api/v1/actions/bulk-cancel`. Task 41. |
+| `obsidian_postpone_presets` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, presets[{name, label, description}]}}`. `GET /api/v1/actions/postpone-presets`. Read-only preset catalog (9 entries). Task 41. |
+| `obsidian_mobile_devices` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, devices[{device_id, device_label, platform, app_version, first_seen_at, last_sync_at, pending_ops_count, last_cursor}]}}`. `GET /api/v1/mobile/devices`. Sorted `last_sync_at DESC NULLS LAST`. Task 42. |
+| `obsidian_forget_mobile_device` | `device_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, device_id, deleted, cancelled_ops}}`. `POST /api/v1/mobile/devices/{id}/forget`. Atomic drop + supersede pending ops. Idempotent on missing id. Task 42. |
+
+### Code investigation (v0.9.0)
+
+Ix system exposes progressive-disclosure helpers for mapping and navigating code structure.
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_investigate` | `topic`, `vault?` | JSON `{ok, topic, summary, outline, next_steps, related}`. Progressive-disclosure walkthrough over indexed code + vault notes. |
+| `obsidian_ix_map` | `path?`, `vault?` | JSON `{ok, root, modules[...], generated_at}`. Triggers Ix to index or re-index the workspace/folder. |
+| `obsidian_ix_explain` | `entity`, `vault?` | JSON `{ok, entity, kind, summary, signature?, callers[], callees[]}`. Explains a codebase entity using the Ix map. |
+| `obsidian_ix_trace` | `flow`, `vault?` | JSON `{ok, flow, steps[{file, symbol, kind}], confidence}`. Traces a control-flow or data path through the system. |
+| `obsidian_ix_impact` | `entity`, `vault?` | JSON `{ok, entity, downstream[...], upstream[...], test_targets[]}`. Analyzes the downstream impact of changing an entity. |
 
 ### Idea routing (v0.5.0)
 
@@ -221,7 +246,7 @@ Core CLI commands do not require Textual. The optional `menu` and
 `setup-wizard` commands require `pip install 'obsidian-connector[tui]'`
 (first-party installers and `scripts/setup.sh` include it).
 
-### CLI subcommands (65 add_parser registrations, including 6 parent groups)
+### CLI subcommands (115 add_parser registrations, including 6 parent groups)
 
 Parent groups (`graduate`, `drafts`, `vaults`, `templates`, `schedule`, `project`)
 are not directly runnable -- they contain the sub-subcommands listed below.
@@ -522,9 +547,9 @@ obsidian-connector/
   obsidian_connector/              Core Python package
     __init__.py                    Public API re-exports
     __main__.py                    Module entry point
-    cli.py                         CLI entry point (65 subcommands)
+    cli.py                         CLI entry point (115 subcommands)
     startup.py                     First-run marker + shared startup helpers
-    mcp_server.py                  MCP server (62 tools for Claude Desktop)
+    mcp_server.py                  MCP server (112 tools for Claude Desktop)
     client.py                      Core CLI wrapper + batch reads
     client_fallback.py             Adapter: auto file_backend fallback when CLI unavailable
     file_backend.py                CLI-less vault access via direct file reads

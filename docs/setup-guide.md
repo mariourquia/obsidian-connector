@@ -44,7 +44,7 @@ cd obsidian-connector
 
 ### What you get
 
-- 62 MCP tools available in every Claude Desktop conversation
+- 112 MCP tools available in every Claude Desktop conversation
 - Automatic `check_in` at conversation start (via system prompt)
 - No skills, hooks, or scheduling (those require Claude CLI)
 

@@ -5,7 +5,7 @@
 Python wrapper for the Obsidian desktop app CLI. Five distribution surfaces:
 - **Python API** -- `from obsidian_connector import search_notes, read_note, ...`
 - **CLI** -- `obsx search "query"` or `./bin/obsx search "query"`
-- **MCP server** -- 62 tools for Claude Desktop via stdio or HTTP
+- **MCP server** -- 112 tools for Claude Desktop via stdio or HTTP
 - **Claude Code plugin** -- `claude --plugin-dir .` or `claude plugin install obsidian-connector`
 - **macOS DMG** -- Double-click installer for non-technical users
 
@@ -312,8 +312,8 @@ Full test catalog in `CONTRIBUTING.md`.
 See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 
 - `client.py` -- low-level Obsidian CLI wrapper (+ `client_fallback.py` for direct file I/O)
-- `mcp_server.py` -- FastMCP tool definitions (62 tools)
-- `cli.py` -- argparse CLI (65 commands)
+- `mcp_server.py` -- FastMCP tool definitions (112 tools)
+- `cli.py` -- argparse CLI (115 commands)
 - `workflows.py` -- composed multi-step operations
 - `config.py` -- vault/index configuration, vault path resolution
 - `commitment_notes.py` -- renderer + idempotent writer for capture-service actions (see `docs/implementation/commitment_note_schema.md`). Task 27 extends `ActionInput` and the frontmatter schema with `urgency` (derived by the service), `lifecycle_stage` (enum, separate from `status`), `source_app`, `source_entrypoint`, `people`, `areas`. Field slots are stable; pre-Task-27 notes hydrate with defaults (`urgency='normal'`, `lifecycle_stage='inbox'`, empty lists). **Task 29** adds a pure `format_source_label(source_app, source_entrypoint) -> str` that maps the Task 27 tuples to a human-readable provenance label (`"Captured via Wispr Flow (Action Button)"`, `"Captured from Apple Notes (#capture)"`, `"(via cloud queue)"` suffix for `queue_poller` entrypoint, `"Unknown source"` fallback). Rendered alongside the raw `- Source:` line as a new `- Captured:` body row. Reused by `commitment_dashboards.py` for the By-source subsection on the Daily and Weekly review surfaces. Single source of truth for provenance vocabulary. ADR: `docs/architecture/task_29_provenance_ux.md`. **Task 32** adds an optional `why_open_summary: str | None` field on `ActionInput`. When supplied, `_render_body` writes a `## Why still open` section inside the `service:why-open:begin/end` fence. The summary is truncated at 1500 chars, idempotent, and preserved across routine re-syncs (the renderer reads the existing fence from disk when `why_open_summary is None`). Only an explicit refresh (`obsx explain-commitment` + re-sync) replaces the block. No auto-fetch on every sync.

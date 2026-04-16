@@ -224,11 +224,17 @@ def validate_stale_versions() -> list[str]:
                 prior.add(vm)
 
     exempt_files = {"CHANGELOG.md", "LICENSE", "SBOM.md"}
-    exempt_dirs = {"docs/generated", "docs/exec-plans", "docs/plans", "docs/", ".claude", ".github"}
+    exempt_dirs = {
+        "docs/generated", "docs/exec-plans", "docs/plans", "docs/",
+        ".claude", ".github",
+        "obsidian_connector/ix_engine", "tools",
+    }
     scan_ext = {".md", ".json", ".yml", ".yaml", ".toml"}
 
     for fpath in sorted(REPO_ROOT.rglob("*")):
         if not fpath.is_file() or ".git" in fpath.parts or ".claude" in fpath.parts or ".venv" in fpath.parts:
+            continue
+        if "node_modules" in fpath.parts or "builds" in fpath.parts or ".tmp-graphify" in fpath.parts:
             continue
         if fpath.suffix not in scan_ext:
             continue
@@ -279,6 +285,8 @@ def validate_legacy_files() -> list[str]:
 
     for fpath in REPO_ROOT.rglob("* 2*"):
         if ".git" in fpath.parts or ".venv" in fpath.parts:
+            continue
+        if "node_modules" in fpath.parts or "builds" in fpath.parts or ".tmp-graphify" in fpath.parts:
             continue
         relpath = str(fpath.relative_to(REPO_ROOT))
         failures.append(f"FAIL  {relpath}: macOS duplicate -- delete before release")

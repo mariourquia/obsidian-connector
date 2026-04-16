@@ -42,7 +42,7 @@ def get_pyproject_version(install_dir: Path) -> str | None:
     toml_path = install_dir / "pyproject.toml"
     if not toml_path.is_file():
         return None
-    content = toml_path.read_text(encoding="utf-8")
+    content = toml_path.read_text(encoding="utf-8-sig")
     m = re.search(r'version = "([^"]+)"', content)
     return m.group(1) if m else None
 
@@ -94,7 +94,7 @@ def check_plugin_cache(claude_home: Path, version: str) -> tuple[str, str]:
         return "FAIL", f"plugin.json not found in cache: {plugin_json}"
 
     try:
-        data = json.loads(plugin_json.read_text(encoding="utf-8"))
+        data = json.loads(plugin_json.read_text(encoding="utf-8-sig"))
         if data.get("name") != "obsidian-connector":
             return "FAIL", f"plugin.json name mismatch: {data.get('name')}"
     except (json.JSONDecodeError, OSError) as e:
@@ -111,7 +111,7 @@ def check_installed_plugins(claude_home: Path, version: str) -> tuple[str, str]:
         return "FAIL", f"installed_plugins.json not found: {ip_path}"
 
     try:
-        data = json.loads(ip_path.read_text(encoding="utf-8"))
+        data = json.loads(ip_path.read_text(encoding="utf-8-sig"))
     except (json.JSONDecodeError, OSError) as e:
         return "FAIL", f"installed_plugins.json parse error: {e}"
 
@@ -152,7 +152,7 @@ def check_settings(claude_home: Path) -> tuple[str, str]:
         return "FAIL", f"settings.json not found: {settings_path}"
 
     try:
-        data = json.loads(settings_path.read_text(encoding="utf-8"))
+        data = json.loads(settings_path.read_text(encoding="utf-8-sig"))
     except (json.JSONDecodeError, OSError) as e:
         return "FAIL", f"settings.json parse error: {e}"
 
@@ -183,7 +183,7 @@ def check_desktop_config() -> tuple[str, str]:
         return "SKIP", f"claude_desktop_config.json not found: {config_path}"
 
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
+        data = json.loads(config_path.read_text(encoding="utf-8-sig"))
     except (json.JSONDecodeError, OSError) as e:
         return "FAIL", f"claude_desktop_config.json parse error: {e}"
 
@@ -234,7 +234,7 @@ def check_version_match(claude_home: Path, version: str) -> tuple[str, str]:
         return "SKIP", "installed_plugins.json not found -- cannot verify version"
 
     try:
-        data = json.loads(ip_path.read_text(encoding="utf-8"))
+        data = json.loads(ip_path.read_text(encoding="utf-8-sig"))
     except (json.JSONDecodeError, OSError):
         return "SKIP", "installed_plugins.json unreadable -- cannot verify version"
 

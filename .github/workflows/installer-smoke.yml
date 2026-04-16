@@ -83,7 +83,7 @@ jobs:
           config_path = r'$configPath'.replace("'", "")
 
           try:
-              with open(config_path, 'r', encoding='utf-8') as f:
+              with open(config_path, 'r', encoding='utf-8-sig') as f:
                   data = json.load(f)
           except FileNotFoundError:
               print(f'FAIL: Config file not found at {config_path}')
