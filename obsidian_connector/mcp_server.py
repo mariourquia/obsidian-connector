@@ -3920,6 +3920,83 @@ def obsidian_system_health(
 
 
 # ---------------------------------------------------------------------------
+# Task 42: Cross-device sync management
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Mobile Devices (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_mobile_devices(
+    service_url: str | None = None,
+) -> str:
+    """Fetch ``GET /api/v1/mobile/devices`` (Task 42).
+
+    Returns every registered device with human-readable label,
+    platform, app version, first-seen timestamp, last-sync timestamp,
+    pending operation count, and stored cursor. Sorted
+    ``last_sync_at DESC NULLS LAST``.
+
+    Args:
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import list_mobile_devices
+
+    try:
+        result = list_mobile_devices(service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+@mcp.tool(
+    title="Forget Mobile Device (via service)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+def obsidian_forget_mobile_device(
+    device_id: str,
+    service_url: str | None = None,
+) -> str:
+    """Call ``POST /api/v1/mobile/devices/{device_id}/forget`` (Task 42).
+
+    Atomically drops the device's row from ``device_sync_state`` and
+    supersedes all of its pending sync operations. Idempotent on a
+    missing device id (returns ``deleted: False``). Acked operations
+    are preserved for the audit trail.
+
+    Args:
+        device_id: The device id as listed by ``obsidian_mobile_devices``.
+        service_url: Overrides ``OBSIDIAN_CAPTURE_SERVICE_URL``.
+
+    Reads ``OBSIDIAN_CAPTURE_SERVICE_TOKEN`` from env. Never raises.
+    """
+    from obsidian_connector.admin_ops import forget_mobile_device
+
+    try:
+        result = forget_mobile_device(device_id, service_url=service_url)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Task 36: Approval UX (detail + bulk + digest)
 # ---------------------------------------------------------------------------
 
