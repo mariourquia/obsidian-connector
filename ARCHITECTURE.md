@@ -113,6 +113,7 @@ their `src/` counterparts (same underlying files).
 | `import_tools.py` | Vault import pipeline: scan / classify / plan / execute / report (Task 43), default dry-run |
 | `onboarding.py` | Pure-Python onboarding step catalog, shared between `obsx onboarding` CLI and `docs/ONBOARDING.md` |
 | `recipes.py` | Preset workflow recipes for common flows |
+| `vault_conflicts.py` | Shared-vault conflict-file detector (Task 37): iCloud / Dropbox / OneDrive / Obsidian Sync patterns, deterministic output, never raises |
 
 ## Dependency flow
 
