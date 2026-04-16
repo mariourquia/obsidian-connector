@@ -7,6 +7,31 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Task 42 -- Cross-device sync (connector)**: two new HTTP wrappers
+  in `obsidian_connector/admin_ops.py`: `list_mobile_devices(*, service_url, token)`
+  over `GET /api/v1/mobile/devices`, and
+  `forget_mobile_device(device_id, *, service_url, token)` over
+  `POST /api/v1/mobile/devices/{device_id}/forget` (URL-encodes the
+  path id; blank / non-string id short-circuits before any HTTP call).
+  Both reuse `commitment_ops._service_get_json` / `_service_post_json`
+  so Task 35 timeout / scheme / auth behavior is shared. Never raises;
+  failures surface inside the standard envelope. Two new MCP tools
+  (`obsidian_mobile_devices`, `obsidian_forget_mobile_device`) and two
+  new CLI subcommands (`obsx mobile-devices`,
+  `obsx forget-mobile-device --device-id ID [--yes]`). The forget
+  subcommand prompts interactively for confirmation unless `--yes` is
+  passed; `--json` also skips the prompt so scripted output stays
+  parseable. `commitment_dashboards.generate_admin_dashboard()` now
+  fetches the new `/devices` payload and appends a "## Mobile devices"
+  section after the existing "## Stale sync devices" section; the
+  stale-sync section also now prefixes `device_label` when available
+  so operators can tell devices apart at a glance. Same
+  service-unreachable / service-unconfigured banner pattern as every
+  other dashboard. Tests: 22 new cases in `tests/test_devices_ops.py`;
+  `tests/test_admin_helpers.py` happy-path test updated for the new
+  sixth service call (written count 3 -> 4). Baseline 611 -> 633.
+  Companion to capture-service Task 42. ADR:
+  `docs/architecture/task_42_cross_device_sync_connector.md`.
 - **Task 41 -- Mobile bulk actions (connector)**: five new thin HTTP
   wrappers in `obsidian_connector/commitment_ops.py` --
   `bulk_ack_commitments(action_ids, *, note=None, ...)` over

@@ -1684,6 +1684,7 @@ def _render_admin_md(
     stale_devices_items: list[dict] | None,
     service_configured: bool,
     service_error: str | None,
+    mobile_devices_items: list[dict] | None = None,
 ) -> str:
     """Render the admin dashboard markdown.
 
@@ -1830,16 +1831,45 @@ def _render_admin_md(
         lines.append("|---|---|---|---:|---:|")
         for item in stale_devices_items:
             device = str(item.get("device_id") or "?").replace("|", "\\|")
+            label = str(item.get("device_label") or "").replace("|", "\\|")
+            device_display = f"{label} ({device})" if label else device
             platform = str(item.get("platform") or "—").replace("|", "\\|")
             last = _fmt_date(item.get("last_synced_at"), fallback="never")
             hours = item.get("hours_since_last_sync")
             hours_str = f"{hours:.1f}" if hours is not None else "—"
             pending = int(item.get("pending_ops_count") or 0)
             lines.append(
-                f"| {device} | {platform} | {last} | {hours_str} | {pending} |"
+                f"| {device_display} | {platform} | {last} | {hours_str} | {pending} |"
             )
     else:
         lines.append("- All devices are fresh.")
+    lines.append("")
+
+    # Mobile devices (Task 42) -- every registered device, not just stale ones
+    lines.append("## Mobile devices")
+    lines.append("")
+    if mobile_devices_items:
+        lines.append(
+            "| Device | Label | Platform | App | Last sync | "
+            "Pending ops | First seen |"
+        )
+        lines.append("|---|---|---|---|---|---:|---|")
+        for item in mobile_devices_items:
+            device = str(item.get("device_id") or "?").replace("|", "\\|")
+            label = str(item.get("device_label") or "—").replace("|", "\\|")
+            platform = str(item.get("platform") or "—").replace("|", "\\|")
+            version = str(item.get("app_version") or "—").replace("|", "\\|")
+            last = _fmt_date(item.get("last_sync_at"), fallback="never")
+            pending = int(item.get("pending_ops_count") or 0)
+            first_seen = _fmt_date(item.get("first_seen_at"), fallback="—")
+            lines.append(
+                f"| {device} | {label} | {platform} | {version} | "
+                f"{last} | {pending} | {first_seen} |"
+            )
+    elif mobile_devices_items is None and not service_configured:
+        lines.append("- (service not configured)")
+    else:
+        lines.append("- No mobile devices registered yet.")
     lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
@@ -1870,6 +1900,7 @@ def generate_admin_dashboard(
         get_queue_health,
         get_system_health,
         list_delivery_failures,
+        list_mobile_devices,
         list_pending_approvals,
         list_stale_sync_devices,
     )
@@ -1884,6 +1915,7 @@ def generate_admin_dashboard(
     f_items: list[dict] | None = None
     a_items: list[dict] | None = None
     d_items: list[dict] | None = None
+    m_items: list[dict] | None = None
     service_error: str | None = None
 
     if service_configured:
@@ -1917,6 +1949,12 @@ def generate_admin_dashboard(
         else:
             service_error = service_error or str(d.get("error") or "error")
 
+        m = list_mobile_devices(service_url=service_url, token=token)
+        if m.get("ok"):
+            m_items = (m.get("data") or {}).get("devices") or []
+        else:
+            service_error = service_error or str(m.get("error") or "error")
+
     content = _render_admin_md(
         now_iso=ts,
         system_health_payload=sh_payload,
@@ -1924,6 +1962,7 @@ def generate_admin_dashboard(
         delivery_failures_items=f_items,
         pending_approvals_items=a_items,
         stale_devices_items=d_items,
+        mobile_devices_items=m_items,
         service_configured=service_configured,
         service_error=service_error,
     )
@@ -1932,6 +1971,7 @@ def generate_admin_dashboard(
         (len(f_items or []))
         + (len(a_items or []))
         + (len(d_items or []))
+        + (len(m_items or []))
     )
     atomic_write(
         path, content, vault_root=vault_root, tool_name=_TOOL,

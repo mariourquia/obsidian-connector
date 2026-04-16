@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import urllib.parse
 
-from obsidian_connector.commitment_ops import _service_get_json
+from obsidian_connector.commitment_ops import _service_get_json, _service_post_json
 
 
 # ---------------------------------------------------------------------------
@@ -130,10 +130,65 @@ def get_system_health(
     )
 
 
+# ---------------------------------------------------------------------------
+# Task 42: cross-device management wrappers
+# ---------------------------------------------------------------------------
+
+
+def list_mobile_devices(
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``GET /api/v1/mobile/devices`` on the capture service.
+
+    Returns the :func:`_service_get_json` envelope. On success the
+    payload is ``{ok, devices: [{device_id, device_label, platform,
+    app_version, first_seen_at, last_sync_at, pending_ops_count,
+    last_cursor}, ...]}`` sorted ``last_sync_at DESC NULLS LAST``.
+    Never raises.
+    """
+    return _service_get_json(
+        "/api/v1/mobile/devices",
+        service_url=service_url,
+        token=token,
+    )
+
+
+def forget_mobile_device(
+    device_id: str,
+    *,
+    service_url: str | None = None,
+    token: str | None = None,
+) -> dict:
+    """Call ``POST /api/v1/mobile/devices/{device_id}/forget``.
+
+    Atomic on the service side: drops the device row and supersedes
+    its pending ops inside a single transaction. Idempotent on a
+    missing device id (the service returns ``{deleted: False}``).
+
+    Returns the :func:`_service_post_json` envelope. On success the
+    payload is ``{ok, device_id, deleted, cancelled_ops}``. Never
+    raises. A blank or non-string ``device_id`` short-circuits to
+    ``{"ok": False, "error": "..."}`` before any HTTP call so the
+    caller never wastes a round-trip.
+    """
+    if not device_id or not isinstance(device_id, str):
+        return {"ok": False, "error": "device_id must be a non-empty string"}
+
+    import urllib.parse
+
+    quoted = urllib.parse.quote(device_id, safe="")
+    path = f"/api/v1/mobile/devices/{quoted}/forget"
+    return _service_post_json(path, service_url=service_url, token=token)
+
+
 __all__ = [
     "get_queue_health",
     "list_delivery_failures",
     "list_pending_approvals",
     "list_stale_sync_devices",
     "get_system_health",
+    "list_mobile_devices",
+    "forget_mobile_device",
 ]
