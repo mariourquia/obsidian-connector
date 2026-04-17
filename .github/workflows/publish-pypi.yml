@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/obsidian-connector/
+      url: https://pypi.org/project/obsx/
     # Trusted Publishing needs id-token:write so the job can mint an OIDC
     # token that PyPI verifies. No API token secret is used.
     permissions:

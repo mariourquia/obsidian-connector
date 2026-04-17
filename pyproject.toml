@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "obsidian-connector"
-version = "0.10.0"
+name = "obsx"
+version = "0.11.0.post1"
 description = "Turn Claude into your second brain. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault."
 readme = "README.md"
 license = "MIT"
@@ -48,6 +48,32 @@ obsidian-connector-mcp = "obsidian_connector.mcp_server:main"
 Homepage = "https://github.com/mariourquia/obsidian-connector"
 Repository = "https://github.com/mariourquia/obsidian-connector"
 Issues = "https://github.com/mariourquia/obsidian-connector/issues"
+
+[tool.hatch.build]
+# Keep dev/build artifacts out of the published distributions.
+exclude = [
+  "**/node_modules",
+  "**/__pycache__",
+  "**/.pytest_cache",
+  "**/.mypy_cache",
+  "**/.ruff_cache",
+  "**/build",
+  "**/dist",
+  "**/*.pyc",
+  "**/*.pyo",
+  "**/*.so",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["obsidian_connector"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "obsidian_connector",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
