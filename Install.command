@@ -572,7 +572,7 @@ echo "    1. Make sure Obsidian is open"
 echo "    2. Quit and reopen Claude Desktop"
 echo "    3. Claude now has access to your vault"
 echo ""
-dim "  (112 tools for search, read, graph analysis,"
+dim "  (100+ tools for search, read, graph analysis,"
 dim "   idea surfacing, daily workflows, and more)"
 
 if [ -n "$EDGE_CASES" ]; then

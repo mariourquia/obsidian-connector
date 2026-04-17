@@ -547,4 +547,52 @@ def obsidian_binary_candidates() -> list[str]:
             if exe.exists():
                 return [str(exe)]
         return ["Obsidian.exe"]
+
+
+# ---------------------------------------------------------------------------
+# v0.11 platform-reliability: filename-safe fragment helper
+# ---------------------------------------------------------------------------
+
+_WINDOWS_RESERVED_CHARS = '<>:"/\\|?*'
+_CONTROL_CHARS = "".join(chr(c) for c in range(0x20))
+
+
+def safe_filename_fragment(value: str, replacement: str = "-") -> str:
+    """Strip Windows-reserved and control characters from a filename fragment.
+
+    NTFS + FAT32 disallow ``<>:"/\\|?*`` and control chars (0x00-0x1F).
+    Upstream Claude Code has historically written MCP server log filenames
+    containing ISO timestamps with `:` separators, which crashes the
+    subsequent open on Windows. Our own code never emits colons in
+    filenames (see audit.py / telemetry.py), but this helper is exposed
+    so future code, docs, and bug-report workarounds share one canonical
+    scrubber.
+
+    Parameters
+    ----------
+    value:
+        Any string intended to be part of a filename.
+    replacement:
+        Character (or empty string) to substitute for each disallowed
+        char. Defaults to ``"-"`` because it round-trips cleanly across
+        POSIX and Windows shells.
+
+    Returns
+    -------
+    str
+        A version of ``value`` with every NTFS-reserved and control
+        character replaced. Trailing whitespace and dots are also
+        stripped because NTFS silently strips them on open (a surprise
+        source of bugs when a later path comparison fails).
+
+    Examples
+    --------
+    >>> safe_filename_fragment("2026-04-16T14:30:00")
+    '2026-04-16T14-30-00'
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    banned = set(_WINDOWS_RESERVED_CHARS) | set(_CONTROL_CHARS)
+    out = "".join(replacement if ch in banned else ch for ch in value)
+    return out.rstrip(" .") or replacement
     return ["obsidian"]

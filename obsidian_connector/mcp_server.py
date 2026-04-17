@@ -3997,6 +3997,58 @@ def obsidian_forget_mobile_device(
 
 
 # ---------------------------------------------------------------------------
+# Task 37 phase 2: Shared-vault conflict-file detection
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Vault Conflict Files",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_vault_conflicts(
+    vault_root: str | None = None,
+) -> str:
+    """Scan a vault root for sync-service conflict files (Task 37).
+
+    Surfaces filenames produced by iCloud Drive, Dropbox, OneDrive, and
+    Obsidian Sync when two devices write simultaneously. The connector
+    never writes these; this tool is the read side of the "shared vault"
+    story documented in ``docs/implementation/shared_vault.md``.
+
+    Args:
+        vault_root: Path to the vault root. Defaults to the
+            ``OBSIDIAN_VAULT_ROOT`` environment variable.
+
+    Returns a JSON envelope ``{ok, vault_root, scanned, items[{relative_path,
+    provider, pattern_label, size_bytes}]}`` on success, or
+    ``{ok: False, error}`` on invalid input. Never raises.
+    """
+    import os
+
+    from obsidian_connector.vault_conflicts import detect_vault_conflicts
+
+    try:
+        root = vault_root or os.environ.get("OBSIDIAN_VAULT_ROOT")
+        if not root:
+            result = {
+                "ok": False,
+                "error": "no vault_root provided and OBSIDIAN_VAULT_ROOT is not set",
+            }
+        else:
+            result = detect_vault_conflicts(root)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps(
+            {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}
+        )
+
+
+# ---------------------------------------------------------------------------
 # Task 36: Approval UX (detail + bulk + digest)
 # ---------------------------------------------------------------------------
 
