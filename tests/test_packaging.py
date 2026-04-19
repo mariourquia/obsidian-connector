@@ -48,7 +48,10 @@ def test_pyproject_core_metadata_is_sane() -> None:
     data = _load_pyproject()
     project = data["project"]
 
-    assert project["name"] == "obsidian-connector"
+    # PyPI distribution name is `obsx` (renamed in v0.11.0.post1 when the
+    # Trusted Publisher was registered under that project). Import name is
+    # still `obsidian_connector`.
+    assert project["name"] == "obsx"
     assert re.fullmatch(r"\d+\.\d+\.\d+", project["version"]) is not None
     # Must run on the same Python floor the connector advertises across docs.
     assert project["requires-python"].startswith(">=3.11")

@@ -48,6 +48,32 @@ obsx doctor                       # sanity check after upgrade
 
 See `CHANGELOG.md` for release notes.
 
+## CI / release
+
+Five release surfaces ship from one tag:
+
+| Surface | Manifest | Version source |
+|---------|----------|----------------|
+| PyPI (`obsx`) | `pyproject.toml` | `[project].version` -- single source of truth |
+| Claude Code plugin | `src/plugin/plugin.json`, `builds/claude-code/.claude-plugin/plugin.json` | must match `pyproject.toml` |
+| Claude Desktop MCP bundle | `mcpb.json`, `builds/claude-desktop/pyproject.toml` | must match `pyproject.toml` |
+| Runtime (`obsidian_connector.__version__`) | `obsidian_connector/__init__.py` | must match `pyproject.toml` |
+| macOS DMG / Windows EXE | installer workflows read `github.ref_name` | must match `pyproject.toml` |
+
+**PyPI distribution.** Published as `obsx` via OIDC Trusted Publishing from `.github/workflows/publish-pypi.yml`; the import name is still `obsidian_connector`. `[tool.hatch.build.targets.wheel] packages = ["obsidian_connector"]` keeps hatchling happy. `[tool.hatch.build] exclude` drops `node_modules`, build caches, and `__pycache__` so broken symlinks under `obsidian_connector/ix_engine/` never crash the wheel.
+
+**Release tag format: `vX.Y.Z` only.** `build-macos-dmg.yml:37` and `build-windows-installer.yml:39` reject anything else (`CFBundleShortVersionString` and Inno Setup's `AppVersion` require numeric X.Y.Z). Post-releases (`vX.Y.Z.postN`), pre-releases (`vX.Y.Z-rc.N`), and PEP 440 epochs all fail the regex and Apple notarization. Use a fresh patch bump (`v0.11.0.post1` -> `v0.11.1`) when a release needs re-running.
+
+**Pre-tag checklist (must all pass):**
+
+```bash
+python3 scripts/integrity_check.py    # version consistency, tool contract, legacy files
+python3 scripts/manifest_check.py     # counts + versions across docs
+npx tsx tools/validate.ts --target claude-code
+```
+
+**Bumping the version.** Edit all of: `pyproject.toml`, `obsidian_connector/__init__.py`, `mcpb.json`, `src/plugin/plugin.json`, `builds/claude-code/.claude-plugin/plugin.json`, `builds/claude-code/pyproject.toml`, `builds/claude-desktop/pyproject.toml`. Add a `## [X.Y.Z]` heading to `CHANGELOG.md`. Merge -> tag `vX.Y.Z` -> push tag; the `Release`, `Build macOS DMG Installer`, `Build Windows Installer`, and `Publish to PyPI` workflows fire in parallel.
+
 ## Hardening (Task 35)
 
 - **HTTP client timeout**: every service wrapper in `commitment_ops.py`
