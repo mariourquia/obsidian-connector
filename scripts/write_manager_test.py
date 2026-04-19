@@ -16,6 +16,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 # Ensure the package is importable from the repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -237,7 +238,7 @@ def test_acquire_lock_prevents_concurrent():
 
     t1_acquired = threading.Event()
     t2_done = threading.Event()
-    results: dict = {"t1_got_lock": False, "t2_got_lock": False, "t2_error": None}
+    results: dict[str, Any] = {"t1_got_lock": False, "t2_got_lock": False, "t2_error": None}
 
     def thread1():
         with acquire_lock(target, timeout=5.0):
