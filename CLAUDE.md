@@ -56,7 +56,7 @@ Five release surfaces ship from one tag:
 |---------|----------|----------------|
 | PyPI (`obsx`) | `pyproject.toml` | `[project].version` -- single source of truth |
 | Claude Code plugin | `src/plugin/plugin.json`, `builds/claude-code/.claude-plugin/plugin.json` | must match `pyproject.toml` |
-| Claude Desktop MCP bundle | `mcpb.json`, `builds/claude-desktop/pyproject.toml` | must match `pyproject.toml` |
+| Claude Desktop MCP bundle | `mcpb.json` | must match `pyproject.toml` |
 | Runtime (`obsidian_connector.__version__`) | `obsidian_connector/__init__.py` | must match `pyproject.toml` |
 | macOS DMG / Windows EXE | installer workflows read `github.ref_name` | must match `pyproject.toml` |
 
