@@ -72,7 +72,7 @@ python3 scripts/manifest_check.py     # counts + versions across docs
 npx tsx tools/validate.ts --target claude-code
 ```
 
-**Bumping the version.** Edit all of: `pyproject.toml`, `obsidian_connector/__init__.py`, `mcpb.json`, `src/plugin/plugin.json`, `builds/claude-code/.claude-plugin/plugin.json`, `builds/claude-code/pyproject.toml`, `builds/claude-desktop/pyproject.toml`. Add a `## [X.Y.Z]` heading to `CHANGELOG.md`. Merge -> tag `vX.Y.Z` -> push tag; the `Release`, `Build macOS DMG Installer`, `Build Windows Installer`, and `Publish to PyPI` workflows fire in parallel.
+**Bumping the version.** Edit all of: `pyproject.toml`, `obsidian_connector/__init__.py`, `mcpb.json`, `src/plugin/plugin.json`, `.claude-plugin/marketplace.json`, `builds/claude-code/.claude-plugin/plugin.json`, `builds/claude-code/pyproject.toml`. Add a `## [X.Y.Z]` heading to `CHANGELOG.md`. Merge -> tag `vX.Y.Z` -> push tag; the `Release`, `Build macOS DMG Installer`, `Build Windows Installer`, and `Publish to PyPI` workflows fire in parallel.
 
 ## Hardening (Task 35)
 

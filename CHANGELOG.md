@@ -9,11 +9,12 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.11.1] - 2026-04-18
 
 ### Fixed
-- **Release mechanics.** Aligned version across all manifests
-  (`pyproject.toml`, `obsidian_connector/__init__.py`, `mcpb.json`,
-  `src/plugin/plugin.json`, `builds/claude-code/.claude-plugin/plugin.json`,
-  `builds/claude-code/pyproject.toml`, `builds/claude-desktop/pyproject.toml`)
-  so `scripts/integrity_check.py` / `scripts/manifest_check.py` pass.
+- **Release mechanics.** Aligned version across the release-check
+  manifests (`pyproject.toml`, `obsidian_connector/__init__.py`,
+  `mcpb.json`, `src/plugin/plugin.json`,
+  `builds/claude-code/.claude-plugin/plugin.json`,
+  `builds/claude-code/pyproject.toml`) so
+  `scripts/integrity_check.py` / `scripts/manifest_check.py` pass.
   The prior `v0.11.0` tag landed with `pyproject.toml` at
   `0.11.0.post1` (for the PyPI obsx rename) but the other manifests at
   `0.11.0`; installer workflows (`build-macos-dmg.yml`,
