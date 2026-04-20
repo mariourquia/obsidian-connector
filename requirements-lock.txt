@@ -48,7 +48,7 @@ mcp==1.26.0
     # via obsx (pyproject.toml)
 pycparser==3.0
     # via cffi
-pydantic==2.12.5
+pydantic==2.13.3
     # via
     #   mcp
     #   pydantic-settings
