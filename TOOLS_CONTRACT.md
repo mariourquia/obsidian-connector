@@ -46,6 +46,7 @@ These tools read vault `.md` files directly and work without Obsidian running.
 | `obsidian_vault_structure` | `vault?` | JSON `{total_notes, orphans[], dead_ends[], unresolved_links{}, tag_cloud{}, top_connected[]}` |
 | `obsidian_backlinks` | `note_path`, `vault?` | JSON array of `{file, context_line, tags[]}` |
 | `obsidian_rebuild_index` | `vault?` | Confirmation with note count and timing |
+| `obsidian_vault_conflicts` | `vault_root?` | JSON `{ok, vault_root, scanned, items[{relative_path, provider, pattern_label, size_bytes}]}` -- scans for iCloud / Dropbox / OneDrive / Obsidian Sync conflict files (read-only) |
 
 ### Thinking tools
 

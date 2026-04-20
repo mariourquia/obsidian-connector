@@ -16,6 +16,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 # Ensure the package is importable from the repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -235,23 +236,24 @@ def test_acquire_lock_prevents_concurrent():
     target = vault / "concurrent.md"
     atomic_write(target, "initial", vault)
 
-    barrier = threading.Barrier(2, timeout=5)
+    t1_acquired = threading.Event()
+    t2_done = threading.Event()
     results: dict[str, Any] = {"t1_got_lock": False, "t2_got_lock": False, "t2_error": None}
 
     def thread1():
         with acquire_lock(target, timeout=5.0):
             results["t1_got_lock"] = True
-            barrier.wait()
-            time.sleep(0.3)
+            t1_acquired.set()       # signal T2: lock is held
+            t2_done.wait(timeout=5.0)  # hold lock until T2 has tried
 
     def thread2():
-        barrier.wait()
-        time.sleep(0.05)
+        t1_acquired.wait(timeout=5.0)  # wait until T1 holds the lock
         try:
-            with acquire_lock(target, timeout=0.1):
+            with acquire_lock(target, timeout=0.5):
                 results["t2_got_lock"] = True
         except WriteLockError:
             results["t2_error"] = "WriteLockError"
+        t2_done.set()  # signal T1: T2 is finished
 
     t1 = threading.Thread(target=thread1)
     t2 = threading.Thread(target=thread2)

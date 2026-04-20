@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "obsx"
-version = "0.11.0.post1"
+version = "0.11.1"
 description = "Turn Claude into your second brain. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault."
 readme = "README.md"
 license = "MIT"

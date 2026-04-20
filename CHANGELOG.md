@@ -6,6 +6,49 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-04-18
+
+### Fixed
+- **Release mechanics.** Aligned version across the release-check
+  manifests (`pyproject.toml`, `obsidian_connector/__init__.py`,
+  `mcpb.json`, `src/plugin/plugin.json`,
+  `builds/claude-code/.claude-plugin/plugin.json`,
+  `builds/claude-code/pyproject.toml`) so
+  `scripts/integrity_check.py` / `scripts/manifest_check.py` pass.
+  The prior `v0.11.0` tag landed with `pyproject.toml` at
+  `0.11.0.post1` (for the PyPI obsx rename) but the other manifests at
+  `0.11.0`; installer workflows (`build-macos-dmg.yml`,
+  `build-windows-installer.yml`) rejected the `.post1` form
+  (`CFBundleShortVersionString` / Inno Setup `AppVersion` require
+  numeric X.Y.Z), and Apple notarization returned `Invalid`. `0.11.1`
+  is the clean patch on top; `obsx==0.11.0.post1` remains on PyPI.
+- **Claude Code plugin bin/obsx + bin/obsx-mcp.** Rebuilt from
+  `src/bin/` so the auto-venv setup landed in v0.10.0 is present in
+  the shipped plugin artifacts (the last v0.10.0 release committed
+  the `src/` change but not the corresponding rebuild under
+  `builds/claude-code/bin/`).
+- **Legacy file hygiene.** Removed six macOS `Finder` duplicate
+  directories and scripts under `obsidian_connector/ix_engine/`
+  (`ix-cli/test/fixtures 2/`, `ix-cli/scripts/build-core-ingestion 2.mjs`,
+  `ix-cli/src/cli 2/`, `ix-cli/src/client 2/`,
+  `core-ingestion/test-fixtures/mini-repo 2/`,
+  `core-ingestion/src/__tests__ 2/`) flagged by `integrity_check.py`.
+- **Tool contract.** Added `obsidian_vault_conflicts` row to
+  `TOOLS_CONTRACT.md` (was 112/113 documented; now 113/113).
+
+### Changed
+- **PyPI install line.** README and `docs/INSTALL.md` now show
+  `pip install obsx`. The previous `pip install obsidian-connector`
+  name is no longer published; the import name is still
+  `obsidian_connector`. Historical release artifacts under
+  `docs/releases/v0.9.0/*` and `docs/generated/RELEASE_NOTES_v*.md`
+  are intentionally left as-is.
+- **Repo `CLAUDE.md`.** Added a "CI / release" section documenting
+  the five-surface version invariant, the Trusted Publishing
+  workflow, and the X.Y.Z-only tag constraint.
+
+## [0.11.0] - 2026-04-17
+
 ### Added
 - **Task 37 phase 2 -- shared-vault CLI + MCP surface**:
   `obsx vault-conflicts [--vault-root] [--json]` subcommand and
