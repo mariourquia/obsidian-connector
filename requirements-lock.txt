@@ -92,5 +92,5 @@ typing-inspection==0.4.2
     #   mcp
     #   pydantic
     #   pydantic-settings
-uvicorn==0.42.0
+uvicorn==0.44.0
     # via mcp
