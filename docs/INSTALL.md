@@ -11,8 +11,10 @@ Install obsidian-connector on any AI agent surface. Each platform has a dedicate
 
 ## Python package variants
 
-- `pip install obsidian-connector` installs the core CLI, Python API, and MCP server dependencies.
-- `pip install 'obsidian-connector[tui]'` adds the optional Textual dashboard used by `obsx menu` and `obsx setup-wizard`.
+The project is published to PyPI as **`obsx`** (import name remains `obsidian_connector`).
+
+- `pip install obsx` installs the core CLI, Python API, and MCP server dependencies.
+- `pip install 'obsx[tui]'` adds the optional Textual dashboard used by `obsx menu` and `obsx setup-wizard`.
 - The first-party installers and `scripts/setup.sh` install the dashboard dependency automatically.
 
 ## Claude Code (CLI, Desktop Code tab, IDEs)

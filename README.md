@@ -189,15 +189,15 @@ The installer checks for Python, creates the venv, and registers the MCP server 
 ### f. pip install (Python developers)
 
 ```bash
-pip install obsidian-connector
+pip install obsx
 ```
 
 This gives you the core `obsx` CLI (65 commands) and the Python API. It does not configure Claude Desktop -- use one of the options above for that.
 
-To enable the interactive dashboard and setup wizard on a bare Python install:
+The distribution name on PyPI is `obsx`; the import name remains `obsidian_connector`. To enable the interactive dashboard and setup wizard on a bare Python install:
 
 ```bash
-pip install 'obsidian-connector[tui]'
+pip install 'obsx[tui]'
 # or from a local clone:
 pip install -e '.[tui]'
 ```

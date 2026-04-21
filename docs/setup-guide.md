@@ -161,7 +161,7 @@ with the correct environment variable. Or manually add to your `claude_desktop_c
 ```
 
 **Dashboard commands say Textual is missing.** Install the optional dashboard
-dependency with `pip install 'obsidian-connector[tui]'` (or `pip install -e '.[tui]'`
+dependency with `pip install 'obsx[tui]'` (or `pip install -e '.[tui]'`
 from a local clone). The first-party installers and `scripts/setup.sh` already
 include it.
 

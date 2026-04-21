@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "obsidian-connector"
-version = "0.9.0"
+version = "0.11.1"
 description = "Turn Claude into your second brain. Morning briefings, idea capture, evening reflections, weekly reviews -- all driven by your Obsidian vault."
 readme = "README.md"
 license = "MIT"
@@ -42,6 +42,7 @@ dev = ["pytest>=8.0,<9.0"]
 [project.scripts]
 obsidian-connector = "obsidian_connector.cli:main"
 obsx = "obsidian_connector.cli:main"
+obsidian-connector-mcp = "obsidian_connector.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/mariourquia/obsidian-connector"
