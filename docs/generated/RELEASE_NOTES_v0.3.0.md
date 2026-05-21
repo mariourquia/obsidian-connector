@@ -74,13 +74,13 @@ $ obsx init
   ==========================================
 
   Vault path [~/Documents/Obsidian/My Vault]:
-  GitHub projects root [~/Documents/GitHub]:
+  GitHub projects root [~/dev]:
 
-  Found 8 git repos in ~/Documents/GitHub
+  Found 8 git repos in ~/dev
   Track all discovered repos? [Y/n]:
 
   Creating vault at: ~/Documents/Obsidian/My Vault
-  Tracking 8 repos from: ~/Documents/GitHub
+  Tracking 8 repos from: ~/dev
 
   Vault initialized. 8 files created.
   Next: run obsx sync-projects to populate project data.
