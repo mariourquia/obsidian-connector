@@ -29,6 +29,11 @@ Top-level index for all documentation.
 ## Architecture
 
 - [Task 26 -- Review dashboards](./architecture/task_26_review_dashboards.md) -- ADR for the Daily/Weekly/Stale/Merge Candidates review surfaces
+- [Creation Vault OS: Vault Schema](./architecture/creation-vault-schema.md) -- note types, freshness/authority frontmatter, backlog-item schema, migration
+- [Creation Vault OS: Agent Session State](./architecture/creation-session-state.md) -- resumable session lifecycle, checkpoints, resume
+- [Creation Vault OS: Voice-to-Backlog Pipeline](./architecture/voice-to-backlog-pipeline.md) -- capture-service reuse plus triage-to-backlog diffs
+- [Creation Vault OS: /start creation work](./architecture/claude-code-start-creation-work.md) -- Claude Code flow and the freshness-gated context pack
+- [Creation Vault OS: mario-agentops Boundary](./architecture/mario-agentops-boundary.md) -- event contract, hook-level shell-out, Increment A
 
 ## Root-level docs (outside docs/)
 
