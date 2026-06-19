@@ -46,6 +46,9 @@ staleness-report.json
 # Build tools
 tools/node_modules/
 
+# Vendored JS subproject deps (regenerate with `npm install`; never tracked)
+node_modules/
+
 # Release build outputs (produced by `make release-build`)
 builds/
 dist/
