@@ -132,6 +132,11 @@ from obsidian_connector.creation_next import (
     next_actions,
     score_item,
 )
+from obsidian_connector.creation_migrate import (
+    migrate,
+    plan_migration,
+    undo_migration,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
