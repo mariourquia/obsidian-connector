@@ -114,6 +114,12 @@ their `src/` counterparts (same underlying files).
 | `onboarding.py` | Pure-Python onboarding step catalog, shared between `obsx onboarding` CLI and `docs/ONBOARDING.md` |
 | `recipes.py` | Preset workflow recipes for common flows |
 | `vault_conflicts.py` | Shared-vault conflict-file detector (Task 37): iCloud / Dropbox / OneDrive / Obsidian Sync patterns, deterministic output, never raises |
+| `creation_paths.py` | Out-of-iCloud state dir resolution for the Creation Vault OS (`~/.obsidian-connector/creation/<vault-id>/`) |
+| `creation_schema.py` | Freshness/authority frontmatter schema (`Freshness` dataclass, `STATUS_LABELS`, `new_id`, round-trip helpers) |
+| `creation_freshness.py` | Authority hierarchy, staleness resolution, and completion hard-gate (`is_stale`, `resolve_label`, `can_complete`) |
+| `creation_events.py` | Append-only JSONL event log outside iCloud (`append_event`, `read_events`, `EVENT_TYPES`) |
+| `creation_session.py` | Resumable agent-session lifecycle (`start_session`, `checkpoint_session`, `end_session`, `active_session`) |
+| `creation_status.py` | Read-only Creation Vault OS status + freshness audit (`creation_status`, `freshness_audit`) |
 
 ## Dependency flow
 
