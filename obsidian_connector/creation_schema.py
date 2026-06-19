@@ -6,7 +6,7 @@ See docs/architecture/creation-vault-schema.md.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 
 STATUS_LABELS: tuple[str, ...] = (
     "verified_current",

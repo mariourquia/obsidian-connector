@@ -15,7 +15,7 @@ from .write_manager import atomic_write
 _ACTIVE = "sessions/_active.md"
 
 
-def _session_md(session_id: str, repo: str, branch: str, backlog_id, started_at: str) -> str:
+def _session_md(session_id: str, repo: str, branch: str, backlog_id: str | None, started_at: str) -> str:
     return (
         f"---\nid: {session_id}\ntype: agent-session\nstatus: active\n"
         f"backlog_item: {backlog_id or 'null'}\nrepos: [{repo}]\nbranch: {branch}\n"
