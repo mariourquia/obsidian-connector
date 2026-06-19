@@ -3637,6 +3637,66 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", dest="dry_run", action="store_true")
     p.add_argument("--json", dest="sub_json", action="store_true")
 
+    # -- creation dashboard (Task 6) ------------------------------------------
+
+    p = creation_sub.add_parser(
+        "dashboard",
+        help="Global Creation Vault console (do-next + projects + repo rollup).",
+    )
+    p.add_argument("--project", default=None, help="Narrow to a project drilldown.")
+    p.add_argument("--repo", default=None, help="Narrow to a repo drilldown.")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_sub.add_parser("projects", help="List Projects (name, repos, status).")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    creation_proj_p = creation_sub.add_parser("project", help="Project sub-commands.")
+    creation_proj_sub = creation_proj_p.add_subparsers(dest="project_cmd")
+
+    p = creation_proj_sub.add_parser("show", help="Project drilldown data.")
+    p.add_argument("name", help="Project slug or display name.")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    creation_repo_p = creation_sub.add_parser("repo", help="Repo sub-commands.")
+    creation_repo_sub = creation_repo_p.add_subparsers(dest="repo_cmd")
+
+    p = creation_repo_sub.add_parser("show", help="Repo status for one repo.")
+    p.add_argument("name", help="Repo dir_name.")
+    p.add_argument("--with-tests", dest="with_tests", action="store_true",
+                   help="Run tests (slow).")
+    p.add_argument("--with-build", dest="with_build", action="store_true",
+                   help="Run build check (slow).")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_sub.add_parser("next", help="Ranked recommendations from next_actions.")
+    p.add_argument("--project", default=None, help="Narrow to a project.")
+    p.add_argument("--repo", default=None, help="Narrow to a repo.")
+    p.add_argument("--limit", type=int, default=10, help="Max results (default: 10).")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_sub.add_parser(
+        "refresh",
+        help="Regenerate Creation Vault dashboards (dry-run default).",
+    )
+    p.add_argument("--project", default=None, help="Scope refresh to a project.")
+    p.add_argument("--repo", default=None, help="Scope refresh to a repo.")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true",
+                   help="Actually write (default: dry-run).")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true",
+                   help="Dry-run (default if --allow-write absent).")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_sub.add_parser(
+        "migrate-projects",
+        help="Run or reverse the flat-to-Projects migration (dry-run default).",
+    )
+    p.add_argument("--undo", action="store_true", help="Reverse the migration.")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true",
+                   help="Actually write (default: dry-run).")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true",
+                   help="Dry-run (default if --allow-write absent).")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
     return parser
 
 
@@ -5550,8 +5610,234 @@ def main(argv: list[str] | None = None) -> int:
                     f"Rebuilt {data['count']} backlog note(s)."
                 log_action("creation-rebuild", vars(args), vault, dry_run=dry)
 
+            elif creation_cmd == "dashboard":
+                from obsidian_connector import creation_next as _cnext
+                from obsidian_connector import creation_projects as _cproj
+                from obsidian_connector import creation_repo_status as _crs
+                from obsidian_connector.project_sync import load_sync_config as _load_sc
+
+                _sc = _load_sc(vault)
+                _gh_root = _sc.github_root
+
+                _proj_filter = getattr(args, "project", None)
+                _repo_filter = getattr(args, "repo", None)
+
+                if _proj_filter or _repo_filter:
+                    # Drilldown view
+                    _scope = "project" if _proj_filter else "repo"
+                    _recs = _cnext.next_actions(
+                        vault,
+                        scope=_scope,
+                        project=_proj_filter,
+                        repo=_repo_filter,
+                        github_root=_gh_root,
+                        now_iso=now,
+                        limit=5,
+                    )
+                    data = {"scope": _scope, "project": _proj_filter, "repo": _repo_filter,
+                            "do_next": _recs}
+                    human = f"Drilldown ({_scope}): {_proj_filter or _repo_filter}\n" + "\n".join(
+                        f"  [{r['confidence']:.2f}] {r['action']}"
+                        for r in _recs
+                    ) or "  No recommendations."
+                else:
+                    # Global console: do-next + projects table + per-project repo rollup
+                    _recs = _cnext.next_actions(
+                        vault,
+                        scope="global",
+                        github_root=_gh_root,
+                        now_iso=now,
+                        limit=5,
+                    )
+                    _projects = _cproj.list_projects(vault)
+                    _proj_rows = [
+                        {"name": p.name, "slug": p.slug, "repos": list(p.repos),
+                         "status": p.status}
+                        for p in _projects
+                    ]
+                    data = {
+                        "do_next": _recs,
+                        "projects": _proj_rows,
+                    }
+                    _do_next_lines = "\n".join(
+                        f"  [{r['confidence']:.2f}] {r['action']}"
+                        for r in _recs
+                    ) or "  No recommendations."
+                    _proj_lines = "\n".join(
+                        f"  {p['status']:<10} {p['name']} ({len(p['repos'])} repo(s))"
+                        for p in _proj_rows
+                    ) or "  No projects."
+                    human = f"Do Next:\n{_do_next_lines}\n\nProjects:\n{_proj_lines}"
+
+            elif creation_cmd == "projects":
+                from obsidian_connector import creation_projects as _cproj
+
+                _projects = _cproj.list_projects(vault)
+                _proj_rows = [
+                    {"name": p.name, "slug": p.slug, "repos": list(p.repos),
+                     "status": p.status}
+                    for p in _projects
+                ]
+                data = {"projects": _proj_rows, "count": len(_proj_rows)}
+                human = "\n".join(
+                    f"{p['status']:<10} {p['name']}  ({len(p['repos'])} repo(s))"
+                    for p in _proj_rows
+                ) or "No projects."
+
+            elif creation_cmd == "project":
+                from obsidian_connector import creation_projects as _cproj
+
+                _proj_cmd = getattr(args, "project_cmd", None)
+                if _proj_cmd == "show":
+                    _proj = _cproj.get_project(vault, args.name)
+                    if _proj is None:
+                        print(f"Unknown project: {args.name}", file=sys.stderr)
+                        return 1
+                    _entries = _cproj.project_repo_entries(vault, _proj)
+                    _prose = _cproj.read_one_pager_prose(vault, _proj)
+                    data = {
+                        "slug": _proj.slug,
+                        "name": _proj.name,
+                        "group": _proj.group,
+                        "repos": list(_proj.repos),
+                        "status": _proj.status,
+                        "tags": list(_proj.tags),
+                        "repo_entries": [
+                            {"dir_name": e.dir_name, "display_name": e.display_name,
+                             "status": e.status}
+                            for e in _entries
+                        ],
+                        "prose": _prose,
+                    }
+                    human = (
+                        f"{_proj.name} ({_proj.slug})\n"
+                        f"  Status: {_proj.status}\n"
+                        f"  Repos: {', '.join(_proj.repos)}\n"
+                        f"  Tags: {', '.join(_proj.tags) or '-'}"
+                    )
+                else:
+                    print("Usage: obsx creation project show <name>", file=sys.stderr)
+                    return 1
+
+            elif creation_cmd == "repo":
+                from obsidian_connector import creation_projects as _cproj
+                from obsidian_connector import creation_repo_status as _crs
+                from obsidian_connector.project_sync import load_sync_config as _load_sc
+
+                _repo_cmd = getattr(args, "repo_cmd", None)
+                if _repo_cmd == "show":
+                    _sc = _load_sc(vault)
+                    _gh_root = _sc.github_root
+                    _target = args.name
+                    _entry = next(
+                        (e for e in _sc.repos if e.dir_name == _target), None
+                    )
+                    if _entry is None:
+                        print(f"Unknown repo: {_target}", file=sys.stderr)
+                        return 1
+                    _rs = _crs.repo_status(
+                        _entry,
+                        github_root=_gh_root,
+                        now_iso=now,
+                        with_prs=True,
+                        with_tests=getattr(args, "with_tests", False),
+                        with_build=getattr(args, "with_build", False),
+                    )
+                    data = {
+                        "dir_name": _rs.dir_name,
+                        "display_name": _rs.display_name,
+                        "branch": _rs.branch,
+                        "head": _rs.head,
+                        "dirty": _rs.dirty,
+                        "ahead": _rs.ahead,
+                        "behind": _rs.behind,
+                        "classification": _rs.classification,
+                        "next_action": _rs.next_action,
+                        "blockers": list(_rs.blockers),
+                        "tests": _rs.tests,
+                        "build": _rs.build,
+                    }
+                    human = (
+                        f"{_rs.display_name} [{_rs.classification}]\n"
+                        f"  Branch: {_rs.branch}  head: {_rs.head}\n"
+                        f"  Next: {_rs.next_action}\n"
+                        + (f"  Blockers: {'; '.join(_rs.blockers)}"
+                           if _rs.blockers else "")
+                    )
+                else:
+                    print("Usage: obsx creation repo show <name>", file=sys.stderr)
+                    return 1
+
+            elif creation_cmd == "next":
+                from obsidian_connector import creation_next as _cnext
+                from obsidian_connector.project_sync import load_sync_config as _load_sc
+
+                _sc = _load_sc(vault)
+                _gh_root = _sc.github_root
+                _proj_filter = getattr(args, "project", None)
+                _repo_filter = getattr(args, "repo", None)
+                _limit = getattr(args, "limit", 10)
+                _scope = "project" if _proj_filter else ("repo" if _repo_filter else "global")
+                _recs = _cnext.next_actions(
+                    vault,
+                    scope=_scope,
+                    project=_proj_filter,
+                    repo=_repo_filter,
+                    github_root=_gh_root,
+                    now_iso=now,
+                    limit=_limit,
+                )
+                data = {"items": _recs, "count": len(_recs)}
+                human = "\n".join(
+                    f"[{r['confidence']:.2f}] {r['action']}"
+                    + (f"  ({', '.join(r['reason'])})" if r.get("reason") else "")
+                    for r in _recs
+                ) or "No recommendations."
+
+            elif creation_cmd == "refresh":
+                from obsidian_connector import creation_dashboards as _cdash
+                from obsidian_connector.project_sync import load_sync_config as _load_sc
+
+                _sc = _load_sc(vault)
+                _gh_root = _sc.github_root
+                dry = args.dry_run or not args.allow_write
+                _scope = getattr(args, "project", None) or getattr(args, "repo", None)
+                _result = _cdash.refresh_all(
+                    vault,
+                    now_iso=now,
+                    github_root=_gh_root,
+                    scope=_scope,
+                    dry_run=dry,
+                )
+                data = _result
+                _prefix = "[dry-run] " if dry else ""
+                human = _prefix + f"Refreshed {len(_result['written'])} dashboard(s)."
+                if not dry:
+                    log_action("creation-refresh", vars(args), vault, dry_run=dry)
+
+            elif creation_cmd == "migrate-projects":
+                from obsidian_connector import creation_migrate as _cmig
+
+                dry = args.dry_run or not args.allow_write
+                if getattr(args, "undo", False):
+                    _result = _cmig.undo_migration(vault, dry_run=dry)
+                    _prefix = "[dry-run] " if dry else ""
+                    human = _prefix + f"Undo migration: {_result.get('removed', 0)} removed."
+                else:
+                    _result = _cmig.migrate(vault, now_iso=now, dry_run=dry)
+                    _prefix = "[dry-run] " if dry else ""
+                    human = _prefix + (
+                        f"Migration: {_result.get('planned', 0)} planned, "
+                        f"{_result.get('written', 0)} written."
+                    )
+                data = _result
+                if not dry:
+                    log_action("creation-migrate-projects", vars(args), vault, dry_run=dry)
+
             else:
-                print("Usage: obsx creation status|sync|backlog|rebuild|freshness-audit", file=sys.stderr)
+                print("Usage: obsx creation status|sync|backlog|rebuild|freshness-audit"
+                      "|dashboard|projects|project|repo|next|refresh|migrate-projects",
+                      file=sys.stderr)
                 return 1
 
         elif args.command == "onboarding":
