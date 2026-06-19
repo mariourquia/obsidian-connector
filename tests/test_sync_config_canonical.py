@@ -124,7 +124,7 @@ class TestResolution:
         _write(
             _xdg_config(xdg_config_home),
             {
-                "github_root": "/Users/mu/dev",
+                "github_root": "/opt/dev",
                 "groups": {"mcmc": "MCMC"},
                 "repos": [{"dir_name": "mcmc-ehr", "group": "mcmc"}],
             },
@@ -132,7 +132,7 @@ class TestResolution:
 
         config = load_sync_config(str(vault))
 
-        assert str(config.github_root) == "/Users/mu/dev"
+        assert str(config.github_root) == "/opt/dev"
         assert [r.dir_name for r in config.repos] == ["mcmc-ehr"]
         assert config.group_display_names == {"mcmc": "MCMC"}
 
