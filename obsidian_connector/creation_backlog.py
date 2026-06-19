@@ -108,10 +108,10 @@ def _extract_user_notes(existing: str | None) -> str:
 
 def _render_backlog_md(item: dict, user_notes: str) -> str:
     L = ["---", f"id: {item['id']}", "type: backlog-item",
-         f"title: {item['title']}", f"project: {item['project']}",
+         f"title: {json.dumps(item['title'])}", f"project: {json.dumps(item['project'])}",
          f"repos: {_inline_array(item.get('repos'))}",
          f"priority: {item['priority']}", f"status: {item['status']}",
-         f"work_type: {item['work_type']}", f"owner: {item['owner']}",
+         f"work_type: {item['work_type']}", f"owner: {json.dumps(item['owner'])}",
          f"ready_for_agent: {str(item['ready_for_agent']).lower()}",
          f"needs_decision: {str(item['needs_decision']).lower()}",
          f"urgency: {item['urgency']}", f"impact: {item['impact']}",
@@ -120,7 +120,7 @@ def _render_backlog_md(item: dict, user_notes: str) -> str:
          f"authority_level: {item['authority_level']}",
          f"confidence: {item['confidence']}"]
     if item.get("next_action") is not None:
-        L.append(f"next_action: {item['next_action']}")
+        L.append(f"next_action: {json.dumps(item['next_action'])}")
     for k in ("last_verified_at", "last_verified_by", "verification_source",
               "source_repo", "source_branch", "source_commit", "source_pr",
               "source_session", "valid_until", "superseded_by"):
@@ -224,11 +224,11 @@ def update_backlog_item(vault_path: Path, *, item_id: str, now_iso: str,
 def list_backlog(vault_path: Path, *, project: str | None = None,
                  status: str | None = None, priority: str | None = None) -> list[dict]:
     items = list(_reduce(ce.read_events(vault_path)).values())
-    if project:
+    if project is not None:
         items = [i for i in items if i.get("project") == project]
-    if status:
+    if status is not None:
         items = [i for i in items if i.get("status") == status]
-    if priority:
+    if priority is not None:
         items = [i for i in items if i.get("priority") == priority]
     items.sort(key=lambda i: (i.get("priority", "P3"), -int(i.get("urgency", 0)),
                               -int(i.get("impact", 0)), i["id"]))

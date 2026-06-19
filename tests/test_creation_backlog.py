@@ -121,3 +121,28 @@ def test_rebuild_preserves_user_notes_fence(tmp_path, monkeypatch):
     assert "MARIO HAND NOTE" in note.read_text(encoding="utf-8")
     cb.rebuild_backlog(v)
     assert "MARIO HAND NOTE" in note.read_text(encoding="utf-8")
+
+
+def test_completion_gate_allows_done_with_pr(tmp_path, monkeypatch):
+    v = _vault(tmp_path, monkeypatch)
+    a = cb.add_backlog_item(v, title="a", project="x", now_iso=T0)["id"]
+    res = cb.update_backlog_item(v, item_id=a, now_iso=T1, status="done",
+                                 source_pr="https://github.com/o/r/pull/1")
+    assert res["status"] == "done"
+    assert cb.show_backlog_item(v, item_id=a)["source_pr"].endswith("/pull/1")
+
+
+def test_title_and_next_action_with_colon_render_yaml_safe(tmp_path, monkeypatch):
+    v = _vault(tmp_path, monkeypatch)
+    res = cb.add_backlog_item(v, title="Fix: handle colons", project="x",
+                              next_action="do X: then Y", now_iso=T0)
+    text = (v / res["path"]).read_text(encoding="utf-8")
+    assert 'title: "Fix: handle colons"' in text       # quoted -> valid YAML scalar
+    assert 'next_action: "do X: then Y"' in text
+
+
+def test_update_cannot_change_project(tmp_path, monkeypatch):
+    v = _vault(tmp_path, monkeypatch)
+    a = cb.add_backlog_item(v, title="a", project="x", now_iso=T0)["id"]
+    cb.update_backlog_item(v, item_id=a, now_iso=T1, project="y", status="ready")
+    assert cb.show_backlog_item(v, item_id=a)["project"] == "x"
