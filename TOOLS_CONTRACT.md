@@ -618,3 +618,48 @@ obsidian-connector/
 4. If mutating, add `--dry-run` and call `log_action()` from `audit.py`.
 5. Add a smoke test in `scripts/`.
 6. Update this contract and `README.md`.
+
+---
+
+## Creation Vault OS (spine v0)
+
+Modules: `creation_paths`, `creation_schema`, `creation_freshness`, `creation_events`,
+`creation_session`, `creation_status`. State lives **outside** iCloud at
+`~/.obsidian-connector/creation/<vault-id>/`; canonical vault notes are materialized views.
+
+### Canonical envelope
+
+All creation commands return the standard JSON envelope:
+
+```json
+{
+  "ok": true,
+  "command": "creation status",
+  "vault": "/path/to/vault",
+  "duration_ms": 12,
+  "data": { ... }
+}
+```
+
+### CLI commands
+
+| Command | Flags | Returns | Mutating |
+|---------|-------|---------|---------|
+| `obsx creation status` | `--json` | `{active_session, event_count, recent_events, stale_warnings}` | no |
+| `obsx creation freshness-audit` | `--json` | `{stale[], conflicting[], checked}` | no |
+| `obsx creation sync start` | `--repo`, `--branch`, `[--backlog-id]`, `[--allow-write]`, `[--dry-run]`, `--json` | `{session_id, path, dry_run}` | yes (default dry-run) |
+| `obsx creation sync checkpoint` | `--session-id`, `[--summary]`, `[--next-steps]`, `[--blockers]`, `[--confidence]`, `[--emergency]`, `[--allow-write]`, `--json` | `{checkpoint_id, session_id, dry_run}` | yes (default dry-run) |
+| `obsx creation sync end` | `--session-id`, `[--report]`, `[--next-action]`, `[--status]`, `[--allow-write]`, `--json` | `{session_id, status, dry_run}` | yes (default dry-run) |
+
+Mutating commands default to **dry-run** unless `--allow-write` is passed.
+All mutating commands call `audit.log_action(...)`.
+
+### MCP tool equivalents
+
+| MCP Tool | Parameters | Notes |
+|----------|-----------|-------|
+| `obsidian_creation_status` | `vault?` | Read-only status |
+| `obsidian_creation_freshness_audit` | `vault?` | Backlog freshness scan |
+| `obsidian_creation_sync_start` | `repo`, `branch`, `backlog_id?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_sync_checkpoint` | `session_id`, `summary?`, `next_steps?`, `blockers?`, `confidence?`, `emergency?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_sync_end` | `session_id`, `report?`, `next_action?`, `status?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |

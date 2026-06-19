@@ -22,3 +22,4 @@ non_portable_skills:
   - sync-vault
   - new-vault
   - init-vault
+  - creation-vault-freshness-guard

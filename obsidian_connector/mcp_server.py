@@ -4787,6 +4787,239 @@ def obsidian_investigate(
         return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
 
 
+# ---------------------------------------------------------------------------
+# Creation Vault OS tools (spine v0, Task 7)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    title="Creation Vault Status",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_status(
+    vault: str | None = None,
+) -> str:
+    """Return the Creation Vault OS global status.
+
+    Reports the active session ID (if any), recent event count, and any
+    stale-freshness warnings detected in the Backlog. Read-only; never mutates
+    the vault.
+
+    Args:
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_status import creation_status
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        result = creation_status(vault_path)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Vault Freshness Audit",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_freshness_audit(
+    vault: str | None = None,
+) -> str:
+    """Scan backlog notes for stale or conflicting freshness labels.
+
+    Checks every ``Backlog/**/*.md`` frontmatter block against the
+    authority/staleness rules. Returns ``{stale, conflicting, checked}``.
+
+    Args:
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_status import freshness_audit
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        result = freshness_audit(vault_path)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Sync Start (session)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_sync_start(
+    repo: str,
+    branch: str,
+    backlog_id: str | None = None,
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Start a new Creation Vault session and materialize the session note.
+
+    Emits a ``session.start`` event and writes ``sessions/<id>.md`` +
+    ``sessions/_active.md``. Defaults to dry-run; pass ``dry_run=False``
+    to actually write.
+
+    Args:
+        repo: Primary repo for this session.
+        branch: Active branch name.
+        backlog_id: Optional backlog item being worked on.
+        dry_run: If True (default), plan only -- no files written.
+        vault: Vault path override.
+    """
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_session import start_session
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        now = datetime.now(timezone.utc).isoformat()
+        result = start_session(
+            vault_path,
+            repo=repo,
+            branch=branch,
+            backlog_id=backlog_id,
+            now_iso=now,
+            dry_run=dry_run,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Sync Checkpoint (session)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_sync_checkpoint(
+    session_id: str,
+    summary: str = "",
+    next_steps: str = "",
+    blockers: str = "",
+    confidence: float = 0.5,
+    emergency: bool = False,
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Checkpoint an active Creation Vault session.
+
+    Emits a ``checkpoint.created`` (or ``checkpoint.emergency``) event and
+    writes the checkpoint note. Defaults to dry-run.
+
+    Args:
+        session_id: ID of the active session to checkpoint.
+        summary: What was completed since the last checkpoint.
+        next_steps: Planned next steps.
+        blockers: Current blockers.
+        confidence: Confidence score 0.0-1.0.
+        emergency: If True, marks this as an emergency checkpoint.
+        dry_run: If True (default), plan only -- no files written.
+        vault: Vault path override.
+    """
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_session import checkpoint_session
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        now = datetime.now(timezone.utc).isoformat()
+        result = checkpoint_session(
+            vault_path,
+            session_id=session_id,
+            summary=summary,
+            next_steps=next_steps,
+            blockers=blockers,
+            confidence=confidence,
+            now_iso=now,
+            emergency=emergency,
+            dry_run=dry_run,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Sync End (session)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_sync_end(
+    session_id: str,
+    report: str = "",
+    next_action: str = "",
+    status: str = "closed",
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """End an active Creation Vault session and clear the active marker.
+
+    Emits a ``session.end`` event and removes ``sessions/_active.md``.
+    Defaults to dry-run.
+
+    Args:
+        session_id: ID of the active session to close.
+        report: Completion report / summary of what was done.
+        next_action: Next action to take after this session.
+        status: Closing status (default: ``closed``).
+        dry_run: If True (default), plan only -- no files written.
+        vault: Vault path override.
+    """
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_session import end_session
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        now = datetime.now(timezone.utc).isoformat()
+        result = end_session(
+            vault_path,
+            session_id=session_id,
+            report=report,
+            next_action=next_action,
+            now_iso=now,
+            status=status,
+            dry_run=dry_run,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
 def main() -> None:
     """Run the MCP server.
 

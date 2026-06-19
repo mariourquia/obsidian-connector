@@ -3522,6 +3522,47 @@ def build_parser() -> argparse.ArgumentParser:
         help="(alias for global --json)",
     )
 
+    # -- creation (Creation Vault OS spine v0) --------------------------------
+    creation_p = sub.add_parser("creation", help="Creation Vault OS: freshness/authority spine.")
+    creation_sub = creation_p.add_subparsers(dest="creation_cmd")
+
+    p = creation_sub.add_parser("status", help="Global Creation Vault status + stale warnings.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = creation_sub.add_parser("freshness-audit", help="Stale/conflicting backlog report.")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    creation_sync_p = creation_sub.add_parser("sync", help="Session lifecycle sync commands.")
+    creation_sync_sub = creation_sync_p.add_subparsers(dest="sync_cmd")
+
+    p = creation_sync_sub.add_parser("start", help="Start a new Creation session.")
+    p.add_argument("--repo", required=True, help="Primary repo for this session.")
+    p.add_argument("--branch", required=True, help="Active branch.")
+    p.add_argument("--backlog-id", dest="backlog_id", default=None, help="Backlog item being worked on.")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true", help="Actually write (default: dry-run).")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true", help="Dry-run (default if --allow-write absent).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = creation_sync_sub.add_parser("checkpoint", help="Checkpoint an active Creation session.")
+    p.add_argument("--session-id", dest="session_id", required=True, help="Session ID to checkpoint.")
+    p.add_argument("--summary", default="", help="What was completed.")
+    p.add_argument("--next-steps", dest="next_steps", default="", help="Next steps.")
+    p.add_argument("--blockers", default="", help="Current blockers.")
+    p.add_argument("--confidence", type=float, default=0.5, help="Confidence score 0-1.")
+    p.add_argument("--emergency", action="store_true", help="Mark as emergency checkpoint.")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true", help="Actually write (default: dry-run).")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true", help="Dry-run (default if --allow-write absent).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
+    p = creation_sync_sub.add_parser("end", help="End an active Creation session.")
+    p.add_argument("--session-id", dest="session_id", required=True, help="Session ID to close.")
+    p.add_argument("--report", default="", help="Session completion report.")
+    p.add_argument("--next-action", dest="next_action", default="", help="Next action after this session.")
+    p.add_argument("--status", default="closed", help="Closing status (default: closed).")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true", help="Actually write (default: dry-run).")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true", help="Dry-run (default if --allow-write absent).")
+    p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
+
     return parser
 
 
@@ -5259,6 +5300,109 @@ def main(argv: list[str] | None = None) -> int:
                     payload["report"] = report_info
                 data = payload
                 human = _fmt_import_result(result, report_info)
+
+        elif args.command == "creation":
+            from datetime import datetime, timezone
+
+            from obsidian_connector import creation_session as _csess
+            from obsidian_connector.creation_status import (
+                creation_status as _creation_status_fn,
+                freshness_audit as _freshness_audit_fn,
+            )
+
+            now = datetime.now(timezone.utc).isoformat()
+            creation_cmd = getattr(args, "creation_cmd", None)
+
+            if creation_cmd == "status":
+                data = _creation_status_fn(vault)
+                human = (
+                    f"Active session: {data['active_session'] or 'none'}\n"
+                    f"Events: {data['event_count']}\n"
+                    f"Stale warnings: {len(data['stale_warnings'])}"
+                )
+
+            elif creation_cmd == "freshness-audit":
+                data = _freshness_audit_fn(vault)
+                human = (
+                    f"Checked: {data['checked']}\n"
+                    f"Stale: {len(data['stale'])}\n"
+                    f"Conflicting: {len(data['conflicting'])}"
+                )
+
+            elif creation_cmd == "sync":
+                sync_cmd = getattr(args, "sync_cmd", None)
+
+                if sync_cmd == "start":
+                    dry = args.dry_run or not args.allow_write
+                    data = _csess.start_session(
+                        vault,
+                        repo=args.repo,
+                        branch=args.branch,
+                        backlog_id=args.backlog_id,
+                        now_iso=now,
+                        dry_run=dry,
+                    )
+                    human = (
+                        f"[dry-run] " if dry else ""
+                    ) + f"Session {data['session_id']} started."
+                    log_action(
+                        f"creation-sync-{sync_cmd}",
+                        vars(args),
+                        vault,
+                        dry_run=dry,
+                    )
+
+                elif sync_cmd == "checkpoint":
+                    dry = args.dry_run or not args.allow_write
+                    data = _csess.checkpoint_session(
+                        vault,
+                        session_id=args.session_id,
+                        summary=args.summary,
+                        next_steps=args.next_steps,
+                        blockers=args.blockers,
+                        confidence=args.confidence,
+                        now_iso=now,
+                        emergency=args.emergency,
+                        dry_run=dry,
+                    )
+                    human = (
+                        f"[dry-run] " if dry else ""
+                    ) + f"Checkpoint {data['checkpoint_id']} saved."
+                    log_action(
+                        f"creation-sync-{sync_cmd}",
+                        vars(args),
+                        vault,
+                        dry_run=dry,
+                    )
+
+                elif sync_cmd == "end":
+                    dry = args.dry_run or not args.allow_write
+                    data = _csess.end_session(
+                        vault,
+                        session_id=args.session_id,
+                        report=args.report,
+                        next_action=args.next_action,
+                        now_iso=now,
+                        status=args.status,
+                        dry_run=dry,
+                    )
+                    human = (
+                        f"[dry-run] " if dry else ""
+                    ) + f"Session {data['session_id']} ended ({data['status']})."
+                    log_action(
+                        f"creation-sync-{sync_cmd}",
+                        vars(args),
+                        vault,
+                        dry_run=dry,
+                    )
+
+                else:
+                    print("Usage: obsx creation sync start|checkpoint|end", file=sys.stderr)
+                    return 1
+
+            else:
+                print("Usage: obsx creation status|sync|freshness-audit", file=sys.stderr)
+                return 1
 
         elif args.command == "onboarding":
             from obsidian_connector.onboarding import (
