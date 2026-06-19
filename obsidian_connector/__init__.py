@@ -113,6 +113,13 @@ from obsidian_connector.creation_status import (
     creation_status as get_creation_status,
     freshness_audit as get_freshness_audit,
 )
+from obsidian_connector.creation_projects import (
+    Project,
+    get_project,
+    list_projects,
+    project_repo_entries,
+    read_one_pager_prose,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
@@ -317,4 +324,10 @@ __all__ = [
     "list_backlog",
     "show_backlog_item",
     "rebuild_backlog",
+    # creation projects
+    "Project",
+    "get_project",
+    "list_projects",
+    "project_repo_entries",
+    "read_one_pager_prose",
 ]

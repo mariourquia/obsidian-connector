@@ -52,3 +52,6 @@ node_modules/
 # Release build outputs (produced by `make release-build`)
 builds/
 dist/
+
+# Brainstorm companion
+.superpowers/
