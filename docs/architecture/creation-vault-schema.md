@@ -9,6 +9,7 @@ sources_of_truth:
   - "obsidian_connector/vault_presets.py"
   - "obsidian_connector/commitment_notes.py"
   - "obsidian_connector/write_manager.py"
+  - "obsidian_connector/creation_backlog.py"
 related_docs:
   - "../plans/2026-06-18-creation-vault-os.md"
   - "./creation-session-state.md"
@@ -107,6 +108,29 @@ The machine-managed summary (status, scores, next_action, freshness) is regenera
 events; a `<!-- service:backlog-user-notes:begin/end -->` fence holds free-form user notes
 that survive regeneration. The human-readable body renders acceptance criteria, blockers,
 and the linked session and context pack as wikilinks.
+
+### v0 shipped shape (`creation_backlog.py`)
+
+Phase 2's engine emits a deliberately parser-safe subset of the schema above, because the
+vault's string-only frontmatter reader (`draft_manager._parse_frontmatter`) cannot
+round-trip multiline YAML block sequences. The YAML block above is the **design target**;
+what the shipped engine actually writes is:
+
+- `repos` and `dependencies` render as **inline arrays** in frontmatter
+  (`repos: ["mcmc-erp", "mcmc-erp-web"]`), not block sequences.
+- `acceptance_criteria`, `blockers`, and `source_notes` render in the note **body**
+  (checklist / list / link sections), not in frontmatter; the event log is their source of
+  truth.
+- String scalars (`title`, `project`, `owner`, `next_action`, and the freshness source
+  fields) are JSON-quoted so a stray colon or newline cannot corrupt the frontmatter; the
+  freshness reader strips the quotes on the way back in.
+- Not yet emitted (planned for later phases): `source_voice_captures` (Phase 3 voice),
+  `recommended_context_pack`, `suggested_workflow`, `prompt_path`, `last_session`.
+
+The event log (`backlog.upserted`, a full-snapshot event per id, latest-per-id wins) is
+authoritative; the note is a materialized view rebuilt idempotently by `obsx creation
+rebuild`, preserving the `service:backlog-user-notes` fence. `list`/`show` reduce the event
+log and never re-parse list fields out of markdown.
 
 ## Prioritization scoring (explainable)
 

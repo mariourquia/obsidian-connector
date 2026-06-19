@@ -663,3 +663,29 @@ All mutating commands call `audit.log_action(...)`.
 | `obsidian_creation_sync_start` | `repo`, `branch`, `backlog_id?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
 | `obsidian_creation_sync_checkpoint` | `session_id`, `summary?`, `next_steps?`, `blockers?`, `confidence?`, `emergency?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
 | `obsidian_creation_sync_end` | `session_id`, `report?`, `next_action?`, `status?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+
+### Creation Vault Backlog
+
+Cross-repo backlog engine: event-sourced CRUD with materialized notes in `Backlog/{project}/{id}.md`.
+
+#### CLI commands
+
+| Command | Flags | Returns | Mutating |
+|---------|-------|---------|---------|
+| `obsx creation backlog add` | `--title`, `--project`, `[--repos ...]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--acceptance ...]`, `[--blocker ...]`, `[--depends-on ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--ready-for-agent]`, `[--needs-decision]`, `[--allow-write]`, `--json` | `{id, path, dry_run}` | yes (default dry-run) |
+| `obsx creation backlog update` | `--id`, `[--title]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--repos ...]`, `[--acceptance ...]`, `[--blocker ...]`, `[--depends-on ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--allow-write]`, `--json` | `{id, path, status, dry_run}` | yes (default dry-run) |
+| `obsx creation backlog list` | `[--project]`, `[--status]`, `[--priority]`, `--json` | `{items, count}` | no |
+| `obsx creation backlog show` | `--id`, `--json` | full item dict or `{ok: false, error}` | no |
+| `obsx creation rebuild` | `[--allow-write]`, `--json` | `{count, ids, dry_run}` | yes (default dry-run) |
+
+Mutating commands default to **dry-run** unless `--allow-write` is passed. `update` applies only the flags you pass; an omitted scalar is left unchanged (there is no "clear to empty" for a scalar), while a list flag (`--repos`/`--acceptance`/`--blocker`/`--depends-on`) replaces the whole list, including to empty.
+
+#### MCP tool equivalents
+
+| MCP Tool | Parameters | Notes |
+|----------|-----------|-------|
+| `obsidian_creation_backlog_add` | `title`, `project`, `repos?`, `priority?`, `status?`, `work_type?`, `owner?`, `next_action?`, `acceptance_criteria?`, `blockers?`, `dependencies?`, `urgency?`, `impact?`, `confidence?`, `authority_level?`, `source_repo?`, `source_commit?`, `source_pr?`, `ready_for_agent?`, `needs_decision?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_backlog_update` | `item_id`, `title?`, `priority?`, `status?`, `work_type?`, `owner?`, `next_action?`, `repos?`, `acceptance_criteria?`, `blockers?`, `dependencies?`, `urgency?`, `impact?`, `confidence?`, `authority_level?`, `source_repo?`, `source_commit?`, `source_pr?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_backlog_list` | `project?`, `status?`, `priority?`, `vault?` | Read-only; returns `{items: [...]}` |
+| `obsidian_creation_backlog_show` | `item_id`, `vault?` | Read-only; returns item dict or `{ok: false, error: {type: "NotFound", ...}}` |
+| `obsidian_creation_rebuild` | `dry_run?`, `vault?` | Idempotent rebuild from event log; defaults `dry_run=True` |

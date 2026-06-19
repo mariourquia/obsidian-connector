@@ -109,6 +109,7 @@ _AUDITED_MODULES = (
     "entity_notes.py",
     "commitment_dashboards.py",
     "creation_session.py",
+    "creation_backlog.py",
 )
 
 

@@ -5020,6 +5020,196 @@ def obsidian_creation_sync_end(
         return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
 
 
+@mcp.tool(
+    title="Creation Backlog Add",
+    annotations=ToolAnnotations(
+        readOnlyHint=False, destructiveHint=False,
+        idempotentHint=False, openWorldHint=False,
+    ),
+)
+def obsidian_creation_backlog_add(
+    title: str,
+    project: str,
+    repos: list[str] | None = None,
+    priority: str = "P2",
+    status: str = "idea",
+    work_type: str = "feature-dev",
+    owner: str = "mario",
+    next_action: str | None = None,
+    acceptance_criteria: list[str] | None = None,
+    blockers: list[str] | None = None,
+    dependencies: list[str] | None = None,
+    urgency: int = 5,
+    impact: int = 5,
+    confidence: float = 0.5,
+    authority_level: str = "agent_reported_unverified",
+    source_repo: str | None = None,
+    source_commit: str | None = None,
+    source_pr: str | None = None,
+    ready_for_agent: bool = False,
+    needs_decision: bool = False,
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Add a Creation Vault backlog item (event + materialized note). Dry-run by default."""
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_backlog import add_backlog_item
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        now = datetime.now(timezone.utc).isoformat()
+        result = add_backlog_item(
+            vault_path, title=title, project=project, now_iso=now,
+            repos=repos or [], priority=priority, status=status,
+            work_type=work_type, owner=owner, next_action=next_action,
+            acceptance_criteria=acceptance_criteria or [],
+            blockers=blockers or [], dependencies=dependencies or [],
+            urgency=urgency, impact=impact, confidence=confidence,
+            authority_level=authority_level, source_repo=source_repo,
+            source_commit=source_commit, source_pr=source_pr,
+            ready_for_agent=ready_for_agent, needs_decision=needs_decision,
+            dry_run=dry_run)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Backlog Update",
+    annotations=ToolAnnotations(
+        readOnlyHint=False, destructiveHint=False,
+        idempotentHint=False, openWorldHint=False,
+    ),
+)
+def obsidian_creation_backlog_update(
+    item_id: str,
+    title: str | None = None,
+    priority: str | None = None,
+    status: str | None = None,
+    work_type: str | None = None,
+    owner: str | None = None,
+    next_action: str | None = None,
+    repos: list[str] | None = None,
+    acceptance_criteria: list[str] | None = None,
+    blockers: list[str] | None = None,
+    dependencies: list[str] | None = None,
+    urgency: int | None = None,
+    impact: int | None = None,
+    confidence: float | None = None,
+    authority_level: str | None = None,
+    source_repo: str | None = None,
+    source_commit: str | None = None,
+    source_pr: str | None = None,
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Update fields on an existing Creation Vault backlog item. Dry-run by default."""
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_backlog import UPDATABLE_FIELDS, update_backlog_item
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        now = datetime.now(timezone.utc).isoformat()
+        local_vars = {
+            "title": title, "priority": priority, "status": status,
+            "work_type": work_type, "owner": owner, "next_action": next_action,
+            "repos": repos, "acceptance_criteria": acceptance_criteria,
+            "blockers": blockers, "dependencies": dependencies,
+            "urgency": urgency, "impact": impact, "confidence": confidence,
+            "authority_level": authority_level, "source_repo": source_repo,
+            "source_commit": source_commit, "source_pr": source_pr,
+        }
+        changes = {k: v for k, v in local_vars.items() if v is not None and k in UPDATABLE_FIELDS}
+        result = update_backlog_item(
+            vault_path, item_id=item_id, now_iso=now, dry_run=dry_run, **changes)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Backlog List",
+    annotations=ToolAnnotations(
+        readOnlyHint=True, destructiveHint=False,
+        idempotentHint=True, openWorldHint=False,
+    ),
+)
+def obsidian_creation_backlog_list(
+    project: str | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """List Creation Vault backlog items, optionally filtered by project, status, or priority."""
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_backlog import list_backlog
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        result = list_backlog(vault_path, project=project, status=status, priority=priority)
+        return json.dumps({"items": result}, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Backlog Show",
+    annotations=ToolAnnotations(
+        readOnlyHint=True, destructiveHint=False,
+        idempotentHint=True, openWorldHint=False,
+    ),
+)
+def obsidian_creation_backlog_show(
+    item_id: str,
+    vault: str | None = None,
+) -> str:
+    """Show the full details of a single Creation Vault backlog item by ID."""
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_backlog import show_backlog_item
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        result = show_backlog_item(vault_path, item_id)
+        return json.dumps(
+            result or {"ok": False, "error": {"type": "NotFound", "message": item_id}},
+            indent=2,
+        )
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Rebuild",
+    annotations=ToolAnnotations(
+        readOnlyHint=False, destructiveHint=False,
+        idempotentHint=True, openWorldHint=False,
+    ),
+)
+def obsidian_creation_rebuild(
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Rebuild all Creation Vault backlog notes from the append-only event log. Dry-run by default."""
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.creation_backlog import rebuild_backlog
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        result = rebuild_backlog(vault_path, dry_run=dry_run)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
 def main() -> None:
     """Run the MCP server.
 

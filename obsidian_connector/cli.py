@@ -3563,6 +3563,80 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", dest="dry_run", action="store_true", help="Dry-run (default if --allow-write absent).")
     p.add_argument("--json", dest="sub_json", action="store_true", help="(alias for global --json)")
 
+    # backlog (Creation Vault OS backlog engine)
+    creation_bl_p = creation_sub.add_parser("backlog", help="Backlog item CRUD.")
+    creation_bl_sub = creation_bl_p.add_subparsers(dest="backlog_cmd")
+
+    p = creation_bl_sub.add_parser("add", help="Add a backlog item.")
+    p.add_argument("--title", required=True)
+    p.add_argument("--project", required=True)
+    p.add_argument("--repos", default="", help="Comma-separated repo slugs.")
+    p.add_argument("--priority", default="P2")
+    p.add_argument("--status", default="idea")
+    p.add_argument("--work-type", dest="work_type", default="feature-dev")
+    p.add_argument("--owner", default="mario")
+    p.add_argument("--next-action", dest="next_action", default=None)
+    p.add_argument("--acceptance", action="append", default=[],
+                   help="Acceptance criterion (repeatable).")
+    p.add_argument("--blocker", action="append", default=[],
+                   help="Blocker (repeatable).")
+    p.add_argument("--depends-on", dest="depends_on", action="append", default=[],
+                   help="Dependency backlog id (repeatable).")
+    p.add_argument("--urgency", type=int, default=5)
+    p.add_argument("--impact", type=int, default=5)
+    p.add_argument("--confidence", type=float, default=0.5)
+    p.add_argument("--authority-level", dest="authority_level",
+                   default="agent_reported_unverified")
+    p.add_argument("--source-repo", dest="source_repo", default=None)
+    p.add_argument("--source-commit", dest="source_commit", default=None)
+    p.add_argument("--source-pr", dest="source_pr", default=None)
+    p.add_argument("--ready-for-agent", dest="ready_for_agent", action="store_true")
+    p.add_argument("--needs-decision", dest="needs_decision", action="store_true")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_bl_sub.add_parser("update", help="Update a backlog item.")
+    p.add_argument("--id", dest="item_id", required=True)
+    p.add_argument("--title", default=None)
+    p.add_argument("--priority", default=None)
+    p.add_argument("--status", default=None)
+    p.add_argument("--work-type", dest="work_type", default=None)
+    p.add_argument("--owner", default=None)
+    p.add_argument("--next-action", dest="next_action", default=None)
+    p.add_argument("--repos", default=None, help="Comma-separated; replaces the list.")
+    p.add_argument("--acceptance", action="append", default=None,
+                   help="Replace acceptance criteria (repeatable).")
+    p.add_argument("--blocker", action="append", default=None,
+                   help="Replace blockers (repeatable).")
+    p.add_argument("--depends-on", dest="depends_on", action="append", default=None,
+                   help="Replace dependencies (repeatable).")
+    p.add_argument("--urgency", type=int, default=None)
+    p.add_argument("--impact", type=int, default=None)
+    p.add_argument("--confidence", type=float, default=None)
+    p.add_argument("--authority-level", dest="authority_level", default=None)
+    p.add_argument("--source-repo", dest="source_repo", default=None)
+    p.add_argument("--source-commit", dest="source_commit", default=None)
+    p.add_argument("--source-pr", dest="source_pr", default=None)
+    p.add_argument("--allow-write", dest="allow_write", action="store_true")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_bl_sub.add_parser("list", help="List backlog items.")
+    p.add_argument("--project", default=None)
+    p.add_argument("--status", default=None)
+    p.add_argument("--priority", default=None)
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_bl_sub.add_parser("show", help="Show one backlog item.")
+    p.add_argument("--id", dest="item_id", required=True)
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
+    p = creation_sub.add_parser("rebuild", help="Re-materialize all backlog notes from events.")
+    p.add_argument("--allow-write", dest="allow_write", action="store_true")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true")
+    p.add_argument("--json", dest="sub_json", action="store_true")
+
     return parser
 
 
@@ -5304,6 +5378,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "creation":
             from datetime import datetime, timezone
 
+            from obsidian_connector import creation_backlog as _cbl
             from obsidian_connector import creation_session as _csess
             from obsidian_connector.creation_status import (
                 creation_status as _creation_status_fn,
@@ -5400,8 +5475,83 @@ def main(argv: list[str] | None = None) -> int:
                     print("Usage: obsx creation sync start|checkpoint|end", file=sys.stderr)
                     return 1
 
+            elif creation_cmd == "backlog":
+                backlog_cmd = getattr(args, "backlog_cmd", None)
+                if backlog_cmd == "add":
+                    dry = args.dry_run or not args.allow_write
+                    data = _cbl.add_backlog_item(
+                        vault, title=args.title, project=args.project, now_iso=now,
+                        repos=[r for r in args.repos.split(",") if r],
+                        priority=args.priority, status=args.status,
+                        work_type=args.work_type, owner=args.owner,
+                        next_action=args.next_action,
+                        acceptance_criteria=args.acceptance, blockers=args.blocker,
+                        dependencies=args.depends_on, urgency=args.urgency,
+                        impact=args.impact, confidence=args.confidence,
+                        authority_level=args.authority_level,
+                        source_repo=args.source_repo, source_commit=args.source_commit,
+                        source_pr=args.source_pr,
+                        ready_for_agent=args.ready_for_agent,
+                        needs_decision=args.needs_decision, dry_run=dry)
+                    human = (f"[dry-run] " if dry else "") + \
+                        f"Backlog item {data['id']} added ({args.project})."
+                    log_action("creation-backlog-add", vars(args), vault, dry_run=dry)
+
+                elif backlog_cmd == "update":
+                    dry = args.dry_run or not args.allow_write
+                    changes = {k: getattr(args, k) for k in (
+                        "title", "priority", "status", "work_type", "owner",
+                        "next_action", "urgency", "impact", "confidence",
+                        "authority_level", "source_repo", "source_commit",
+                        "source_pr") if getattr(args, k) is not None}
+                    if args.repos is not None:
+                        changes["repos"] = [r for r in args.repos.split(",") if r]
+                    if args.acceptance is not None:
+                        changes["acceptance_criteria"] = args.acceptance
+                    if args.blocker is not None:
+                        changes["blockers"] = args.blocker
+                    if args.depends_on is not None:
+                        changes["dependencies"] = args.depends_on
+                    data = _cbl.update_backlog_item(
+                        vault, item_id=args.item_id, now_iso=now, dry_run=dry,
+                        **changes)
+                    human = (f"[dry-run] " if dry else "") + \
+                        f"Backlog item {data['id']} updated (status={data['status']})."
+                    log_action("creation-backlog-update", vars(args), vault, dry_run=dry)
+
+                elif backlog_cmd == "list":
+                    rows = _cbl.list_backlog(vault, project=args.project,
+                                             status=args.status, priority=args.priority)
+                    data = {"items": rows, "count": len(rows)}
+                    human = "\n".join(
+                        f"{r['priority']} {r['status']:<11} {r['id']}  {r['title']}"
+                        for r in rows) or "No backlog items."
+
+                elif backlog_cmd == "show":
+                    item = _cbl.show_backlog_item(vault, item_id=args.item_id)
+                    if item is None:
+                        print(f"Unknown backlog item: {args.item_id}", file=sys.stderr)
+                        return 1
+                    data = item
+                    human = (f"{item['id']}  {item['title']}\n"
+                             f"  {item['priority']} {item['status']} "
+                             f"({item['project']})\n"
+                             f"  next: {item.get('next_action') or '-'}")
+
+                else:
+                    print("Usage: obsx creation backlog add|update|list|show",
+                          file=sys.stderr)
+                    return 1
+
+            elif creation_cmd == "rebuild":
+                dry = args.dry_run or not args.allow_write
+                data = _cbl.rebuild_backlog(vault, dry_run=dry)
+                human = (f"[dry-run] " if dry else "") + \
+                    f"Rebuilt {data['count']} backlog note(s)."
+                log_action("creation-rebuild", vars(args), vault, dry_run=dry)
+
             else:
-                print("Usage: obsx creation status|sync|freshness-audit", file=sys.stderr)
+                print("Usage: obsx creation status|sync|backlog|rebuild|freshness-audit", file=sys.stderr)
                 return 1
 
         elif args.command == "onboarding":

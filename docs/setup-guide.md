@@ -100,7 +100,7 @@ launchctl load ~/Library/LaunchAgents/com.obsidian-connector.daily.plist
 
 ### What you get
 
-- 17 skills: `/capture`, `/ritual`, `/new-vault`, `/sync`, `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
+- 18 skills: `/capture`, `/ritual`, `/new-vault`, `/sync`, `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`, `/creation-vault-freshness-guard`
 - SessionStart hook: Claude checks in automatically at every session
 - (Optional) Scheduled automation: briefings and reflections write themselves
 
