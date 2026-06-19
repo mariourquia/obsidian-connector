@@ -21,7 +21,7 @@ from obsidian_connector.client_fallback import (
     read_note,
     search_notes,
 )
-from obsidian_connector.config import load_config
+from obsidian_connector.config import CREATION_VAULT_NAME, load_config
 from obsidian_connector.envelope import (
     error_envelope,
     format_output,
@@ -5437,6 +5437,9 @@ def main(argv: list[str] | None = None) -> int:
 
         elif args.command == "creation":
             from datetime import datetime, timezone
+
+            # Creation commands target the Creation Vault by default.
+            vault = args.vault or CREATION_VAULT_NAME
 
             from obsidian_connector import creation_backlog as _cbl
             from obsidian_connector import creation_session as _csess

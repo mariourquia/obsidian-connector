@@ -497,6 +497,24 @@ Resolution order (highest priority wins):
 5. `default_vault` in `config.json`
 6. Auto-detected from platform-specific `obsidian.json` (macOS: `~/Library/Application Support/obsidian/obsidian.json`, Linux: `~/.config/obsidian/obsidian.json`, Windows: `%APPDATA%/obsidian/obsidian.json`)
 
+**`obsx creation` default.** Creation commands operate on the Creation Vault, so
+when no `--vault` (or `OBSIDIAN_VAULT_PATH`) is given they default to the vault
+named `creation` rather than `default_vault`.
+
+## Creation registry resolution
+
+The Creation repo registry (`sync_config.json`) is resolved independently of
+vault targeting and is the **single source of truth** shared by the Python/MCP
+engine and the bash nightly engine. Order (highest priority wins):
+
+1. `OBSIDIAN_SYNC_CONFIG` environment variable (explicit path)
+2. `<vault root>/sync_config.json` (per-vault override)
+3. `$XDG_CONFIG_HOME/obsidian-connector/sync_config.json`, else
+   `~/.config/obsidian-connector/sync_config.json` (canonical home)
+4. Auto-discovery under `github_root` (groupless fallback) when none exist
+
+See `creation/README.md` for the schema and `creation/sync_config.example.json`.
+
 ## Failure modes and recovery
 
 ### Step 1: run doctor
@@ -626,6 +644,13 @@ obsidian-connector/
 Modules: `creation_paths`, `creation_schema`, `creation_freshness`, `creation_events`,
 `creation_session`, `creation_status`. State lives **outside** iCloud at
 `~/.obsidian-connector/creation/<vault-id>/`; canonical vault notes are materialized views.
+
+**Repo registry.** The dashboard's Project grouping reads the canonical
+`sync_config.json` (see "Creation registry resolution" above), whose `groups`
+map and per-repo `group` collapse multi-repo projects (e.g. MCMC's repos) into a
+single Project. Both `obsx creation` and the bash nightly sync read the same
+file, so the two engines never drift. Creation commands default to the
+`creation` vault.
 
 ### Canonical envelope
 

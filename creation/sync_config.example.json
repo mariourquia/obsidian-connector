@@ -1,0 +1,34 @@
+{
+  "github_root": "~/dev",
+  "vault_subdir": "",
+  "groups": {
+    "acme": "Acme Platform",
+    "standalone": "Standalone"
+  },
+  "repos": [
+    {
+      "dir_name": "acme-api",
+      "display_name": "Acme API",
+      "guidance_file": "CLAUDE.md",
+      "status": "active",
+      "group": "acme",
+      "tags": ["project", "acme", "backend"]
+    },
+    {
+      "dir_name": "acme-web",
+      "display_name": "Acme Web",
+      "guidance_file": "CLAUDE.md",
+      "status": "active",
+      "group": "acme",
+      "tags": ["project", "acme", "frontend"]
+    },
+    {
+      "dir_name": "my-tool",
+      "display_name": "My Tool",
+      "guidance_file": "README.md",
+      "status": "paused",
+      "group": "standalone",
+      "tags": ["project", "standalone"]
+    }
+  ]
+}

@@ -129,6 +129,10 @@ class SyncConfig:
     github_root: Path = field(default_factory=lambda: _DEFAULT_GITHUB_ROOT)
     vault_subdir: str = ""  # subdirectory within the vault for sync output
     repos: list[RepoEntry] = field(default_factory=list)
+    # Optional per-config group slug -> display name overrides. Layered on top
+    # of the built-in GROUP_DISPLAY map so a vault/user can name its own groups
+    # (e.g. {"wine": "Wine"}) without editing package code.
+    group_display_names: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -742,23 +746,67 @@ def render_session_entry(
 # Public API
 # ---------------------------------------------------------------------------
 
-def load_sync_config(vault: str | None = None) -> SyncConfig:
-    """Load sync configuration.
+# Env var that pins an explicit sync_config.json path (highest precedence).
+SYNC_CONFIG_ENV = "OBSIDIAN_SYNC_CONFIG"
 
-    Checks for sync_config.json in the vault root, then falls back to
-    defaults.
+
+def xdg_sync_config_path() -> Path:
+    """Return the canonical user-level sync_config.json path.
+
+    ``$XDG_CONFIG_HOME/obsidian-connector/sync_config.json`` (an empty
+    ``XDG_CONFIG_HOME`` is treated as unset, per the XDG spec), falling back to
+    ``~/.config/obsidian-connector/sync_config.json``. This is the canonical
+    home for the Creation registry: non-iCloud (no eviction) and outside the
+    public package (no leak).
+    """
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base).expanduser() / "obsidian-connector" / SYNC_CONFIG_FILENAME
+
+
+def resolve_sync_config_path(vault: str | None = None) -> Path | None:
+    """Resolve which sync_config.json to read, or ``None`` if none exists.
+
+    Order (most specific first):
+        1. ``OBSIDIAN_SYNC_CONFIG`` env var (only when the file exists)
+        2. ``<vault root>/sync_config.json`` (per-vault override)
+        3. ``~/.config/obsidian-connector/sync_config.json`` (canonical)
+    """
+    env = os.environ.get(SYNC_CONFIG_ENV)
+    if env:
+        env_path = Path(env).expanduser()
+        if env_path.is_file():
+            return env_path
+
+    try:
+        vault_path = resolve_vault_path(vault)
+    except VaultNotFound:
+        vault_path = None
+    if vault_path is not None:
+        vault_cfg = vault_path / SYNC_CONFIG_FILENAME
+        if vault_cfg.is_file():
+            return vault_cfg
+
+    xdg = xdg_sync_config_path()
+    if xdg.is_file():
+        return xdg
+
+    return None
+
+
+def load_sync_config(vault: str | None = None) -> SyncConfig:
+    """Load sync configuration from the canonical registry.
+
+    Resolution order is handled by :func:`resolve_sync_config_path`
+    (``OBSIDIAN_SYNC_CONFIG`` env > vault-root override > XDG canonical). When
+    no config file is found, falls back to auto-discovery under the default
+    ``github_root``.
     """
     import json
 
     config = SyncConfig()
 
-    try:
-        vault_path = resolve_vault_path(vault)
-    except VaultNotFound:
-        return config
-
-    config_file = vault_path / SYNC_CONFIG_FILENAME
-    has_config = config_file.is_file()
+    config_file = resolve_sync_config_path(vault)
+    has_config = config_file is not None
 
     if has_config:
         try:
@@ -766,6 +814,10 @@ def load_sync_config(vault: str | None = None) -> SyncConfig:
                 raw = json.load(f)
             if "github_root" in raw:
                 config.github_root = Path(raw["github_root"]).expanduser()
+            if isinstance(raw.get("groups"), dict):
+                config.group_display_names = {
+                    str(k): str(v) for k, v in raw["groups"].items()
+                }
             # vault_subdir: "" means vault root (explicit opt-in for
             # dedicated project vaults). Absence means use default subdir.
             if "vault_subdir" in raw:

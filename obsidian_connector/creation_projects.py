@@ -95,7 +95,7 @@ def list_projects(vault: "str | None" = None) -> list[Project]:
 
         projects.append(Project(
             slug=group_slug,
-            name=group_display(group_slug),
+            name=config.group_display_names.get(group_slug) or group_display(group_slug),
             group=group_slug,
             repos=repo_dirs,
             status=_rollup_status(statuses),
