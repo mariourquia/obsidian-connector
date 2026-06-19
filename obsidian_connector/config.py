@@ -18,6 +18,11 @@ from obsidian_connector.platform import obsidian_app_json_path, default_index_db
 
 _CONFIG_FILENAME = "config.json"
 
+# Default vault name for `obsx creation` / creation MCP tools. Creation commands
+# operate on the Creation Vault, not the user's primary vault, so they resolve
+# this name unless --vault (or OBSIDIAN_VAULT_PATH) overrides.
+CREATION_VAULT_NAME = "creation"
+
 _DEFAULT_INDEX_DB = default_index_db_path()
 
 _OBSIDIAN_APP_JSON = obsidian_app_json_path()

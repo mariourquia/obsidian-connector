@@ -4811,14 +4811,13 @@ def obsidian_creation_status(
     the vault.
 
     Args:
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_status import creation_status
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         result = creation_status(vault_path)
         return json.dumps(result, indent=2)
     except Exception as exc:
@@ -4843,14 +4842,13 @@ def obsidian_creation_freshness_audit(
     authority/staleness rules. Returns ``{stale, conflicting, checked}``.
 
     Args:
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_status import freshness_audit
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         result = freshness_audit(vault_path)
         return json.dumps(result, indent=2)
     except Exception as exc:
@@ -4888,12 +4886,11 @@ def obsidian_creation_sync_start(
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_session import start_session
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         now = datetime.now(timezone.utc).isoformat()
         result = start_session(
             vault_path,
@@ -4944,12 +4941,11 @@ def obsidian_creation_sync_checkpoint(
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_session import checkpoint_session
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         now = datetime.now(timezone.utc).isoformat()
         result = checkpoint_session(
             vault_path,
@@ -4999,12 +4995,11 @@ def obsidian_creation_sync_end(
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_session import end_session
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         now = datetime.now(timezone.utc).isoformat()
         result = end_session(
             vault_path,
@@ -5054,12 +5049,11 @@ def obsidian_creation_backlog_add(
     """Add a Creation Vault backlog item (event + materialized note). Dry-run by default."""
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_backlog import add_backlog_item
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         now = datetime.now(timezone.utc).isoformat()
         result = add_backlog_item(
             vault_path, title=title, project=project, now_iso=now,
@@ -5109,12 +5103,11 @@ def obsidian_creation_backlog_update(
     """Update fields on an existing Creation Vault backlog item. Dry-run by default."""
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_backlog import UPDATABLE_FIELDS, update_backlog_item
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         now = datetime.now(timezone.utc).isoformat()
         local_vars = {
             "title": title, "priority": priority, "status": status,
@@ -5147,12 +5140,11 @@ def obsidian_creation_backlog_list(
     vault: str | None = None,
 ) -> str:
     """List Creation Vault backlog items, optionally filtered by project, status, or priority."""
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_backlog import list_backlog
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         result = list_backlog(vault_path, project=project, status=status, priority=priority)
         return json.dumps({"items": result}, indent=2)
     except Exception as exc:
@@ -5171,12 +5163,11 @@ def obsidian_creation_backlog_show(
     vault: str | None = None,
 ) -> str:
     """Show the full details of a single Creation Vault backlog item by ID."""
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_backlog import show_backlog_item
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         result = show_backlog_item(vault_path, item_id)
         return json.dumps(
             result or {"ok": False, "error": {"type": "NotFound", "message": item_id}},
@@ -5198,12 +5189,11 @@ def obsidian_creation_rebuild(
     vault: str | None = None,
 ) -> str:
     """Rebuild all Creation Vault backlog notes from the append-only event log. Dry-run by default."""
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector.creation_backlog import rebuild_backlog
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         result = rebuild_backlog(vault_path, dry_run=dry_run)
         return json.dumps(result, indent=2)
     except Exception as exc:
@@ -5232,18 +5222,17 @@ def obsidian_creation_dashboard(
     Args:
         project: Optional project slug to narrow to project scope.
         repo: Optional repo dir_name to narrow to repo scope.
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_next as _cnext
     from obsidian_connector import creation_projects as _cproj
     from obsidian_connector.project_sync import load_sync_config
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         sc = load_sync_config(vault_path)
         gh_root = sc.github_root
         now = datetime.now(timezone.utc).isoformat()
@@ -5297,14 +5286,13 @@ def obsidian_creation_projects(
     Returns a list of projects with name, slug, repos, status, and tags.
 
     Args:
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_projects as _cproj
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         projects = _cproj.list_projects(vault_path)
         proj_rows = [
             {"name": p.name, "slug": p.slug, "repos": list(p.repos),
@@ -5336,14 +5324,13 @@ def obsidian_creation_project_show(
 
     Args:
         name: Project name or slug (case-insensitive).
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_projects as _cproj
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         proj = _cproj.get_project(vault_path, name)
         if proj is None:
             return json.dumps({"ok": False, "error": {"type": "NotFound", "message": name}})
@@ -5391,17 +5378,16 @@ def obsidian_creation_repo_show(
         name: Repo ``dir_name`` as configured in the sync registry.
         with_tests: If True, also run tests to get test status.
         with_build: If True, also run the build to get build status.
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_repo_status as _crs
     from obsidian_connector.project_sync import load_sync_config
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         sc = load_sync_config(vault_path)
         gh_root = sc.github_root
         now = datetime.now(timezone.utc).isoformat()
@@ -5460,17 +5446,16 @@ def obsidian_creation_next(
         project: Optional project slug to limit scope.
         repo: Optional repo dir_name to limit scope.
         limit: Maximum number of recommendations to return (default 10).
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_next as _cnext
     from obsidian_connector.project_sync import load_sync_config
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         sc = load_sync_config(vault_path)
         gh_root = sc.github_root
         now = datetime.now(timezone.utc).isoformat()
@@ -5513,17 +5498,16 @@ def obsidian_creation_refresh(
         project: Optional project slug to additionally drill into.
         repo: Optional repo dir_name to additionally drill into.
         dry_run: If True (default), plan only -- no files written.
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_dashboards as _cdash
     from obsidian_connector.project_sync import load_sync_config
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         sc = load_sync_config(vault_path)
         gh_root = sc.github_root
         now = datetime.now(timezone.utc).isoformat()
@@ -5565,16 +5549,15 @@ def obsidian_creation_migrate_projects(
     Args:
         undo: If True, reverse the migration instead of applying it.
         dry_run: If True (default), plan only -- no files written.
-        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+        vault: Vault name/path override (defaults to the ``creation`` vault).
     """
     from datetime import datetime, timezone
 
-    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector.config import CREATION_VAULT_NAME, resolve_vault_path
     from obsidian_connector import creation_migrate as _cmig
 
     try:
-        cfg = load_config()
-        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        vault_path = resolve_vault_path(vault or CREATION_VAULT_NAME)
         now = datetime.now(timezone.utc).isoformat()
         if undo:
             result = _cmig.undo_migration(vault_path, dry_run=dry_run)

@@ -8,6 +8,30 @@ from unittest.mock import MagicMock
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _isolate_user_config(tmp_path_factory, monkeypatch):
+    """Isolate user-level config so tests never read the real ~/.config.
+
+    The canonical Creation registry lives at
+    ``~/.config/obsidian-connector/sync_config.json``. Without isolation, any
+    test that exercises ``load_sync_config`` and does not provide its own
+    fixture would silently read the developer's real registry, making tests
+    non-hermetic. This fixture points ``XDG_CONFIG_HOME`` at a fresh temp dir
+    and clears the explicit ``OBSIDIAN_SYNC_CONFIG`` override for every test.
+    Tests that want to exercise the canonical path can write into the
+    ``xdg_config_home`` fixture's directory or set the env vars themselves.
+    """
+    xdg = tmp_path_factory.mktemp("xdg")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    monkeypatch.delenv("OBSIDIAN_SYNC_CONFIG", raising=False)
+
+
+@pytest.fixture
+def xdg_config_home() -> Path:
+    """Return the isolated XDG_CONFIG_HOME directory set by ``_isolate_user_config``."""
+    return Path(os.environ["XDG_CONFIG_HOME"])
+
+
 @pytest.fixture
 def tmp_vault(tmp_path: Path) -> Path:
     """Create a temporary vault with standard folder structure."""
