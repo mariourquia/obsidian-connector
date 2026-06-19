@@ -284,9 +284,15 @@ class TestGenerateGlobalDashboard:
         assert idx_do_next < idx_projects < idx_needs_dec, (
             "Sections must appear in order: Do next, Projects, Needs decision"
         )
-        # Also check the other rollups
+        # Also check the other rollups exist and are ordered: Needs decision -> Stale -> Clean & ready
         assert "## Stale" in content
         assert "## Clean & ready" in content
+
+        idx_stale = content.index("## Stale")
+        idx_clean = content.index("## Clean & ready")
+        assert idx_needs_dec < idx_stale < idx_clean, (
+            "Rollup sections must appear in order: Needs decision, Stale, Clean & ready"
+        )
 
     def test_projects_table_has_correct_columns(self, tmp_path, monkeypatch):
         v = _make_vault(tmp_path, monkeypatch)
@@ -304,6 +310,18 @@ class TestGenerateGlobalDashboard:
         assert "Repos" in content
         assert "Flags" in content
         assert "Next action" in content
+
+        # Columns must appear in order within the header row
+        # Find the header line (first line containing all column names)
+        header_line = next(
+            line for line in content.splitlines()
+            if "Project" in line and "Pri" in line and "State" in line
+        )
+        assert (
+            header_line.index("Project") < header_line.index("Pri")
+            < header_line.index("State") < header_line.index("Repos")
+            < header_line.index("Flags") < header_line.index("Next action")
+        ), f"Columns must appear in order in header line: {header_line!r}"
 
     def test_do_next_shows_actions(self, tmp_path, monkeypatch):
         v = _make_vault(tmp_path, monkeypatch)
@@ -367,7 +385,96 @@ class TestGenerateGlobalDashboard:
 
 
 # ===========================================================================
-# C. generate_repo_view
+# C. generate_project_dashboard
+# ===========================================================================
+
+class TestGenerateProjectDashboard:
+
+    def _dashboard_path(self, v: Path, project_slug: str) -> Path:
+        from obsidian_connector import creation_projects as cp
+        proj = cp.get_project(v, project_slug)
+        assert proj is not None, f"Project {project_slug} not found"
+        return v / "Projects" / proj.name / "Project Dashboard.md"
+
+    def test_section_order(self, tmp_path, monkeypatch):
+        """## Repos appears before ## Top backlog which appears before ## Load for an agent."""
+        v = _make_vault(tmp_path, monkeypatch)
+        with (
+            patch("obsidian_connector.creation_next.next_actions", side_effect=_canned_next_actions),
+            patch("obsidian_connector.creation_repo_status.repo_status", side_effect=_canned_repo_status),
+        ):
+            generate_project_dashboard(v, "mcmc", now_iso=NOW, dry_run=False)
+
+        content = self._dashboard_path(v, "mcmc").read_text(encoding="utf-8")
+
+        idx_repos = content.index("## Repos")
+        idx_backlog = content.index("## Top backlog")
+        idx_agent = content.index("## Load for an agent")
+        assert idx_repos < idx_backlog < idx_agent, (
+            "Sections must appear in order: ## Repos, ## Top backlog, ## Load for an agent"
+        )
+
+    def test_repos_table_columns(self, tmp_path, monkeypatch):
+        """Repos table must have Repo, Branch, State, Next columns."""
+        v = _make_vault(tmp_path, monkeypatch)
+        with (
+            patch("obsidian_connector.creation_next.next_actions", side_effect=_canned_next_actions),
+            patch("obsidian_connector.creation_repo_status.repo_status", side_effect=_canned_repo_status),
+        ):
+            generate_project_dashboard(v, "mcmc", now_iso=NOW, dry_run=False)
+
+        content = self._dashboard_path(v, "mcmc").read_text(encoding="utf-8")
+        # Find the header line that contains all repo-table columns
+        header_line = next(
+            (line for line in content.splitlines()
+             if "Repo" in line and "Branch" in line and "State" in line and "Next" in line),
+            None,
+        )
+        assert header_line is not None, (
+            "Repos table must contain a header row with Repo, Branch, State, Next columns"
+        )
+
+    def test_dry_run_writes_nothing(self, tmp_path, monkeypatch):
+        """dry_run=True must not create Project Dashboard.md."""
+        v = _make_vault(tmp_path, monkeypatch)
+        with (
+            patch("obsidian_connector.creation_next.next_actions", side_effect=_canned_next_actions),
+            patch("obsidian_connector.creation_repo_status.repo_status", side_effect=_canned_repo_status),
+        ):
+            result = generate_project_dashboard(v, "mcmc", now_iso=NOW, dry_run=True)
+
+        assert result["dry_run"] is True
+        path = self._dashboard_path(v, "mcmc")
+        assert not path.exists(), "dry_run must not create Project Dashboard.md"
+
+    def test_non_dry_run_returns_path_and_creates_file(self, tmp_path, monkeypatch):
+        """Non-dry run must return {path, dry_run} with correct path and create the file."""
+        v = _make_vault(tmp_path, monkeypatch)
+        with (
+            patch("obsidian_connector.creation_next.next_actions", side_effect=_canned_next_actions),
+            patch("obsidian_connector.creation_repo_status.repo_status", side_effect=_canned_repo_status),
+        ):
+            result = generate_project_dashboard(v, "mcmc", now_iso=NOW, dry_run=False)
+
+        assert result["dry_run"] is False
+        assert result["path"] is not None
+        # Path must be of the form Projects/{Project}/Project Dashboard.md
+        assert "Project Dashboard.md" in result["path"]
+        assert "Projects" in result["path"]
+        # File must exist on disk
+        assert self._dashboard_path(v, "mcmc").exists(), (
+            "generate_project_dashboard must create the file on a non-dry run"
+        )
+
+    def test_unknown_project_returns_error(self, tmp_path, monkeypatch):
+        v = _make_vault(tmp_path, monkeypatch)
+        result = generate_project_dashboard(v, "nonexistent", now_iso=NOW, dry_run=True)
+        assert result["path"] is None
+        assert "error" in result
+
+
+# ===========================================================================
+# D. generate_repo_view
 # ===========================================================================
 
 class TestGenerateRepoView:
