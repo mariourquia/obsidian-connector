@@ -445,8 +445,6 @@ def next_actions(
         # For blocked-by-tests, dampen score via signals
         signals: dict[str, float] = {}
         is_blocked = classification == "blocked-by-tests"
-        if is_blocked:
-            signals["repo_readiness"] = 0.0  # override to dampen
 
         # Determine project slug from repo_status_map key
         proj_slug = ""

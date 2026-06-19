@@ -538,8 +538,15 @@ class TestNextActions:
 
     def test_limit_is_respected(self, tmp_path, monkeypatch):
         v = self._setup_vault(tmp_path, monkeypatch)
+        # _setup_vault adds 3 backlog items; at limit=1 we must get exactly 1
         recs = self._run(v, monkeypatch, limit=1)
-        assert len(recs) <= 1
+        assert len(recs) == 1
+
+    def test_limit_two_gives_at_most_two(self, tmp_path, monkeypatch):
+        v = self._setup_vault(tmp_path, monkeypatch)
+        # _setup_vault adds 3 backlog items; with limit=2 result must be truncated
+        recs = self._run(v, monkeypatch, limit=2)
+        assert len(recs) == 2
 
     def test_ordering_is_deterministic(self, tmp_path, monkeypatch):
         v = self._setup_vault(tmp_path, monkeypatch)

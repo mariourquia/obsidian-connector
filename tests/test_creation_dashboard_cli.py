@@ -166,19 +166,40 @@ def test_next_json_returns_ranked_items(tmp_path, monkeypatch, capsys):
 
 
 def test_next_json_limit_respected(tmp_path, monkeypatch, capsys):
-    """--limit is passed through (stub returns 1 regardless, but flag parsed)."""
+    """--limit is forwarded to next_actions and result is truncated accordingly."""
     vault = tmp_path / "v"
     sc = _fake_sync_config(tmp_path)
+    captured_limit = []
+
+    def _stub_next_actions_capture_limit(vault, *, scope="global", project=None,
+                                         repo=None, github_root=None, now_iso,
+                                         limit=10, runner=None):
+        captured_limit.append(limit)
+        # Return more candidates than the requested limit to prove truncation
+        return [
+            {
+                "scope": scope, "project": None, "repo": None,
+                "backlog_id": f"bl-{i:03}", "action": f"Action {i}",
+                "reason": ["urgency"], "confidence": 0.9 - i * 0.1,
+                "requires_mario_decision": False,
+                "suggested_workflow": None, "context_pack": None,
+            }
+            for i in range(limit)
+        ]
 
     import obsidian_connector.project_sync as _ps
     import obsidian_connector.creation_next as _cnext
     monkeypatch.setattr(_ps, "load_sync_config", lambda vault=None: sc)
-    monkeypatch.setattr(_cnext, "next_actions", _stub_next_actions)
+    monkeypatch.setattr(_cnext, "next_actions", _stub_next_actions_capture_limit)
 
     rc = _run(monkeypatch, tmp_path, ["creation", "next", "--limit", "3", "--json"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["ok"] is True
+    # The limit arg was forwarded
+    assert captured_limit == [3]
+    # Result count respects the limit
+    assert out["data"]["count"] <= 3
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +250,7 @@ def test_repo_show_unknown_repo_returns_error(tmp_path, monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 
 def test_dashboard_json_returns_do_next_and_projects(tmp_path, monkeypatch, capsys):
-    """creation dashboard --json returns do_next + projects."""
+    """creation dashboard --json returns do_next + projects with expected project name."""
     vault = tmp_path / "v"
     sc = _fake_sync_config(tmp_path, repos=[
         RepoEntry(dir_name="my-repo", display_name="My Repo", status="active",
@@ -239,7 +260,9 @@ def test_dashboard_json_returns_do_next_and_projects(tmp_path, monkeypatch, caps
     import obsidian_connector.project_sync as _ps
     import obsidian_connector.creation_next as _cnext
     import obsidian_connector.creation_repo_status as _crs
+    import obsidian_connector.creation_projects as _cproj
     monkeypatch.setattr(_ps, "load_sync_config", lambda vault=None: sc)
+    monkeypatch.setattr(_cproj, "load_sync_config", lambda vault=None: sc)
     monkeypatch.setattr(_cnext, "next_actions", _stub_next_actions)
     monkeypatch.setattr(_crs, "repo_status", _stub_repo_status)
 
@@ -252,6 +275,8 @@ def test_dashboard_json_returns_do_next_and_projects(tmp_path, monkeypatch, caps
     assert "projects" in d
     assert isinstance(d["do_next"], list)
     assert d["do_next"][0]["action"] == "Fix the tests"
+    project_names = [p["name"] for p in d["projects"]]
+    assert "My Repo" in project_names
 
 
 def test_dashboard_project_filter_returns_drilldown(tmp_path, monkeypatch, capsys):
@@ -420,7 +445,7 @@ def test_migrate_projects_undo_calls_undo_migration(tmp_path, monkeypatch, capsy
     import obsidian_connector.creation_migrate as _cmig
     monkeypatch.setattr(
         _cmig, "undo_migration",
-        lambda *a, **kw: (called.append(("undo", kw)), {"removed": 0, "dry_run": True})[1],
+        lambda *a, **kw: (called.append(("undo", kw)), {"reverted": 0, "dry_run": True})[1],
     )
     monkeypatch.setattr(
         _cmig, "migrate",
@@ -430,6 +455,31 @@ def test_migrate_projects_undo_calls_undo_migration(tmp_path, monkeypatch, capsy
     rc = _run(monkeypatch, tmp_path, ["creation", "migrate-projects", "--undo"])
     assert rc == 0
     assert called and called[0][0] == "undo"
+
+
+def test_migrate_projects_undo_allow_write_prints_reverted_count(tmp_path, monkeypatch, capsys):
+    """migrate-projects --undo --allow-write prints 'reverted' count and calls log_action."""
+    vault = tmp_path / "v"
+    logged = []
+
+    import obsidian_connector.creation_migrate as _cmig
+    monkeypatch.setattr(
+        _cmig, "undo_migration",
+        lambda *a, **kw: {"reverted": 3, "dry_run": False},
+    )
+    monkeypatch.setattr(
+        _cmig, "migrate",
+        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("migrate() called unexpectedly")),
+    )
+    monkeypatch.setattr(cli, "log_action", lambda *a, **k: logged.append((a, k)))
+
+    rc = _run(monkeypatch, tmp_path,
+              ["creation", "migrate-projects", "--undo", "--allow-write"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "3" in out
+    real_writes = [c for c in logged if c[1].get("dry_run") is False]
+    assert real_writes, "log_action should be called with dry_run=False"
 
 
 # ---------------------------------------------------------------------------

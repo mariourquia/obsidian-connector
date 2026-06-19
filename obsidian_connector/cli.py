@@ -5613,7 +5613,6 @@ def main(argv: list[str] | None = None) -> int:
             elif creation_cmd == "dashboard":
                 from obsidian_connector import creation_next as _cnext
                 from obsidian_connector import creation_projects as _cproj
-                from obsidian_connector import creation_repo_status as _crs
                 from obsidian_connector.project_sync import load_sync_config as _load_sc
 
                 _sc = _load_sc(vault)
@@ -5636,10 +5635,12 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     data = {"scope": _scope, "project": _proj_filter, "repo": _repo_filter,
                             "do_next": _recs}
-                    human = f"Drilldown ({_scope}): {_proj_filter or _repo_filter}\n" + "\n".join(
-                        f"  [{r['confidence']:.2f}] {r['action']}"
-                        for r in _recs
-                    ) or "  No recommendations."
+                    human = f"Drilldown ({_scope}): {_proj_filter or _repo_filter}\n" + (
+                        "\n".join(
+                            f"  [{r['confidence']:.2f}] {r['action']}"
+                            for r in _recs
+                        ) or "  No recommendations."
+                    )
                 else:
                     # Global console: do-next + projects table + per-project repo rollup
                     _recs = _cnext.next_actions(
@@ -5659,10 +5660,12 @@ def main(argv: list[str] | None = None) -> int:
                         "do_next": _recs,
                         "projects": _proj_rows,
                     }
-                    _do_next_lines = "\n".join(
-                        f"  [{r['confidence']:.2f}] {r['action']}"
-                        for r in _recs
-                    ) or "  No recommendations."
+                    _do_next_lines = (
+                        "\n".join(
+                            f"  [{r['confidence']:.2f}] {r['action']}"
+                            for r in _recs
+                        ) or "  No recommendations."
+                    )
                     _proj_lines = "\n".join(
                         f"  {p['status']:<10} {p['name']} ({len(p['repos'])} repo(s))"
                         for p in _proj_rows
@@ -5822,7 +5825,7 @@ def main(argv: list[str] | None = None) -> int:
                 if getattr(args, "undo", False):
                     _result = _cmig.undo_migration(vault, dry_run=dry)
                     _prefix = "[dry-run] " if dry else ""
-                    human = _prefix + f"Undo migration: {_result.get('removed', 0)} removed."
+                    human = _prefix + f"Undo migration: {_result.get('reverted', 0)} reverted."
                 else:
                     _result = _cmig.migrate(vault, now_iso=now, dry_run=dry)
                     _prefix = "[dry-run] " if dry else ""
