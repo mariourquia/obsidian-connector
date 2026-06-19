@@ -120,6 +120,7 @@ their `src/` counterparts (same underlying files).
 | `creation_events.py` | Append-only JSONL event log outside iCloud (`append_event`, `read_events`, `EVENT_TYPES`) |
 | `creation_session.py` | Resumable agent-session lifecycle (`start_session`, `checkpoint_session`, `end_session`, `active_session`) |
 | `creation_status.py` | Read-only Creation Vault OS status + freshness audit (`creation_status`, `freshness_audit`) |
+| `creation_backlog.py` | Event-sourced backlog CRUD (`add_backlog_item`, `update_backlog_item`, `list_backlog`, `show_backlog_item`, `rebuild_backlog`, `UPDATABLE_FIELDS`); materialized notes in `Backlog/{project}/{id}.md` |
 
 ## Dependency flow
 
