@@ -102,6 +102,13 @@ from obsidian_connector.creation_session import (
     end_session,
     active_session,
 )
+from obsidian_connector.creation_backlog import (
+    add_backlog_item,
+    update_backlog_item,
+    list_backlog,
+    show_backlog_item,
+    rebuild_backlog,
+)
 from obsidian_connector.creation_status import (
     creation_status as get_creation_status,
     freshness_audit as get_freshness_audit,
@@ -304,4 +311,10 @@ __all__ = [
     "render_first_pass_wiki_body",
     "resolve_entity_path",
     "write_entity_note",
+    # creation backlog engine
+    "add_backlog_item",
+    "update_backlog_item",
+    "list_backlog",
+    "show_backlog_item",
+    "rebuild_backlog",
 ]
