@@ -136,11 +136,9 @@ def score_item(
     # impact: 0-10 int
     norm_impact = min(1.0, max(0.0, float(item.get("impact", 5)) / 10.0))
 
-    # dependency_unlock: how many items this unblocks (via its id in their
-    # dependencies lists is expensive to compute here; the caller may pass a
-    # pre-computed count via signals["dependency_unlock_count"]).
-    # Fallback: use the length of the item's own dependencies as a proxy for
-    # how central this item is (more deps = more unlock potential).
+    # dependency_unlock: how many items this unblocks.  The caller supplies a
+    # pre-computed count via signals["dependency_unlock_count"]; default is 0
+    # when the key is absent.  No fallback computation is performed here.
     n_unblocked = float(signals.get("dependency_unlock_count", 0))
     norm_dep_unlock = min(1.0, n_unblocked / 3.0)
 
@@ -471,8 +469,10 @@ def next_actions(
         })
 
     # --- score all candidates ------------------------------------------------
-    scored: list[tuple[float, str, str, dict]] = []
-    # key for deterministic tie-breaking: backlog_id (or action string)
+    # Each entry: (damped_total, tie_key, factors, cand)
+    # score_item is called exactly once per candidate; factors are stored and
+    # reused during reason-building to avoid a redundant second call.
+    scored: list[tuple[float, str, list, dict]] = []
     for cand in candidates:
         total, factors = score_item(
             cand["item"],
@@ -484,8 +484,13 @@ def next_actions(
         if cand["blocked"]:
             total *= 0.5
 
-        tie_key = cand["backlog_id"] or cand["action_str"]
-        scored.append((total, tie_key, "", cand))
+        # Repo candidates use dir_name as tie-key (stable identifier);
+        # backlog items use backlog_id.
+        if cand["is_repo_candidate"]:
+            tie_key = cand["repo_dir"]
+        else:
+            tie_key = cand["backlog_id"] or cand["action_str"]
+        scored.append((total, tie_key, factors, cand))
 
     # Sort: score desc, then tie_key asc (deterministic)
     scored.sort(key=lambda t: (-t[0], t[1]))
@@ -498,14 +503,8 @@ def next_actions(
     if max_score <= 0.0:
         max_score = 1.0
 
-    for total, _tie_key, _unused, cand in scored[:limit]:
-        _, factors = score_item(
-            cand["item"],
-            repo_status=cand["rs"],
-            signals=cand["signals"],
-            weights=weights,
-        )
-        # Re-apply dampen for reason string context
+    for total, _tie_key, factors, cand in scored[:limit]:
+        # Reuse the factors already computed during scoring — no second call.
         is_blocked = cand["blocked"]
 
         reason = _reason_strings(

@@ -436,22 +436,31 @@ class TestNextActions:
         v = self._setup_vault(tmp_path, monkeypatch)
         recs = self._run(v, monkeypatch)
 
-        # Find the blocked item
-        blocked_recs = [r for r in recs
-                        if r["backlog_id"] is not None and "test" in r["action"].lower()]
-        # It may also surface via the repo candidate
-        if not blocked_recs:
-            blocked_recs = [r for r in recs if "blocked" in " ".join(r["reason"]).lower()
-                            or r.get("repo") == "mcmc-ehr"]
-        assert len(blocked_recs) >= 1
-
-        # Verify it ranks below the P0 item
-        first = recs[0]
-        blocked_index = next(
-            (i for i, r in enumerate(recs) if r in blocked_recs), None
+        # Locate the P0 item ("Deploy JWKS rotation", repos=["mcmc-erp"])
+        p0_index = next(
+            (i for i, r in enumerate(recs)
+             if r["backlog_id"] is not None
+             and ("JWKS" in r["action"] or "Deploy" in r["action"])),
+            None,
         )
-        assert blocked_index is not None
-        assert blocked_index > 0, "Blocked item should not rank first"
+        assert p0_index is not None, "P0 item ('Deploy JWKS rotation') not found in recs"
+
+        # Locate the blocked item ("Green up integration tests", repos=["mcmc-ehr"])
+        # It may surface as a backlog rec or as a repo candidate for mcmc-ehr.
+        blocked_index = next(
+            (i for i, r in enumerate(recs)
+             if (r["backlog_id"] is not None and "test" in r["action"].lower())
+             or r.get("repo") == "mcmc-ehr"),
+            None,
+        )
+        assert blocked_index is not None, (
+            "Blocked item ('Green up integration tests' or mcmc-ehr repo candidate) not found in recs"
+        )
+
+        # The blocked item must rank strictly below the P0 item
+        assert blocked_index > p0_index, (
+            f"Blocked item at index {blocked_index} should rank below P0 at index {p0_index}"
+        )
 
     def test_every_recommendation_has_at_least_one_reason(self, tmp_path, monkeypatch):
         v = self._setup_vault(tmp_path, monkeypatch)
@@ -495,14 +504,37 @@ class TestNextActions:
     def test_scope_repo_narrows_to_single_repo(self, tmp_path, monkeypatch):
         v = self._setup_vault(tmp_path, monkeypatch)
         recs = self._run(v, monkeypatch, scope="repo", repo="mcmc-erp")
-        # Should only include items whose repos include mcmc-erp
-        for rec in recs:
-            if rec["backlog_id"] is not None:
-                # The item must be associated with mcmc-erp
-                # We can check that "JWKS" item is in there (it's the mcmc-erp one)
-                pass  # items with mcmc-erp repo should be present
-        # If no backlog items match, result can be empty or just repo candidates
-        assert isinstance(recs, list)
+
+        # _setup_vault creates three items:
+        #   "Deploy JWKS rotation"   -> repos=["mcmc-erp"]  (backlog_id present)
+        #   "Decide on auth strategy" -> repos=["mcmc-auth"] (different repo)
+        #   "Green up integration tests" -> repos=["mcmc-ehr"] (different repo)
+        #
+        # With repo="mcmc-erp", only the JWKS item should appear as a backlog rec;
+        # the auth-strategy and integration-tests items must NOT appear.
+
+        backlog_recs = [r for r in recs if r["backlog_id"] is not None]
+
+        # At least one backlog rec should correspond to the mcmc-erp item
+        jwks_recs = [r for r in backlog_recs
+                     if "JWKS" in r["action"] or "Deploy" in r["action"]]
+        assert len(jwks_recs) >= 1, (
+            "Expected the mcmc-erp backlog item ('Deploy JWKS rotation') in repo-scoped results"
+        )
+
+        # The mcmc-auth item must NOT appear as a backlog rec
+        auth_recs = [r for r in backlog_recs
+                     if "auth strategy" in r["action"].lower() or "Decide" in r["action"]]
+        assert len(auth_recs) == 0, (
+            f"mcmc-auth item should not appear when scoped to mcmc-erp; got: {auth_recs}"
+        )
+
+        # The mcmc-ehr item must NOT appear as a backlog rec
+        ehr_recs = [r for r in backlog_recs
+                    if "integration" in r["action"].lower() or "Green up" in r["action"]]
+        assert len(ehr_recs) == 0, (
+            f"mcmc-ehr item should not appear when scoped to mcmc-erp; got: {ehr_recs}"
+        )
 
     def test_limit_is_respected(self, tmp_path, monkeypatch):
         v = self._setup_vault(tmp_path, monkeypatch)
