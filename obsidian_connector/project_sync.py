@@ -140,6 +140,9 @@ class SyncConfig:
 GROUP_DISPLAY: dict[str, str] = {
     "standalone": "Standalone",
     "research": "Research",
+    "mcmc": "MCMC",
+    "amos": "AMOS",
+    "cre-skills": "CRE Skills",
 }
 
 
@@ -263,6 +266,18 @@ def _extract_repo_state(entry: RepoEntry, github_root: Path) -> RepoState:
         state.activity_label = f"active ({state.days_since_commit}d ago)"
 
     return state
+
+
+# ---------------------------------------------------------------------------
+# Public wrapper for _extract_repo_state
+# ---------------------------------------------------------------------------
+
+def extract_repo_state(entry: RepoEntry, github_root: Path) -> RepoState:
+    """Public wrapper around _extract_repo_state.
+
+    Delegates entirely so git logic lives in one place.
+    """
+    return _extract_repo_state(entry, github_root)
 
 
 # ---------------------------------------------------------------------------

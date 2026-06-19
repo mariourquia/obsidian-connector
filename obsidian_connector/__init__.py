@@ -113,6 +113,42 @@ from obsidian_connector.creation_status import (
     creation_status as get_creation_status,
     freshness_audit as get_freshness_audit,
 )
+from obsidian_connector.creation_projects import (
+    Project,
+    get_project,
+    list_projects,
+    project_repo_entries,
+    read_one_pager_prose,
+)
+from obsidian_connector.creation_repo_status import (
+    RepoStatus,
+    classify,
+    extract_repo_state,
+    repo_status,
+)
+from obsidian_connector.creation_next import (
+    DEFAULT_WEIGHTS,
+    load_weights,
+    next_actions,
+    score_item,
+)
+from obsidian_connector.creation_migrate import (
+    migrate,
+    plan_migration,
+    undo_migration,
+)
+from obsidian_connector.creation_dashboards import (
+    generate_global_dashboard,
+    generate_project_dashboard,
+    generate_project_one_pager,
+    generate_repo_view,
+    generate_projects_index,
+    generate_next_actions,
+    generate_stale_context,
+    generate_pending_decisions,
+    generate_active_sessions,
+    refresh_all,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
@@ -317,4 +353,15 @@ __all__ = [
     "list_backlog",
     "show_backlog_item",
     "rebuild_backlog",
+    # creation projects
+    "Project",
+    "get_project",
+    "list_projects",
+    "project_repo_entries",
+    "read_one_pager_prose",
+    # creation_repo_status
+    "RepoStatus",
+    "classify",
+    "extract_repo_state",
+    "repo_status",
 ]

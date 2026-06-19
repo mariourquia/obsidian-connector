@@ -2,12 +2,17 @@
 title: "Creation Vault OS: Creation Dashboard (Operating Console)"
 status: draft
 owner: mariourquia
-last_reviewed: "2026-06-18"
+last_reviewed: "2026-06-19"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/project_sync.py"
   - "obsidian_connector/ui_dashboard.py"
   - "obsidian_connector/cli.py"
+  - "obsidian_connector/creation_projects.py"
+  - "obsidian_connector/creation_repo_status.py"
+  - "obsidian_connector/creation_next.py"
+  - "obsidian_connector/creation_dashboards.py"
+  - "obsidian_connector/creation_migrate.py"
 related_docs:
   - "../plans/2026-06-18-creation-vault-os.md"
   - "./creation-vault-schema.md"
@@ -221,3 +226,26 @@ Textual surface to extend; the `groups/{Group}.md` MOCs are proto project dashbo
 work is to add the Project entity, the enriched repo status, the next-action engine, the
 interactive mutations (event-sourced, freshness-respecting), and the project one-pager and
 dashboard generators.
+
+## Shipped (Phase 4 read layer)
+
+Shipped in the `feat/creation-dashboard` PR (2026-06-19). See the implementation plan at
+`docs/plans/2026-06-19-creation-dashboard-plan.md`.
+
+What shipped:
+- **Project entity** (`creation_projects.py`): `Project` dataclass, `list_projects`, `get_project` from the sync registry; `group` promoted to first-class entity.
+- **Git + PR + test/build classifier** (`creation_repo_status.py`): `RepoStatus` dataclass with branch, HEAD SHA, dirty/ahead/behind, open PRs, classification (clean-and-ready / mid-implementation / waiting-on-PR-review / blocked-by-tests / blocked-by-decision / stale / needs-sync), next action, and blockers; injectable `runner` keeps tests offline.
+- **Explainable next-action engine** (`creation_next.py`): `Recommendation` dict with scope, reason list, confidence, and suggested workflow; ranked at global/project/repo levels with named contributing factors; no black-box ranking.
+- **Reversible flat-to-Projects migration** (`creation_migrate.py`): dry-run-by-default, fence-preserving, writes a mapping note; the flat layout keeps working until the move is executed.
+- **Hybrid global + drilldown + rollup generators** (`creation_dashboards.py`): `Dashboard.md` (global), `Projects.md` (index), `Next Actions.md`, per-project `Project Dashboard.md`, per-repo `Repos/{repo}.md`; all extend the existing `sync-creation-vault` outputs.
+- **CLI surface**: `obsx creation dashboard`, `projects`, `project show`, `repo show`, `next`, `refresh`, `migrate-projects` -- each with human output, `--json`, and `--dry-run` on writes.
+- **MCP parity**: `obsidian_creation_dashboard`, `obsidian_creation_projects`, `obsidian_creation_project_show`, `obsidian_creation_repo_show`, `obsidian_creation_next`, `obsidian_creation_refresh`, `obsidian_creation_migrate_projects`.
+
+What remains deferred to Phase 6 (interactive TUI mutations):
+- Reprioritize a project or backlog item in the TUI.
+- Mark a decision answered.
+- Assign or change the suggested agent workflow.
+- Accept/reject voice-note backlog updates from the TUI.
+- Start or resume a session from the console.
+
+Phase 6 will extend `ui_dashboard.py` with these write actions -- all dry-run/diff/audited and freshness-respecting.
