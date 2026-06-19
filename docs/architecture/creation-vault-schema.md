@@ -27,13 +27,18 @@ writes go through `write_manager.atomic_write` (snapshotted, audited).
 
 | type | location | lifecycle status | ownership |
 |---|---|---|---|
-| `project` (extended) | `projects/{slug}/index.md` | active / paused / shipped / dormant | user-curated; add freshness + backlog rollup behind a fence |
+| `project` (program; new) | `Projects/{Project}/{Project One-Pager.md, Project Dashboard.md}` | active / paused / shipped / dormant | one-pager user-authored; dashboard machine-generated |
+| `repo` (was the per-repo `project` hub) | `Projects/{Project}/Repos/{slug}.md` (target) / `projects/{slug}/index.md` (current) | git-grounded state classification (see dashboard doc) | user-curated hub + machine status behind a fence |
 | `agent-session` (extends `session`) | `sessions/{id}.md` + `sessions/_active.md` | active / checkpointed / blocked / closed | machine |
 | `backlog-item` (new) | `Backlog/{project}/{id}.md` | idea / ready / in_progress / blocked / in_review / done / archived | machine summary + user-editable fence |
 | `context-pack` (new) | `context/packs/{id}.md` | current / stale / superseded | machine |
 | `decision` (new typed) | `Decisions/{project}/{id}.md` | pending / accepted / rejected / superseded | machine summary + user notes fence |
 | `checkpoint` (new) | `sessions/{session}/checkpoints/{ts}.md` | n/a | machine |
 | `voice-capture` (extended) | `inbox/voice-captures/...` | inbox / triaged / linked | machine (capture service) |
+
+A **Project** groups one or more repos (the `group` field promoted to an entity); repos
+drill down under it. The project one-pager, project dashboard, and the per-repo status view
+(and their generation) are specified in [creation-dashboard.md](./creation-dashboard.md).
 
 ## Freshness block (on every canonical note)
 
