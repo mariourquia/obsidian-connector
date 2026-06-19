@@ -72,6 +72,28 @@ def freshness_to_dict(f: Freshness) -> dict:
 def freshness_from_dict(d: dict) -> Freshness:
     known = {fld.name for fld in fields(Freshness)}
     kwargs = {k: v for k, v in d.items() if k in known}
-    if "supersedes" in kwargs and kwargs["supersedes"] is not None:
-        kwargs["supersedes"] = tuple(kwargs["supersedes"])
+    # Coerce confidence to float: the frontmatter reader returns strings, so
+    # `confidence: 0.8` loads as '0.8' which violates the float annotation.
+    if "confidence" in kwargs:
+        try:
+            kwargs["confidence"] = float(kwargs["confidence"])
+        except (TypeError, ValueError):
+            kwargs["confidence"] = 0.5
+    # Robust supersedes parse: the string-only frontmatter parser cannot
+    # represent real lists yet; proper list parsing lands with backlog
+    # materialization (deferred).
+    if "supersedes" in kwargs:
+        val = kwargs["supersedes"]
+        if val is None:
+            kwargs["supersedes"] = ()
+        elif isinstance(val, (list, tuple)):
+            kwargs["supersedes"] = tuple(val)
+        elif isinstance(val, str):
+            stripped = val.strip()
+            if stripped in ("", "[]"):
+                kwargs["supersedes"] = ()
+            else:
+                kwargs["supersedes"] = (stripped,)
+        else:
+            kwargs["supersedes"] = (str(val),)
     return Freshness(**kwargs)

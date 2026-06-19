@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import creation_events as ce
 from . import creation_schema as cs
-from .write_manager import atomic_write
+from obsidian_connector.write_manager import atomic_write
 
 _ACTIVE = "sessions/_active.md"
 

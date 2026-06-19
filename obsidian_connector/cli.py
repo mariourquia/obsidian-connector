@@ -5330,10 +5330,10 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
             elif creation_cmd == "sync":
-                dry = args.dry_run or not args.allow_write
                 sync_cmd = getattr(args, "sync_cmd", None)
 
                 if sync_cmd == "start":
+                    dry = args.dry_run or not args.allow_write
                     data = _csess.start_session(
                         vault,
                         repo=args.repo,
@@ -5353,6 +5353,7 @@ def main(argv: list[str] | None = None) -> int:
                     )
 
                 elif sync_cmd == "checkpoint":
+                    dry = args.dry_run or not args.allow_write
                     data = _csess.checkpoint_session(
                         vault,
                         session_id=args.session_id,
@@ -5375,6 +5376,7 @@ def main(argv: list[str] | None = None) -> int:
                     )
 
                 elif sync_cmd == "end":
+                    dry = args.dry_run or not args.allow_write
                     data = _csess.end_session(
                         vault,
                         session_id=args.session_id,
@@ -5395,12 +5397,12 @@ def main(argv: list[str] | None = None) -> int:
                     )
 
                 else:
-                    data = {"error": "missing sync sub-command (start|checkpoint|end)"}
-                    human = "Usage: obsx creation sync start|checkpoint|end ..."
+                    print("Usage: obsx creation sync start|checkpoint|end", file=sys.stderr)
+                    return 1
 
             else:
-                data = {"error": f"missing creation sub-command: {creation_cmd!r}"}
-                human = "Usage: obsx creation status|sync|freshness-audit"
+                print("Usage: obsx creation status|sync|freshness-audit", file=sys.stderr)
+                return 1
 
         elif args.command == "onboarding":
             from obsidian_connector.onboarding import (
