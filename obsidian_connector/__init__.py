@@ -126,6 +126,12 @@ from obsidian_connector.creation_repo_status import (
     extract_repo_state,
     repo_status,
 )
+from obsidian_connector.creation_next import (
+    DEFAULT_WEIGHTS,
+    load_weights,
+    next_actions,
+    score_item,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
