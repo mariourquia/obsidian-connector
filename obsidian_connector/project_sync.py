@@ -266,6 +266,18 @@ def _extract_repo_state(entry: RepoEntry, github_root: Path) -> RepoState:
 
 
 # ---------------------------------------------------------------------------
+# Public wrapper for _extract_repo_state
+# ---------------------------------------------------------------------------
+
+def extract_repo_state(entry: RepoEntry, github_root: Path) -> RepoState:
+    """Public wrapper around _extract_repo_state.
+
+    Delegates entirely so git logic lives in one place.
+    """
+    return _extract_repo_state(entry, github_root)
+
+
+# ---------------------------------------------------------------------------
 # Markdown generators
 # ---------------------------------------------------------------------------
 

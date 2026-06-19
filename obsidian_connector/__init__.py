@@ -120,6 +120,12 @@ from obsidian_connector.creation_projects import (
     project_repo_entries,
     read_one_pager_prose,
 )
+from obsidian_connector.creation_repo_status import (
+    RepoStatus,
+    classify,
+    extract_repo_state,
+    repo_status,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
@@ -330,4 +336,9 @@ __all__ = [
     "list_projects",
     "project_repo_entries",
     "read_one_pager_prose",
+    # creation_repo_status
+    "RepoStatus",
+    "classify",
+    "extract_repo_state",
+    "repo_status",
 ]
