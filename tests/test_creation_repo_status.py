@@ -483,6 +483,75 @@ class TestRepoStatus:
         )
         assert not gh_called
 
+    # Fix 1 -- with_tests=False + declared test_cmd must yield "unknown", not "not-configured"
+    def test_with_tests_false_and_declared_cmd_yields_unknown(self, tmp_path: Path):
+        """with_tests=False even when test_cmd is declared must return status=unknown."""
+        repo_dir, entry = self._fake_repo(tmp_path)
+        object.__setattr__(entry, "test_cmd", "pytest -q")
+        runner = self._runner_factory({
+            "git rev-parse": _cp("abc"),
+            "git rev-list": _cp("0\t0"),
+            "git diff --name": _cp(""),
+            "gh pr list": _cp("[]"),
+        })
+        status = repo_status(
+            entry,
+            github_root=tmp_path,
+            now_iso="2026-06-18T00:00:00Z",
+            with_tests=False,
+            runner=runner,
+        )
+        assert status.tests["status"] == "unknown", (
+            f"Expected 'unknown' when with_tests=False but got {status.tests['status']!r}"
+        )
+
+    def test_with_tests_true_and_no_cmd_yields_not_configured(self, tmp_path: Path):
+        """with_tests=True but no test_cmd declared must return status=not-configured."""
+        repo_dir, entry = self._fake_repo(tmp_path)
+        # Ensure no test_cmd attribute exists
+        assert not hasattr(entry, "test_cmd") or getattr(entry, "test_cmd", None) is None
+        runner = self._runner_factory({
+            "git rev-parse": _cp("abc"),
+            "git rev-list": _cp("0\t0"),
+            "git diff --name": _cp(""),
+            "gh pr list": _cp("[]"),
+        })
+        status = repo_status(
+            entry,
+            github_root=tmp_path,
+            now_iso="2026-06-18T00:00:00Z",
+            with_tests=True,
+            runner=runner,
+        )
+        assert status.tests["status"] == "not-configured", (
+            f"Expected 'not-configured' when with_tests=True + no cmd but got {status.tests['status']!r}"
+        )
+
+    # Fix 2 -- extract_repo_state raising must return a degraded RepoStatus, not propagate
+    def test_no_raise_when_extract_repo_state_raises(self, tmp_path: Path, monkeypatch):
+        """When extract_repo_state raises, repo_status must return a degraded RepoStatus."""
+        entry = RepoEntry(dir_name="boom-repo", display_name="Boom")
+
+        import obsidian_connector.creation_repo_status as crs_mod
+        monkeypatch.setattr(
+            crs_mod,
+            "extract_repo_state",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("simulated failure")),
+        )
+
+        runner = self._runner_factory({})
+        status = repo_status(
+            entry,
+            github_root=tmp_path,
+            now_iso="2026-06-18T00:00:00Z",
+            runner=runner,
+        )
+        assert isinstance(status, RepoStatus)
+        assert status.classification == "unknown"
+        assert any("repo state extraction failed" in b for b in status.blockers)
+        assert status.dir_name == "boom-repo"
+        assert status.display_name == "Boom"
+
 
 # ---------------------------------------------------------------------------
 # __init__.py export test

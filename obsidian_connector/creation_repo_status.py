@@ -14,14 +14,14 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 from obsidian_connector.project_sync import (
     RepoEntry,
     RepoState,
-    _extract_repo_state,
+    extract_repo_state,
 )
 
 # ---------------------------------------------------------------------------
@@ -46,6 +46,7 @@ CLASSIFICATIONS = (
     "stale",
     "clean-and-ready",
     "ready-for-next-agent",
+    "unknown",
 )
 
 
@@ -77,19 +78,6 @@ class RepoStatus:
     next_action: str
     blockers: tuple        # tuple[str, ...]
     authority_level: str   # always "repo_grounded"
-
-
-# ---------------------------------------------------------------------------
-# Pure public wrapper for _extract_repo_state
-# ---------------------------------------------------------------------------
-
-def extract_repo_state(repo_entry: RepoEntry, github_root: Path) -> RepoState:
-    """Public wrapper around project_sync._extract_repo_state.
-
-    Delegates entirely to the private implementation so git logic lives
-    in one place.
-    """
-    return _extract_repo_state(repo_entry, github_root)
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +368,31 @@ def repo_status(
     No-raise contract: any sub-operation failure degrades gracefully to
     an empty/unknown sub-result rather than propagating.
     """
-    rs: RepoState = extract_repo_state(repo_entry, github_root)
+    try:
+        rs: RepoState = extract_repo_state(repo_entry, github_root)
+    except Exception as exc:
+        return RepoStatus(
+            dir_name=repo_entry.dir_name,
+            display_name=repo_entry.display_name,
+            project=repo_entry.dir_name,
+            repo_path="",
+            branch="",
+            head="",
+            dirty=False,
+            untracked=0,
+            ahead=0,
+            behind=0,
+            recent_commits=(),
+            open_prs=(),
+            merged_prs_recent=(),
+            tests={"status": "unknown"},
+            build={"status": "unknown"},
+            deploy={"status": "unknown"},
+            classification="unknown",
+            next_action="repo state unavailable",
+            blockers=(f"repo state extraction failed: {exc}",),
+            authority_level="repo_grounded",
+        )
 
     repo_path = rs.repo_path
     branch = rs.branch
@@ -413,14 +425,12 @@ def repo_status(
     test_cmd = getattr(repo_entry, "test_cmd", None)
     if with_tests and test_cmd:
         tests = _run_tests(repo_path, test_cmd, now_iso, runner)
-    elif test_cmd:
-        tests = {"status": "not-configured", "summary": "", "ran_at": ""}
-    else:
-        tests = {"status": "not-configured", "summary": "", "ran_at": ""}
-
-    # Override "not-configured" label when with_tests=True but no cmd exists
-    if with_tests and not test_cmd:
+    elif with_tests and not test_cmd:
+        # with_tests=True but no test_cmd declared
         tests = {"status": "not-configured", "summary": "no test_cmd declared", "ran_at": now_iso}
+    else:
+        # with_tests=False -- tests not run regardless of whether test_cmd exists
+        tests = {"status": "unknown", "summary": "tests not run (with_tests=False)", "ran_at": ""}
 
     # --- build / deploy ---
     build_cmd = getattr(repo_entry, "build_cmd", None)
