@@ -28,20 +28,20 @@ def has_builds(*targets: str) -> bool:
 
 
 class TestGoldenClaudeCode:
-    """claude-code build must have all 17 skills, hooks, manifest, MCP config."""
+    """claude-code build must have all 18 skills, hooks, manifest, MCP config."""
 
     pytestmark = pytest.mark.skipif(
         not has_builds("claude-code"), reason="claude-code build missing"
     )
 
-    def test_all_17_skills_present(self):
+    def test_all_18_skills_present(self):
         skills_dir = BUILDS / "claude-code" / "skills"
         skills = [
             d.name
             for d in skills_dir.iterdir()
             if d.is_dir() and (d / "SKILL.md").exists()
         ]
-        assert len(skills) == 17, f"Expected 17 skills, got {len(skills)}: {skills}"
+        assert len(skills) == 18, f"Expected 18 skills, got {len(skills)}: {skills}"
 
     def test_hooks_json_present_and_valid(self):
         hooks_file = BUILDS / "claude-code" / "hooks" / "hooks.json"
