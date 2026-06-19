@@ -55,3 +55,18 @@ def test_list_and_show_roundtrip(tmp_path, monkeypatch, capsys):
               ["creation", "backlog", "show", "--id", rows[0]["id"], "--json"])
     assert rc == 0
     assert json.loads(capsys.readouterr().out)["data"]["title"] == "t"
+
+
+def test_update_changes_status_via_cli(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "v"
+    _run(monkeypatch, tmp_path,
+         ["creation", "backlog", "add", "--title", "t", "--project", "p",
+          "--allow-write"])
+    item_id = cb.list_backlog(vault)[0]["id"]
+    capsys.readouterr()  # clear the add output
+    rc = _run(monkeypatch, tmp_path,
+              ["creation", "backlog", "update", "--id", item_id,
+               "--status", "ready", "--allow-write", "--json"])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["data"]["status"] == "ready"
+    assert cb.show_backlog_item(vault, item_id=item_id)["status"] == "ready"

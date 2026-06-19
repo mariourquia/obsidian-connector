@@ -5503,7 +5503,7 @@ def main(argv: list[str] | None = None) -> int:
                         "title", "priority", "status", "work_type", "owner",
                         "next_action", "urgency", "impact", "confidence",
                         "authority_level", "source_repo", "source_commit",
-                        "source_pr")}
+                        "source_pr") if getattr(args, k) is not None}
                     if args.repos is not None:
                         changes["repos"] = [r for r in args.repos.split(",") if r]
                     if args.acceptance is not None:
