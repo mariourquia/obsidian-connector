@@ -140,6 +140,9 @@ class SyncConfig:
 GROUP_DISPLAY: dict[str, str] = {
     "standalone": "Standalone",
     "research": "Research",
+    "mcmc": "MCMC",
+    "amos": "AMOS",
+    "cre-skills": "CRE Skills",
 }
 
 

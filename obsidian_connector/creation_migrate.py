@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from obsidian_connector.config import resolve_vault_path
-from obsidian_connector.project_sync import group_display, load_sync_config
+from obsidian_connector.creation_projects import list_projects
 from obsidian_connector.write_manager import atomic_write
 
 # ---------------------------------------------------------------------------
@@ -46,17 +46,6 @@ def _vault_path(vault: str | None) -> Path:
     return resolve_vault_path(vault)
 
 
-def _project_name_for_repo(dir_name: str, group: str, display_name: str) -> str:
-    """Return the Projects/ folder name for this repo.
-
-    Non-standalone groups map to group_display(group); standalone repos use
-    their display_name.
-    """
-    if group == "standalone":
-        return display_name
-    return group_display(group)
-
-
 def _flat_note_path(vault_path: Path, dir_name: str) -> Path | None:
     """Return path of the existing flat note for *dir_name*, or None."""
     # Primary: projects/{dir_name}.md
@@ -81,20 +70,35 @@ def _extract_body(content: str) -> str:
     return content
 
 
-def _extract_map_entries(map_content: str) -> list[dict]:
-    """Parse the JSON array inside the service:migration-map fence."""
+def _extract_map_payload(map_content: str) -> dict:
+    """Parse the JSON object inside the service:migration-map fence.
+
+    Returns a dict with keys ``entries`` (list) and ``scaffolds_created`` (list).
+    Handles legacy maps that stored a bare JSON array (entries only).
+    """
     b = map_content.find(_MAP_FENCE_BEGIN)
     e = map_content.find(_MAP_FENCE_END)
     if b == -1 or e == -1 or e < b:
-        return []
+        return {"entries": [], "scaffolds_created": []}
     raw = map_content[b + len(_MAP_FENCE_BEGIN):e].strip()
     try:
-        entries = json.loads(raw)
-        if isinstance(entries, list):
-            return entries
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            # Legacy format: bare array of move entries
+            return {"entries": parsed, "scaffolds_created": []}
+        if isinstance(parsed, dict):
+            return {
+                "entries": parsed.get("entries", []),
+                "scaffolds_created": parsed.get("scaffolds_created", []),
+            }
     except (json.JSONDecodeError, ValueError):
         pass
-    return []
+    return {"entries": [], "scaffolds_created": []}
+
+
+def _extract_map_entries(map_content: str) -> list[dict]:
+    """Return only the move entries from the migration map (backward-compat helper)."""
+    return _extract_map_payload(map_content)["entries"]
 
 
 def _render_repo_view_note(dir_name: str, project_name: str, body: str) -> str:
@@ -137,9 +141,17 @@ def _render_scaffold_note(title: str, project_name: str) -> str:
     return "\n".join(lines)
 
 
-def _render_migration_map(entries: list[dict], now_iso: str) -> str:
+def _render_migration_map(
+    entries: list[dict],
+    scaffolds_created: list[str],
+    now_iso: str,
+) -> str:
     """Render the Projects/_migration-map.md note."""
-    json_block = json.dumps(entries, indent=2)
+    payload = {
+        "entries": entries,
+        "scaffolds_created": scaffolds_created,
+    }
+    json_block = json.dumps(payload, indent=2)
     lines = [
         "---",
         "title: Migration Map",
@@ -175,32 +187,41 @@ def plan_migration(vault: str | None = None) -> list[dict]:
     - ``dir_name``: repo dir_name (move entries only)
 
     For ``action="scaffold"`` entries the ``old_path`` key is absent.
+
+    Uses ``creation_projects.list_projects`` for grouping so there is a
+    single source of truth for the repo -> project mapping.
     """
     vault_path = _vault_path(vault)
-    config = load_sync_config(vault)
+
+    # Build repo -> project_name map via creation_projects (single source of truth)
+    projects = list_projects(vault)
+    repo_to_project: dict[str, str] = {}
+    for project in projects:
+        for dir_name in project.repos:
+            repo_to_project[dir_name] = project.name
 
     plan: list[dict] = []
     seen_projects: set[str] = set()
     seen_repo_paths: set[str] = set()
 
-    for repo in config.repos:
-        flat_note = _flat_note_path(vault_path, repo.dir_name)
-        project_name = _project_name_for_repo(
-            repo.dir_name, repo.group, repo.display_name
-        )
-        new_repo_path = f"Projects/{project_name}/Repos/{repo.dir_name}.md"
+    for project in projects:
+        for dir_name in project.repos:
+            project_name = repo_to_project[dir_name]
+            flat_note = _flat_note_path(vault_path, dir_name)
+            new_repo_path = f"Projects/{project_name}/Repos/{dir_name}.md"
 
-        if flat_note is not None and new_repo_path not in seen_repo_paths:
-            old_rel = str(flat_note.relative_to(vault_path))
-            plan.append({
-                "action": "move",
-                "old_path": old_rel,
-                "new_path": new_repo_path,
-                "project_name": project_name,
-                "dir_name": repo.dir_name,
-            })
-            seen_repo_paths.add(new_repo_path)
+            if flat_note is not None and new_repo_path not in seen_repo_paths:
+                old_rel = str(flat_note.relative_to(vault_path))
+                plan.append({
+                    "action": "move",
+                    "old_path": old_rel,
+                    "new_path": new_repo_path,
+                    "project_name": project_name,
+                    "dir_name": dir_name,
+                })
+                seen_repo_paths.add(new_repo_path)
 
+        project_name = project.name
         if project_name not in seen_projects:
             seen_projects.add(project_name)
             # Scaffold notes for this project
@@ -231,7 +252,8 @@ def migrate(
       carrying over the old note's body inside a ``service:repo-status`` fence.
     - Creates per-project scaffold notes (One-Pager, Dashboard, Backlog) only
       when they do NOT already exist (never overwrites prose).
-    - Writes ``Projects/_migration-map.md`` with the full old->new map.
+    - Writes ``Projects/_migration-map.md`` merging this run's new entries with
+      any entries already recorded from previous runs (never shrinks the map).
     - Does NOT delete the flat ``projects/{dir_name}.md`` notes.
     - Idempotent: a second run skips already-present notes and does not clobber.
 
@@ -248,8 +270,26 @@ def migrate(
             "dry_run": True,
         }
 
+    # Read existing migration map so we can MERGE (never shrink)
+    map_path = vault_path / _MIGRATION_MAP_REL
+    existing_entries: list[dict] = []
+    existing_scaffolds: list[str] = []
+    if map_path.is_file():
+        try:
+            existing_map_content = map_path.read_text(encoding="utf-8", errors="replace")
+            payload = _extract_map_payload(existing_map_content)
+            existing_entries = payload["entries"]
+            existing_scaffolds = payload["scaffolds_created"]
+        except OSError:
+            pass
+
+    # Index existing entries by new_path for dedup
+    existing_entry_index: dict[str, dict] = {e["new_path"]: e for e in existing_entries}
+    existing_scaffold_set: set[str] = set(existing_scaffolds)
+
     written = 0
-    map_entries: list[dict] = []
+    new_map_entries: list[dict] = []
+    new_scaffolds_created: list[str] = []
 
     for entry in plan:
         action = entry["action"]
@@ -279,7 +319,7 @@ def migrate(
                 tool_name="creation_migrate",
             )
             written += 1
-            map_entries.append({
+            new_map_entries.append({
                 "old_path": entry["old_path"],
                 "new_path": entry["new_path"],
                 "dir_name": dir_name,
@@ -300,10 +340,23 @@ def migrate(
                 tool_name="creation_migrate",
             )
             written += 1
+            # Record this scaffold as actually created this run
+            scaffold_rel = entry["new_path"]
+            new_scaffolds_created.append(scaffold_rel)
 
-    # Write the reversible migration map
-    map_path = vault_path / _MIGRATION_MAP_REL
-    map_content = _render_migration_map(map_entries, now_iso)
+    # Merge this run's new entries with prior entries (dedupe by new_path)
+    for new_entry in new_map_entries:
+        existing_entry_index[new_entry["new_path"]] = new_entry
+    merged_entries = list(existing_entry_index.values())
+
+    # Merge scaffolds (union, dedupe)
+    for s in new_scaffolds_created:
+        existing_scaffold_set.add(s)
+    merged_scaffolds = sorted(existing_scaffold_set)
+
+    # Write the reversible migration map (always, even when nothing new was written,
+    # so generated_at stays current and the merge is committed)
+    map_content = _render_migration_map(merged_entries, merged_scaffolds, now_iso)
     atomic_write(
         map_path,
         map_content,
@@ -324,17 +377,17 @@ def undo_migration(
     *,
     dry_run: bool = True,
 ) -> dict[str, Any]:
-    """Reverse the migration by removing notes that this migration created.
+    """Reverse the migration by removing ONLY what this migration created.
 
     Reads ``Projects/_migration-map.md`` and removes:
-    - Each ``new_path`` listed in the map (repo-view notes under Repos/).
-    - The scaffold notes: ``Projects/{ProjectName}/{One-Pager,Dashboard,Backlog}.md``
-      for every distinct project_name in the map.
+    - Each ``new_path`` listed in the map's ``entries`` (repo-view notes).
+    - Each path listed in ``scaffolds_created`` (scaffolds migrate actually wrote).
     - The map note itself (``Projects/_migration-map.md``).
 
     Never touches:
     - The original flat ``projects/{dir_name}.md`` notes.
-    - Any notes not listed in the map.
+    - Scaffold notes that pre-existed (not in ``scaffolds_created``).
+    - Any notes not explicitly recorded in the map.
 
     Returns ``{reverted, dry_run}``.
     """
@@ -345,25 +398,22 @@ def undo_migration(
         return {"reverted": 0, "dry_run": dry_run}
 
     map_content = map_path.read_text(encoding="utf-8", errors="replace")
-    map_entries = _extract_map_entries(map_content)
+    payload = _extract_map_payload(map_content)
+    map_entries = payload["entries"]
+    scaffolds_created = payload["scaffolds_created"]
 
     # Collect paths to remove
     to_remove: list[Path] = []
 
-    project_names: set[str] = set()
+    # Repo-view notes (explicitly recorded move targets)
     for entry in map_entries:
         new_path = vault_path / entry["new_path"]
         to_remove.append(new_path)
-        # Infer project name from path: Projects/{ProjectName}/Repos/{slug}.md
-        parts = Path(entry["new_path"]).parts
-        if len(parts) >= 3 and parts[0] == "Projects":
-            project_names.add(parts[1])
 
-    # Scaffold notes for each project
-    for project_name in project_names:
-        for scaffold_name in _SCAFFOLD_NAMES:
-            scaffold_path = vault_path / "Projects" / project_name / scaffold_name
-            to_remove.append(scaffold_path)
+    # Only the scaffolds that migrate actually created (not pre-existing ones)
+    for scaffold_rel in scaffolds_created:
+        scaffold_path = vault_path / scaffold_rel
+        to_remove.append(scaffold_path)
 
     # The map note itself
     to_remove.append(map_path)

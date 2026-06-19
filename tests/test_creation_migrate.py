@@ -77,8 +77,8 @@ class TestPlanMigration:
         moves = [e for e in plan if e["action"] == "move"]
         new_paths = {e["new_path"] for e in moves}
 
-        # mcmc group -> group_display("mcmc") == "mcmc" (no override in GROUP_DISPLAY)
-        assert "Projects/mcmc/Repos/mcmc-erp.md" in new_paths
+        # mcmc group -> GROUP_DISPLAY["mcmc"] == "MCMC"
+        assert "Projects/MCMC/Repos/mcmc-erp.md" in new_paths
         # standalone -> display_name = "site"
         assert "Projects/site/Repos/site.md" in new_paths
 
@@ -89,10 +89,10 @@ class TestPlanMigration:
         scaffolds = [e for e in plan if e["action"] == "scaffold"]
         scaffold_paths = {e["new_path"] for e in scaffolds}
 
-        # One-Pager, Dashboard, Backlog for mcmc and site
-        assert "Projects/mcmc/Project One-Pager.md" in scaffold_paths
-        assert "Projects/mcmc/Project Dashboard.md" in scaffold_paths
-        assert "Projects/mcmc/Backlog.md" in scaffold_paths
+        # One-Pager, Dashboard, Backlog for MCMC and site
+        assert "Projects/MCMC/Project One-Pager.md" in scaffold_paths
+        assert "Projects/MCMC/Project Dashboard.md" in scaffold_paths
+        assert "Projects/MCMC/Backlog.md" in scaffold_paths
         assert "Projects/site/Project One-Pager.md" in scaffold_paths
 
     def test_plan_writes_nothing(self, tmp_path, monkeypatch):
@@ -100,10 +100,7 @@ class TestPlanMigration:
         cm.plan_migration()
 
         # Repo-view notes must NOT exist after a pure plan call
-        # (Use the full path because macOS has a case-insensitive fs;
-        #  vault/"Projects" == vault/"projects" on macOS, so we check for
-        #  the specific sub-paths that the migration would create.)
-        assert not (vault / "Projects" / "mcmc" / "Repos" / "mcmc-erp.md").exists()
+        assert not (vault / "Projects" / "MCMC" / "Repos" / "mcmc-erp.md").exists()
         assert not (vault / "Projects" / "site" / "Repos" / "site.md").exists()
         assert not (vault / cm._MIGRATION_MAP_REL).exists()
 
@@ -130,10 +127,7 @@ class TestMigrateDryRun:
         assert result["written"] == 0
         assert result["map_path"] is None
         # Repo-view notes and migration map must NOT exist after a dry run.
-        # (We check specific sub-paths rather than the Projects/ dir itself
-        #  because macOS has a case-insensitive fs where vault/"Projects" ==
-        #  vault/"projects".)
-        assert not (vault / "Projects" / "mcmc" / "Repos" / "mcmc-erp.md").exists()
+        assert not (vault / "Projects" / "MCMC" / "Repos" / "mcmc-erp.md").exists()
         assert not (vault / "Projects" / "site" / "Repos" / "site.md").exists()
         assert not (vault / cm._MIGRATION_MAP_REL).exists()
 
@@ -150,14 +144,14 @@ class TestMigrateWrite:
         assert result["dry_run"] is False
         assert result["written"] > 0
 
-        assert (vault / "Projects/mcmc/Repos/mcmc-erp.md").is_file()
+        assert (vault / "Projects/MCMC/Repos/mcmc-erp.md").is_file()
         assert (vault / "Projects/site/Repos/site.md").is_file()
 
     def test_prose_is_preserved_in_new_note(self, tmp_path, monkeypatch):
         vault = _make_vault(tmp_path, monkeypatch)
         cm.migrate(now_iso=NOW, dry_run=False)
 
-        mcmc_note = (vault / "Projects/mcmc/Repos/mcmc-erp.md").read_text(encoding="utf-8")
+        mcmc_note = (vault / "Projects/MCMC/Repos/mcmc-erp.md").read_text(encoding="utf-8")
         assert "MARIO NOTE" in mcmc_note
 
         site_note = (vault / "Projects/site/Repos/site.md").read_text(encoding="utf-8")
@@ -167,7 +161,7 @@ class TestMigrateWrite:
         vault = _make_vault(tmp_path, monkeypatch)
         cm.migrate(now_iso=NOW, dry_run=False)
 
-        mcmc_note = (vault / "Projects/mcmc/Repos/mcmc-erp.md").read_text(encoding="utf-8")
+        mcmc_note = (vault / "Projects/MCMC/Repos/mcmc-erp.md").read_text(encoding="utf-8")
         assert cm._REPO_FENCE_BEGIN in mcmc_note
         assert cm._REPO_FENCE_END in mcmc_note
 
@@ -175,9 +169,9 @@ class TestMigrateWrite:
         vault = _make_vault(tmp_path, monkeypatch)
         cm.migrate(now_iso=NOW, dry_run=False)
 
-        assert (vault / "Projects/mcmc/Project One-Pager.md").is_file()
-        assert (vault / "Projects/mcmc/Project Dashboard.md").is_file()
-        assert (vault / "Projects/mcmc/Backlog.md").is_file()
+        assert (vault / "Projects/MCMC/Project One-Pager.md").is_file()
+        assert (vault / "Projects/MCMC/Project Dashboard.md").is_file()
+        assert (vault / "Projects/MCMC/Backlog.md").is_file()
         assert (vault / "Projects/site/Project One-Pager.md").is_file()
 
     def test_migration_map_written(self, tmp_path, monkeypatch):
@@ -209,6 +203,18 @@ class TestMigrateWrite:
 
         assert result["planned"] == len(plan)
 
+    def test_map_records_scaffolds_created(self, tmp_path, monkeypatch):
+        vault = _make_vault(tmp_path, monkeypatch)
+        cm.migrate(now_iso=NOW, dry_run=False)
+
+        map_path = vault / cm._MIGRATION_MAP_REL
+        map_content = map_path.read_text(encoding="utf-8")
+        payload = cm._extract_map_payload(map_content)
+
+        # scaffolds_created must be non-empty and reference MCMC scaffolds
+        assert len(payload["scaffolds_created"]) > 0
+        assert any("MCMC" in s for s in payload["scaffolds_created"])
+
 
 # ---------------------------------------------------------------------------
 # Idempotency
@@ -223,10 +229,10 @@ class TestIdempotency:
 
         # Capture snapshots of created notes
         mcmc_content_after_first = (
-            vault / "Projects/mcmc/Repos/mcmc-erp.md"
+            vault / "Projects/MCMC/Repos/mcmc-erp.md"
         ).read_text(encoding="utf-8")
         one_pager_content_after_first = (
-            vault / "Projects/mcmc/Project One-Pager.md"
+            vault / "Projects/MCMC/Project One-Pager.md"
         ).read_text(encoding="utf-8")
 
         # Second run
@@ -234,10 +240,10 @@ class TestIdempotency:
 
         # Notes must be byte-stable (not overwritten)
         mcmc_content_after_second = (
-            vault / "Projects/mcmc/Repos/mcmc-erp.md"
+            vault / "Projects/MCMC/Repos/mcmc-erp.md"
         ).read_text(encoding="utf-8")
         one_pager_content_after_second = (
-            vault / "Projects/mcmc/Project One-Pager.md"
+            vault / "Projects/MCMC/Project One-Pager.md"
         ).read_text(encoding="utf-8")
 
         assert mcmc_content_after_first == mcmc_content_after_second
@@ -251,6 +257,76 @@ class TestIdempotency:
 
         # Second run only rewrites the map (all other files already present)
         assert second["written"] < first["written"]
+
+    def test_map_survives_rerun_run1_entries_still_present(self, tmp_path, monkeypatch):
+        """Fix 1: second run must not destroy run-1's map entries."""
+        vault = _make_vault(tmp_path, monkeypatch)
+
+        # Run 1 -- creates notes and map
+        cm.migrate(now_iso=NOW, dry_run=False)
+
+        map_after_run1 = (vault / cm._MIGRATION_MAP_REL).read_text(encoding="utf-8")
+        payload_run1 = cm._extract_map_payload(map_after_run1)
+        assert len(payload_run1["entries"]) > 0, "run-1 should record move entries"
+        run1_new_paths = {e["new_path"] for e in payload_run1["entries"]}
+
+        # Run 2 -- everything already exists, no new moves
+        cm.migrate(now_iso=NOW + "rerun", dry_run=False)
+
+        map_after_run2 = (vault / cm._MIGRATION_MAP_REL).read_text(encoding="utf-8")
+        payload_run2 = cm._extract_map_payload(map_after_run2)
+
+        # Run-1 entries must still be present after run 2
+        run2_new_paths = {e["new_path"] for e in payload_run2["entries"]}
+        assert run1_new_paths.issubset(run2_new_paths), (
+            f"Run-1 entries missing after re-run: {run1_new_paths - run2_new_paths}"
+        )
+
+        # Undo after run 2 must still remove the run-1 repo-view notes
+        result = cm.undo_migration(dry_run=False)
+        assert result["reverted"] > 0
+        for new_path in run1_new_paths:
+            assert not (vault / new_path).is_file(), (
+                f"Expected {new_path} to be removed by undo after re-run"
+            )
+
+    def test_undo_spares_preexisting_scaffold(self, tmp_path, monkeypatch):
+        """Fix 2: undo must NOT delete a scaffold that pre-existed migration."""
+        vault = _make_vault(tmp_path, monkeypatch)
+
+        # Write a pre-existing Backlog.md with user prose BEFORE migrate runs
+        preexisting_scaffold = vault / "Projects" / "MCMC" / "Backlog.md"
+        preexisting_scaffold.parent.mkdir(parents=True, exist_ok=True)
+        preexisting_scaffold.write_text(
+            "# My existing Backlog\n\nImportant user content here.\n",
+            encoding="utf-8",
+        )
+
+        # Run migrate -- it should SKIP the pre-existing Backlog.md
+        cm.migrate(now_iso=NOW, dry_run=False)
+
+        # Backlog.md was pre-existing, so it must NOT be in scaffolds_created
+        map_content = (vault / cm._MIGRATION_MAP_REL).read_text(encoding="utf-8")
+        payload = cm._extract_map_payload(map_content)
+        backlog_rel = "Projects/MCMC/Backlog.md"
+        assert backlog_rel not in payload["scaffolds_created"], (
+            "Pre-existing scaffold must not appear in scaffolds_created"
+        )
+
+        # Run undo
+        cm.undo_migration(dry_run=False)
+
+        # Pre-existing scaffold must survive undo
+        assert preexisting_scaffold.is_file(), (
+            "Undo must not delete a scaffold that migrate skipped (pre-existing)"
+        )
+        assert "Important user content here." in preexisting_scaffold.read_text(encoding="utf-8")
+
+        # But the repo-view notes migrate DID create should be gone
+        assert not (vault / "Projects/MCMC/Repos/mcmc-erp.md").is_file()
+
+        # And scaffolds that migrate DID create (e.g. Project One-Pager.md) should be gone
+        assert not (vault / "Projects/MCMC/Project One-Pager.md").is_file()
 
 
 # ---------------------------------------------------------------------------
@@ -268,11 +344,11 @@ class TestUndoMigration:
         assert result["reverted"] > 0
 
         # Repo-view notes should be gone
-        assert not (vault / "Projects/mcmc/Repos/mcmc-erp.md").is_file()
+        assert not (vault / "Projects/MCMC/Repos/mcmc-erp.md").is_file()
         assert not (vault / "Projects/site/Repos/site.md").is_file()
 
-        # Scaffold notes should be gone
-        assert not (vault / "Projects/mcmc/Project One-Pager.md").is_file()
+        # Scaffold notes created by migrate should be gone
+        assert not (vault / "Projects/MCMC/Project One-Pager.md").is_file()
 
         # Map itself should be gone
         assert not (vault / cm._MIGRATION_MAP_REL).is_file()
@@ -295,7 +371,7 @@ class TestUndoMigration:
         cm.undo_migration(dry_run=True)
 
         # Notes should still exist after dry-run undo
-        assert (vault / "Projects/mcmc/Repos/mcmc-erp.md").is_file()
+        assert (vault / "Projects/MCMC/Repos/mcmc-erp.md").is_file()
         assert (vault / cm._MIGRATION_MAP_REL).is_file()
 
     def test_undo_without_map_is_no_op(self, tmp_path, monkeypatch):
