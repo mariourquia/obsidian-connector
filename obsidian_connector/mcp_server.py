@@ -4813,8 +4813,6 @@ def obsidian_creation_status(
     Args:
         vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
     """
-    from pathlib import Path
-
     from obsidian_connector.config import load_config, resolve_vault_path
     from obsidian_connector.creation_status import creation_status
 
@@ -4847,8 +4845,6 @@ def obsidian_creation_freshness_audit(
     Args:
         vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
     """
-    from pathlib import Path
-
     from obsidian_connector.config import load_config, resolve_vault_path
     from obsidian_connector.creation_status import freshness_audit
 

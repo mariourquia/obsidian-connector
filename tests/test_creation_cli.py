@@ -72,7 +72,7 @@ def test_creation_sync_start_with_allow_write(tmp_path):
 
 
 def test_mcp_creation_status_passthrough(tmp_path, monkeypatch):
-    """MCP obsidian_creation_status tool returns the same data as CLI."""
+    """MCP obsidian_creation_status tool returns the raw creation_status() dict (not the CLI envelope)."""
     home = tmp_path / "home"
     home.mkdir()
     vault = tmp_path / "v"

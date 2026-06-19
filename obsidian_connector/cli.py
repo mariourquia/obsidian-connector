@@ -5345,6 +5345,12 @@ def main(argv: list[str] | None = None) -> int:
                     human = (
                         f"[dry-run] " if dry else ""
                     ) + f"Session {data['session_id']} started."
+                    log_action(
+                        f"creation-sync-{sync_cmd}",
+                        vars(args),
+                        vault,
+                        dry_run=dry,
+                    )
 
                 elif sync_cmd == "checkpoint":
                     data = _csess.checkpoint_session(
@@ -5361,6 +5367,12 @@ def main(argv: list[str] | None = None) -> int:
                     human = (
                         f"[dry-run] " if dry else ""
                     ) + f"Checkpoint {data['checkpoint_id']} saved."
+                    log_action(
+                        f"creation-sync-{sync_cmd}",
+                        vars(args),
+                        vault,
+                        dry_run=dry,
+                    )
 
                 elif sync_cmd == "end":
                     data = _csess.end_session(
@@ -5375,17 +5387,16 @@ def main(argv: list[str] | None = None) -> int:
                     human = (
                         f"[dry-run] " if dry else ""
                     ) + f"Session {data['session_id']} ended ({data['status']})."
+                    log_action(
+                        f"creation-sync-{sync_cmd}",
+                        vars(args),
+                        vault,
+                        dry_run=dry,
+                    )
 
                 else:
                     data = {"error": "missing sync sub-command (start|checkpoint|end)"}
                     human = "Usage: obsx creation sync start|checkpoint|end ..."
-
-                log_action(
-                    f"creation-sync-{sync_cmd or 'unknown'}",
-                    vars(args),
-                    vault,
-                    dry_run=dry,
-                )
 
             else:
                 data = {"error": f"missing creation sub-command: {creation_cmd!r}"}
