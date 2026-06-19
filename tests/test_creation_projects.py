@@ -350,3 +350,11 @@ class TestReadOnePagerProse:
 
         result = read_one_pager_prose(str(vault), mcmc)
         assert result == {}
+
+
+def test_rollup_status_all_archived_is_archived():
+    from obsidian_connector.creation_projects import _rollup_status
+    assert _rollup_status(["archived", "archived"]) == "archived"
+    assert _rollup_status(["archived", "active"]) == "active"
+    assert _rollup_status(["dormant", "archived"]) == "dormant"
+    assert _rollup_status([]) == "archived"

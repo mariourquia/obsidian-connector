@@ -49,8 +49,8 @@ def _rollup_status(statuses: list[str]) -> str:
 
     Priority: active > paused > dormant > archived.
     """
-    best = "dormant"
-    best_rank = _STATUS_RANK.get("dormant", 0)
+    best = "archived"
+    best_rank = _STATUS_RANK.get("archived", -1)
     for s in statuses:
         rank = _STATUS_RANK.get(s, 0)
         if rank > best_rank:
