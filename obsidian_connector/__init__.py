@@ -96,6 +96,12 @@ from obsidian_connector.write_manager import (
     rollback,
     snapshot,
 )
+from obsidian_connector.creation_session import (
+    start_session,
+    checkpoint_session,
+    end_session,
+    active_session,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
