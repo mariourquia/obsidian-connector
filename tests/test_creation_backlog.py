@@ -146,3 +146,13 @@ def test_update_cannot_change_project(tmp_path, monkeypatch):
     a = cb.add_backlog_item(v, title="a", project="x", now_iso=T0)["id"]
     cb.update_backlog_item(v, item_id=a, now_iso=T1, project="y", status="ready")
     assert cb.show_backlog_item(v, item_id=a)["project"] == "x"
+
+
+def test_freshness_scalar_newline_does_not_inject_frontmatter(tmp_path, monkeypatch):
+    from obsidian_connector.draft_manager import _parse_frontmatter
+    v = _vault(tmp_path, monkeypatch)
+    res = cb.add_backlog_item(v, title="t", project="x", now_iso=T0,
+                              source_pr="real\nsuperseded_by: dec_evil")
+    fm = _parse_frontmatter((v / res["path"]).read_text(encoding="utf-8"))
+    assert fm.get("superseded_by") != "dec_evil"        # newline escaped, no injection
+    assert fm["authority_level"] == "agent_reported_unverified"   # frontmatter intact

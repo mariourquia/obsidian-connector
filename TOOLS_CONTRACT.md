@@ -672,13 +672,13 @@ Cross-repo backlog engine: event-sourced CRUD with materialized notes in `Backlo
 
 | Command | Flags | Returns | Mutating |
 |---------|-------|---------|---------|
-| `obsx creation backlog add` | `--title`, `--project`, `[--repos ...]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--ready-for-agent]`, `[--needs-decision]`, `[--allow-write]`, `--json` | `{ok, item_id, path, dry_run}` | yes (default dry-run) |
-| `obsx creation backlog update` | `--id`, `[--title]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--repos ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--allow-write]`, `--json` | `{ok, item_id, changes, dry_run}` | yes (default dry-run) |
-| `obsx creation backlog list` | `[--project]`, `[--status]`, `[--priority]`, `--json` | `{items: [...]}` | no |
+| `obsx creation backlog add` | `--title`, `--project`, `[--repos ...]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--acceptance ...]`, `[--blocker ...]`, `[--depends-on ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--ready-for-agent]`, `[--needs-decision]`, `[--allow-write]`, `--json` | `{id, path, dry_run}` | yes (default dry-run) |
+| `obsx creation backlog update` | `--id`, `[--title]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--repos ...]`, `[--acceptance ...]`, `[--blocker ...]`, `[--depends-on ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--allow-write]`, `--json` | `{id, path, status, dry_run}` | yes (default dry-run) |
+| `obsx creation backlog list` | `[--project]`, `[--status]`, `[--priority]`, `--json` | `{items, count}` | no |
 | `obsx creation backlog show` | `--id`, `--json` | full item dict or `{ok: false, error}` | no |
-| `obsx creation rebuild` | `[--allow-write]`, `--json` | `{ok, rebuilt, dry_run}` | yes (default dry-run) |
+| `obsx creation rebuild` | `[--allow-write]`, `--json` | `{count, ids, dry_run}` | yes (default dry-run) |
 
-Mutating commands default to **dry-run** unless `--allow-write` is passed.
+Mutating commands default to **dry-run** unless `--allow-write` is passed. `update` applies only the flags you pass; an omitted scalar is left unchanged (there is no "clear to empty" for a scalar), while a list flag (`--repos`/`--acceptance`/`--blocker`/`--depends-on`) replaces the whole list, including to empty.
 
 #### MCP tool equivalents
 

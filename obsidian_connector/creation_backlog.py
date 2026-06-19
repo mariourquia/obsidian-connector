@@ -126,7 +126,10 @@ def _render_backlog_md(item: dict, user_notes: str) -> str:
               "source_session", "valid_until", "superseded_by"):
         v = item.get(k)
         if v is not None:
-            L.append(f"{k}: {v}")
+            # json.dumps keeps these YAML-/injection-safe (a stray newline in an
+            # MCP-supplied value can't truncate the frontmatter); the freshness
+            # reader strips the surrounding quotes on the way back in.
+            L.append(f"{k}: {json.dumps(v)}")
     L.append(f"staleness_policy: {item.get('staleness_policy', 'manual')}")
     L.append(f"supersedes: {_inline_array(item.get('supersedes'))}")
     L += ["---", "", f"# {item['title']}", "",
