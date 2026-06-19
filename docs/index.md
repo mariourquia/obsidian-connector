@@ -34,6 +34,7 @@ Top-level index for all documentation.
 - [Creation Vault OS: Voice-to-Backlog Pipeline](./architecture/voice-to-backlog-pipeline.md) -- capture-service reuse plus triage-to-backlog diffs
 - [Creation Vault OS: /start creation work](./architecture/claude-code-start-creation-work.md) -- Claude Code flow and the freshness-gated context pack
 - [Creation Vault OS: mario-agentops Boundary](./architecture/mario-agentops-boundary.md) -- event contract, hook-level shell-out, Increment A
+- [Creation Vault OS: Creation Dashboard](./architecture/creation-dashboard.md) -- the operating console: global + project + repo drilldown, next-action engine
 
 ## Root-level docs (outside docs/)
 

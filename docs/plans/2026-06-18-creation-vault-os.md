@@ -16,7 +16,8 @@ related_docs:
   - "../architecture/voice-to-backlog-pipeline.md"
   - "../architecture/claude-code-start-creation-work.md"
   - "../architecture/mario-agentops-boundary.md"
-tags: ["creation-vault-os", "design", "plan", "backlog", "freshness", "agentops"]
+  - "../architecture/creation-dashboard.md"
+tags: ["creation-vault-os", "design", "plan", "backlog", "freshness", "agentops", "dashboard"]
 ---
 
 # Creation Vault OS: Design and Phased Plan
@@ -166,6 +167,26 @@ the schema and session-state docs.
   each supporting `--dry-run --json --vault --project --repo --session-id --backlog-id
   --evidence --allow-write`.
 
+## Creation Dashboard (operating console, core requirement)
+
+The Creation Dashboard is the core operating console, not a passive report: one surface to
+see every project and repo, understand state (blocked / stale / in-progress / complete),
+and drive the next action, rendered across CLI, MCP JSON, the Textual TUI, generated
+Obsidian markdown, project one-pagers, and agent startup context packs. A **Project** is a
+program grouping one or more repos (MCMC is nine repos), the existing `group` promoted to a
+first-class entity with a one-pager (goal, intent, architecture, repo map, links) and a
+dashboard; each repo gets a git-grounded status view (branch, tree, PRs, tests, phase, next
+action, and a state classification: clean-and-ready / mid-implementation /
+waiting-on-PR-review / blocked-by-tests / blocked-by-decision / stale / ahead / behind /
+needs-sync). An explainable next-action engine ranks work at the global, project, and repo
+levels with named reasons. Commands: `obsx creation dashboard [--project|--repo]`,
+`projects`, `project show|refresh`, `repo show|sync`, `next [--project|--repo]`,
+`context-pack [--project|--backlog-id]`. Generated notes (`Dashboard.md`, `Projects.md`,
+`Next Actions.md`, `Stale Context.md`, `Pending Decisions.md`, `Active Sessions.md`,
+per-project and per-repo dashboards) extend the existing `sync-creation-vault` outputs and
+`groups/` MOCs. All console mutations are dry-run-able, diffed, audited, and
+freshness-respecting. Full detail: [creation-dashboard.md](../architecture/creation-dashboard.md).
+
 ## Vault schema (summary)
 
 New and extended note types built on the existing `type:` discriminator and fence
@@ -221,7 +242,9 @@ system requires the other. Full detail:
 ## Phased plan
 
 Track A (freshness/authority/sync) is foundational, built in Phases 1 and 2 and threaded
-through later phases, not deferred.
+through later phases, not deferred. Track B (the Creation Dashboard operating console) is a
+core requirement, not a nice-to-have: the Project entity, the read dashboards, and the
+next-action engine land in Phase 4, and the interactive console in Phase 6.
 
 - **Phase 0: repo audit + current-state map.** This document; reconcile the
   `~/Documents/GitHub` to `~/dev` path drift; refresh the repo registry; add
@@ -237,10 +260,16 @@ through later phases, not deferred.
   detection. Acceptance: Flow D (stale note never overwrites higher-authority state).
 - **Phase 3: voice-ingestion intelligence.** Reuse capture-service; add
   `creation_voice_triage.py`. Acceptance: Flow C.
-- **Phase 4: `obsx creation ...` command surface.** Acceptance: Flow A from CLI.
+- **Phase 4: `obsx creation ...` command surface + read dashboards (Track B).** The Project
+  entity, the global/project/repo dashboards (read-only), the explainable next-action
+  engine, and the generated Obsidian markdown dashboards. Acceptance: Flow A from CLI plus
+  the dashboard read flows (global overview, MCMC drilldown, `next`).
 - **Phase 5: MCP parity.** Mirror every verb with a uniform `dry_run`; update
   `TOOLS_CONTRACT.md`. Acceptance: Flow A from MCP.
-- **Phase 6: TUI.** Extend `ui_dashboard.py`; visual-companion design pass first.
+- **Phase 6: TUI + interactive console (Track B).** Extend `ui_dashboard.py` into the
+  operating console: drilldown, filters, reprioritize, mark decisions, assign workflows,
+  generate prompts, start/resume, accept/reject voice updates -- all dry-run/diff/audit.
+  Visual-companion design pass first.
 - **Phase 7: `/start creation work` flow.** New skill plus the freshness guard.
   Acceptance: Flow A end-to-end with the freshness header.
 - **Phase 8: session save/resume + checkpointing.** SessionStart hydration, emergency
@@ -262,6 +291,11 @@ through later phases, not deferred.
   pack warns, and canonical state is not overwritten.
 - E. Session end creates a durable handoff: report, backlog status, explicit next action,
   repo evidence, open decisions and blockers.
+- F. Dashboard (core): `obsx creation dashboard` or the TUI shows all projects with status,
+  priority, blockers, stale warnings, and next action; the MCMC drilldown shows its repos,
+  goal/intent/architecture, states, and what to do next; `obsx creation next` returns
+  ranked, reasoned recommendations; reprioritizing in the TUI updates canonical state, the
+  audit log, and subsequent recommendations. (Detailed A-E in the dashboard doc.)
 
 ## Risks and open decisions
 
