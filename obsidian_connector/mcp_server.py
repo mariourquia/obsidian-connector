@@ -5234,13 +5234,11 @@ def obsidian_creation_dashboard(
         repo: Optional repo dir_name to narrow to repo scope.
         vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
     """
-    import dataclasses
     from datetime import datetime, timezone
 
     from obsidian_connector.config import load_config, resolve_vault_path
     from obsidian_connector import creation_next as _cnext
     from obsidian_connector import creation_projects as _cproj
-    from obsidian_connector import creation_repo_status as _crs
     from obsidian_connector.project_sync import load_sync_config
 
     try:
@@ -5395,7 +5393,6 @@ def obsidian_creation_repo_show(
         with_build: If True, also run the build to get build status.
         vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
     """
-    import dataclasses
     from datetime import datetime, timezone
 
     from obsidian_connector.config import load_config, resolve_vault_path

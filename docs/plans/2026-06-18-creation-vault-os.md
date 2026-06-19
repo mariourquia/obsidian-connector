@@ -260,10 +260,7 @@ next-action engine land in Phase 4, and the interactive console in Phase 6.
   detection. Acceptance: Flow D (stale note never overwrites higher-authority state).
 - **Phase 3: voice-ingestion intelligence.** Reuse capture-service; add
   `creation_voice_triage.py`. Acceptance: Flow C.
-- **Phase 4: `obsx creation ...` command surface + read dashboards (Track B).** The Project
-  entity, the global/project/repo dashboards (read-only), the explainable next-action
-  engine, and the generated Obsidian markdown dashboards. Acceptance: Flow A from CLI plus
-  the dashboard read flows (global overview, MCMC drilldown, `next`).
+- **Phase 4: `obsx creation ...` command surface + read dashboards (Track B).** (Shipped 2026-06-19; see `docs/plans/2026-06-19-creation-dashboard-plan.md`.) The Project entity, the global/project/repo dashboards (read-only), the explainable next-action engine, and the generated Obsidian markdown dashboards. Acceptance: Flow A from CLI plus the dashboard read flows (global overview, MCMC drilldown, `next`).
 - **Phase 5: MCP parity.** Mirror every verb with a uniform `dry_run`; update
   `TOOLS_CONTRACT.md`. Acceptance: Flow A from MCP.
 - **Phase 6: TUI + interactive console (Track B).** Extend `ui_dashboard.py` into the
