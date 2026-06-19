@@ -121,6 +121,11 @@ their `src/` counterparts (same underlying files).
 | `creation_session.py` | Resumable agent-session lifecycle (`start_session`, `checkpoint_session`, `end_session`, `active_session`) |
 | `creation_status.py` | Read-only Creation Vault OS status + freshness audit (`creation_status`, `freshness_audit`) |
 | `creation_backlog.py` | Event-sourced backlog CRUD (`add_backlog_item`, `update_backlog_item`, `list_backlog`, `show_backlog_item`, `rebuild_backlog`, `UPDATABLE_FIELDS`); materialized notes in `Backlog/{project}/{id}.md` |
+| `creation_projects.py` | Project entity derived from sync-registry repo groups (`list_projects`, `get_project`, `project_repo_entries`, `read_one_pager_prose`); `Project` dataclass with status rollup |
+| `creation_repo_status.py` | Enriched git + PR + test/build repo classifier (`repo_status`, `classify`, `RepoStatus`); injectable subprocess runner; `CLASSIFICATIONS` priority order |
+| `creation_next.py` | Explainable next-action engine (`next_actions`, `score_item`, `load_weights`); global/project/repo scope; `DEFAULT_WEIGHTS` configurable via vault JSON |
+| `creation_dashboards.py` | Fenced markdown dashboard generators (`refresh_all`, `generate_global_dashboard`, `generate_project_dashboard`, `generate_repo_view`, `generate_next_actions`, etc.); atomic writes only; no-clock (`now_iso` injected) |
+| `creation_migrate.py` | Reversible migration of flat per-repo hub notes into the Projects tree (`migrate`, `undo_migration`, `plan_migration`); idempotent; writes `Projects/_migration-map.md` |
 
 ## Dependency flow
 

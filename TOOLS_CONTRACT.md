@@ -689,3 +689,31 @@ Mutating commands default to **dry-run** unless `--allow-write` is passed. `upda
 | `obsidian_creation_backlog_list` | `project?`, `status?`, `priority?`, `vault?` | Read-only; returns `{items: [...]}` |
 | `obsidian_creation_backlog_show` | `item_id`, `vault?` | Read-only; returns item dict or `{ok: false, error: {type: "NotFound", ...}}` |
 | `obsidian_creation_rebuild` | `dry_run?`, `vault?` | Idempotent rebuild from event log; defaults `dry_run=True` |
+
+### Creation Dashboard (Task 7)
+
+Operating console: projects, repo statuses, next-action engine, dashboard refresh, and project migration. All reads are idempotent; writes default to `dry_run=True`.
+
+#### CLI commands
+
+| Command | Flags | Returns | Mutating |
+|---------|-------|---------|---------|
+| `obsx creation dashboard` | `[--project]`, `[--repo]`, `--json` | `{do_next, projects}` or `{scope, project, repo, do_next}` | no |
+| `obsx creation projects` | `--json` | `{projects, count}` | no |
+| `obsx creation project show <name>` | `--json` | project detail dict | no |
+| `obsx creation repo show <name>` | `[--with-tests]`, `[--with-build]`, `--json` | repo status dict | no |
+| `obsx creation next` | `[--project]`, `[--repo]`, `[--limit N]`, `--json` | `{items, count}` | no |
+| `obsx creation refresh` | `[--project]`, `[--repo]`, `[--allow-write]`, `--json` | `{written, dry_run}` | yes (default dry-run) |
+| `obsx creation migrate-projects` | `[--undo]`, `[--allow-write]`, `--json` | `{planned, written, ...}` | yes (default dry-run) |
+
+#### MCP tool equivalents
+
+| MCP Tool | Parameters | Notes |
+|----------|-----------|-------|
+| `obsidian_creation_dashboard` | `project?`, `repo?`, `vault?` | Read-only; global console or drilldown when project/repo supplied |
+| `obsidian_creation_projects` | `vault?` | Read-only; returns `{projects: [...], count}` |
+| `obsidian_creation_project_show` | `name`, `vault?` | Read-only; returns project detail or `{ok: false, error: {type: "NotFound", ...}}` |
+| `obsidian_creation_repo_show` | `name`, `with_tests?`, `with_build?`, `vault?` | Read-only; returns repo status dict or `{ok: false, error: {type: "NotFound", ...}}` |
+| `obsidian_creation_next` | `project?`, `repo?`, `limit?`, `vault?` | Read-only; returns `{items: [...], count}` |
+| `obsidian_creation_refresh` | `project?`, `repo?`, `dry_run?`, `vault?` | Idempotent; defaults `dry_run=True` |
+| `obsidian_creation_migrate_projects` | `undo?`, `dry_run?`, `vault?` | Idempotent; defaults `dry_run=True`; pass `undo=True` to reverse |

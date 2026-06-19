@@ -5210,6 +5210,384 @@ def obsidian_creation_rebuild(
         return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
 
 
+@mcp.tool(
+    title="Creation Dashboard",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_dashboard(
+    project: str | None = None,
+    repo: str | None = None,
+    vault: str | None = None,
+) -> str:
+    """Return the global Creation Dashboard console data, or a project/repo drilldown.
+
+    Global view: do-next recommendations + projects-with-status + repo summaries.
+    Drilldown: pass ``project`` or ``repo`` to narrow to that scope.
+
+    Args:
+        project: Optional project slug to narrow to project scope.
+        repo: Optional repo dir_name to narrow to repo scope.
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    import dataclasses
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_next as _cnext
+    from obsidian_connector import creation_projects as _cproj
+    from obsidian_connector import creation_repo_status as _crs
+    from obsidian_connector.project_sync import load_sync_config
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        sc = load_sync_config(vault_path)
+        gh_root = sc.github_root
+        now = datetime.now(timezone.utc).isoformat()
+
+        if project or repo:
+            scope = "project" if project else "repo"
+            recs = _cnext.next_actions(
+                vault_path,
+                scope=scope,
+                project=project,
+                repo=repo,
+                github_root=gh_root,
+                now_iso=now,
+                limit=5,
+            )
+            result = {"scope": scope, "project": project, "repo": repo, "do_next": recs}
+        else:
+            recs = _cnext.next_actions(
+                vault_path,
+                scope="global",
+                github_root=gh_root,
+                now_iso=now,
+                limit=5,
+            )
+            projects = _cproj.list_projects(vault_path)
+            proj_rows = [
+                {"name": p.name, "slug": p.slug, "repos": list(p.repos), "status": p.status}
+                for p in projects
+            ]
+            result = {"do_next": recs, "projects": proj_rows}
+
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Projects List",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_projects(
+    vault: str | None = None,
+) -> str:
+    """List all Creation Vault projects derived from the sync registry.
+
+    Returns a list of projects with name, slug, repos, status, and tags.
+
+    Args:
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_projects as _cproj
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        projects = _cproj.list_projects(vault_path)
+        proj_rows = [
+            {"name": p.name, "slug": p.slug, "repos": list(p.repos),
+             "status": p.status, "tags": list(p.tags)}
+            for p in projects
+        ]
+        return json.dumps({"projects": proj_rows, "count": len(proj_rows)}, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Project Show",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_project_show(
+    name: str,
+    vault: str | None = None,
+) -> str:
+    """Return detailed drilldown data for a single Creation Vault project.
+
+    Includes project metadata, associated repo entries, and One-Pager prose
+    fields (goal, intent, target_users, architecture, why) when present.
+
+    Args:
+        name: Project name or slug (case-insensitive).
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_projects as _cproj
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        proj = _cproj.get_project(vault_path, name)
+        if proj is None:
+            return json.dumps({"ok": False, "error": {"type": "NotFound", "message": name}})
+        entries = _cproj.project_repo_entries(vault_path, proj)
+        prose = _cproj.read_one_pager_prose(vault_path, proj)
+        result = {
+            "slug": proj.slug,
+            "name": proj.name,
+            "group": proj.group,
+            "repos": list(proj.repos),
+            "status": proj.status,
+            "tags": list(proj.tags),
+            "repo_entries": [
+                {"dir_name": e.dir_name, "display_name": e.display_name, "status": e.status}
+                for e in entries
+            ],
+            "prose": prose,
+        }
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Repo Show",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_repo_show(
+    name: str,
+    with_tests: bool = False,
+    with_build: bool = False,
+    vault: str | None = None,
+) -> str:
+    """Return an enriched status snapshot for a single repo.
+
+    Includes branch, head SHA, dirty/ahead/behind counts, open PRs,
+    classification, next action, and blockers.
+
+    Args:
+        name: Repo ``dir_name`` as configured in the sync registry.
+        with_tests: If True, also run tests to get test status.
+        with_build: If True, also run the build to get build status.
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    import dataclasses
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_repo_status as _crs
+    from obsidian_connector.project_sync import load_sync_config
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        sc = load_sync_config(vault_path)
+        gh_root = sc.github_root
+        now = datetime.now(timezone.utc).isoformat()
+        entry = next((e for e in sc.repos if e.dir_name == name), None)
+        if entry is None:
+            return json.dumps({"ok": False, "error": {"type": "NotFound", "message": name}})
+        rs = _crs.repo_status(
+            entry,
+            github_root=gh_root,
+            now_iso=now,
+            with_prs=True,
+            with_tests=with_tests,
+            with_build=with_build,
+        )
+        result = {
+            "dir_name": rs.dir_name,
+            "display_name": rs.display_name,
+            "branch": rs.branch,
+            "head": rs.head,
+            "dirty": rs.dirty,
+            "ahead": rs.ahead,
+            "behind": rs.behind,
+            "classification": rs.classification,
+            "next_action": rs.next_action,
+            "blockers": list(rs.blockers),
+            "tests": rs.tests,
+            "build": rs.build,
+        }
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Next Actions",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_next(
+    project: str | None = None,
+    repo: str | None = None,
+    limit: int = 10,
+    vault: str | None = None,
+) -> str:
+    """Return ranked next-action recommendations from the Creation Vault engine.
+
+    Scores and ranks backlog items and repo-derived candidates. Scope is
+    determined automatically: global when neither ``project`` nor ``repo`` is
+    supplied; project-scoped or repo-scoped otherwise.
+
+    Args:
+        project: Optional project slug to limit scope.
+        repo: Optional repo dir_name to limit scope.
+        limit: Maximum number of recommendations to return (default 10).
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_next as _cnext
+    from obsidian_connector.project_sync import load_sync_config
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        sc = load_sync_config(vault_path)
+        gh_root = sc.github_root
+        now = datetime.now(timezone.utc).isoformat()
+        scope = "project" if project else ("repo" if repo else "global")
+        recs = _cnext.next_actions(
+            vault_path,
+            scope=scope,
+            project=project,
+            repo=repo,
+            github_root=gh_root,
+            now_iso=now,
+            limit=limit,
+        )
+        return json.dumps({"items": recs, "count": len(recs)}, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Dashboard Refresh",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_refresh(
+    project: str | None = None,
+    repo: str | None = None,
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Regenerate the Creation Vault dashboard set. Dry-run by default.
+
+    Refreshes all global dashboards. When ``project`` or ``repo`` is supplied,
+    also regenerates the scoped drilldown dashboards for that entity.
+
+    Args:
+        project: Optional project slug to additionally drill into.
+        repo: Optional repo dir_name to additionally drill into.
+        dry_run: If True (default), plan only -- no files written.
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_dashboards as _cdash
+    from obsidian_connector.project_sync import load_sync_config
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        sc = load_sync_config(vault_path)
+        gh_root = sc.github_root
+        now = datetime.now(timezone.utc).isoformat()
+        scope = project or repo
+        result = _cdash.refresh_all(
+            vault_path,
+            now_iso=now,
+            github_root=gh_root,
+            scope=scope,
+            dry_run=dry_run,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
+@mcp.tool(
+    title="Creation Migrate Projects",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+def obsidian_creation_migrate_projects(
+    undo: bool = False,
+    dry_run: bool = True,
+    vault: str | None = None,
+) -> str:
+    """Migrate flat per-repo hub notes into the Projects tree, or undo that migration.
+
+    When ``undo=False`` (default): moves ``projects/{dir_name}.md`` notes to
+    ``Projects/{ProjectName}/Repos/{slug}.md`` and creates project scaffold
+    notes if absent. Idempotent — re-runs skip already-migrated notes.
+    When ``undo=True``: reverses the migration using the stored migration map.
+    Dry-run by default.
+
+    Args:
+        undo: If True, reverse the migration instead of applying it.
+        dry_run: If True (default), plan only -- no files written.
+        vault: Vault path override (defaults to ``OBSIDIAN_VAULT_PATH``).
+    """
+    from datetime import datetime, timezone
+
+    from obsidian_connector.config import load_config, resolve_vault_path
+    from obsidian_connector import creation_migrate as _cmig
+
+    try:
+        cfg = load_config()
+        vault_path = resolve_vault_path(vault or cfg.default_vault)
+        now = datetime.now(timezone.utc).isoformat()
+        if undo:
+            result = _cmig.undo_migration(vault_path, dry_run=dry_run)
+        else:
+            result = _cmig.migrate(vault_path, now_iso=now, dry_run=dry_run)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}})
+
+
 def main() -> None:
     """Run the MCP server.
 
