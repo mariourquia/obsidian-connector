@@ -137,6 +137,18 @@ from obsidian_connector.creation_migrate import (
     plan_migration,
     undo_migration,
 )
+from obsidian_connector.creation_dashboards import (
+    generate_global_dashboard,
+    generate_project_dashboard,
+    generate_project_one_pager,
+    generate_repo_view,
+    generate_projects_index,
+    generate_next_actions,
+    generate_stale_context,
+    generate_pending_decisions,
+    generate_active_sessions,
+    refresh_all,
+)
 from obsidian_connector.draft_manager import (
     approve_draft,
     clean_stale_drafts,
