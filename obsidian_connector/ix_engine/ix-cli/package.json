@@ -13,7 +13,7 @@
     "ix": "dist/cli/main.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22"
   },
   "scripts": {
     "build": "node scripts/build-core-ingestion.mjs && node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
