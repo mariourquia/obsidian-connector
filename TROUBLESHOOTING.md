@@ -110,7 +110,7 @@ iCloud-synced locations.
 The build pipeline uses TypeScript tools in the `tools/` directory and
 requires Node.js.
 
-**`npx tsx` not found**: Install Node.js 18+ and run `npm ci` in the
+**`npx tsx` not found**: Install Node.js 22+ and run `npm ci` in the
 `tools/` directory to install dependencies. Then run build commands from the
 repo root:
 
@@ -119,7 +119,7 @@ cd tools && npm ci && cd ..
 npx tsx tools/build.ts --target all
 ```
 
-**Node.js version**: The build tools require Node.js 18 or newer. Check with
+**Node.js version**: The build tools require Node.js 22 or newer. Check with
 `node --version`.
 
 **Validation failures**: Run `npx tsx tools/validate.ts --target all` after
