@@ -7,17 +7,29 @@ both engines that project repo state into the vault:
   the `obsx creation` dashboard read-layer), and
 - the bash nightly engine (`~/.local/bin/sync-creation-vault`).
 
-Both read the same `sync_config.json`. It lists every tracked repo, its display
-name, status, group, and tags; the group display-name map; and `github_root`.
+Both consume the `sync_config.json` registry format. It lists every tracked
+repo, its display name, status, group, and tags; the group display-name map;
+and `github_root`. They select the same file when configured with the same
+existing explicit path, or when both use the same canonical home without a
+Python per-vault override.
 
-## Where it lives (resolution order)
+## Where it lives (engine-specific resolution)
 
-Most specific first:
+The Python/MCP engine selects the first existing file:
 
 1. `$OBSIDIAN_SYNC_CONFIG` (explicit path; used by tests / power users)
 2. `<vault root>/sync_config.json` (per-vault override)
 3. `$XDG_CONFIG_HOME/obsidian-connector/sync_config.json`, else
    `~/.config/obsidian-connector/sync_config.json` (**canonical home**)
+
+A missing explicit path is ignored. If no registry is found, or the parsed
+configuration contains no repos, Python falls back to repository discovery.
+
+The bash nightly engine selects `$OBSIDIAN_SYNC_CONFIG` when nonempty;
+otherwise it uses `$XDG_CONFIG_HOME/obsidian-connector/sync_config.json`, or
+`~/.config/obsidian-connector/sync_config.json` when XDG is unset or empty.
+It does not check the vault-root override. Missing, invalid, or empty registry
+input fails the run; it does not fall back to discovery.
 
 The canonical home is intentionally **not** the iCloud vault (avoids file
 eviction) and **not** this public repo (the real registry lists private repos).

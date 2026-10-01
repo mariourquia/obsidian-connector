@@ -30,12 +30,25 @@ selected JSON-canonical to end the drift permanently.)
 
 ### Where it lives
 
-`sync_config.json` resolves (most specific first):
+The Python/MCP engine resolves `sync_config.json` by selecting the first
+existing file (most specific first):
 
 1. `$OBSIDIAN_SYNC_CONFIG` (explicit path; tests / power users)
 2. `<vault root>/sync_config.json` (per-vault override)
 3. `$XDG_CONFIG_HOME/obsidian-connector/sync_config.json`, else
    `~/.config/obsidian-connector/sync_config.json` — the **canonical home**
+
+Python ignores a missing explicit path and retains repository discovery when
+no registry is found or the parsed configuration has no repos. The bash
+engine instead selects a nonempty `$OBSIDIAN_SYNC_CONFIG`, or the XDG
+canonical home, without a vault-root lookup. Its missing/invalid/empty
+registry checks fail closed; it does not use repository discovery.
+
+The engines therefore share one file when they receive the same existing
+explicit path, or use the same canonical home without a Python per-vault
+override. A vault-root override can intentionally select a different file
+for Python. Sharing the registry format does not imply identical resolution
+or failure behavior.
 
 The canonical home is deliberately **not** the iCloud vault (the vault is not
 git-tracked and large files there get evicted — the reason `~/dev` exists) and
@@ -56,9 +69,10 @@ built-in `GROUP_DISPLAY`, so groups absent from package code (e.g. `wine`,
   the resolved file and parses `groups`. Back-compatible — a vault-root config
   still wins, and absent everything falls back to `discover_repos()`.
 - **bash** (`sync-creation-vault`): `REPOS`, `group_display()`, and
-  `project_tags()` now read the same `sync_config.json` via `jq`; `github_root`
-  too. A startup guard fails the run with a clear error if `jq` is missing or the
-  registry is absent / invalid / empty — never a silent groupless sync.
+  `project_tags()` read the selected explicit/XDG registry via `jq`;
+  `github_root` too. A startup guard fails the run with a clear error if `jq`
+  is missing or the registry is absent / invalid / empty — never a silent
+  groupless sync.
 
 ### Creation vault default
 
@@ -70,7 +84,7 @@ the Creation Vault and `~/dev` without an explicit `--vault`.
 
 - The dashboard groups correctly: 57 → 19 Projects (MCMC = 9 repos, CRE Skills =
   5, Keiki/Obsidian = 3, AMOS/Research/SignalForge = 2).
-- Editing the registry in one place updates both engines.
+- Editing one registry updates both engines when they select that same file.
 - New runtime dependency for the bash engine: `jq` (system-provided on macOS).
 - Test hermeticity: an autouse `_isolate_user_config` fixture points
   `XDG_CONFIG_HOME` at a temp dir so tests never read the real canonical file.
