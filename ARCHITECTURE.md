@@ -32,7 +32,7 @@ persisted to SQLite for fast incremental updates.
 |-----------|---------|
 | `obsidian_connector/` | Core Python package -- stays at root for PyPI |
 | `src/` | Human-authored plugin content (skills, hooks, manifest, MCP config, bin wrappers) |
-| `src/skills/` | 17 Claude Code skill definitions (12 workflow + 5 knowledge) |
+| `src/skills/` | 18 Claude Code skill definitions (13 workflow + 5 knowledge) |
 | `src/hooks/` | hooks.json + session_start.sh, session_stop.sh, idea_detect.md |
 | `src/plugin/` | Plugin manifest (plugin.json) and MCP server config (.mcp.json) |
 | `src/bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
