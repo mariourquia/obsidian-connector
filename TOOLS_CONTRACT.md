@@ -9,6 +9,17 @@ with Obsidian through this project.  Read this file before touching the vault.
 or CLI wrapper instead.  They handle vault resolution, argument escaping,
 error detection, audit logging, and output parsing.
 
+## Claude Code idea guidance
+
+The plugin's `UserPromptSubmit` command hook prints the trusted
+`hooks/idea_detect.md` instructions into the main session's context. It does
+not inspect the submitted prompt, make a separate model request, or write to
+the vault. The main session applies those instructions and uses the existing
+`obsidian_float_idea` / `obsidian_incubate_project` tools when appropriate.
+Direct tasks, questions, complaints, and ideas already being implemented are
+excluded by the guide. Source/build transport tests do not establish live
+capture or approval to access a real vault.
+
 ## MCP tools (Claude Desktop / AI agents)
 
 When running as an MCP server (via `claude_desktop_config.json` or `--http`),

@@ -2,7 +2,7 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-04-13"
+last_reviewed: "2026-09-30"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
@@ -154,6 +154,10 @@ uninstall.py uses: platform.py, config.py
 ```
 
 ## Build system
+
+`UserPromptSubmit` uses a command hook to print the shipped `idea_detect.md`
+guide as context. Idea classification and capture remain in the main session;
+the hook adapter reads no vault content and makes no model request.
 
 Plugin artifacts are authored in `src/` and built to `builds/` by the TypeScript
 pipeline in `tools/`. The Python package (`obsidian_connector/`) stays at the

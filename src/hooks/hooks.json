@@ -16,8 +16,8 @@
         "matcher": "",
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "You are checking whether a user's message contains a tangential idea worth capturing to their Obsidian vault.\n\nHook input JSON:\n$ARGUMENTS\n\nAn idea is a future project concept, a \"what if\" thought, or a side tangent that is NOT a direct task instruction. Signals include: \"I had an idea about...\", \"What if we...\" / \"What if I...\", \"It would be cool to...\" / \"It would be nice if...\", \"We should eventually...\" / \"Someday we should...\", \"Note to self...\" / \"Remind me to think about...\", \"That gives me an idea...\", \"A tangent but...\" / \"Side thought...\", \"For the future...\" / \"Down the road...\", \"I want to eventually...\", or any sentence describing something to build, explore, or investigate that is not the current task.\n\nDo NOT treat these as ideas: direct task instructions (\"fix this bug\", \"add this feature\"), questions (\"how does X work?\"), complaints or frustrations, or ideas the user is actively implementing right now.\n\nIf the message contains an idea, respond with exactly this JSON:\n{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"The user mentioned a tangential idea. Call obsidian_float_idea with the idea text. Do NOT ask which project, let auto-routing handle it, or pass the project if it is obvious from context. Then confirm in one short line ('Captured to {project}.') and continue with what they actually asked. If the idea describes a project that does not exist yet (new product, new repo, new initiative), call obsidian_incubate_project instead with a name and description.\"}}\n\nOtherwise respond with exactly this JSON:\n{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\"}}\n\nReturn only the JSON object and nothing else."
+            "type": "command",
+            "command": "cat \"${CLAUDE_PLUGIN_ROOT}/hooks/idea_detect.md\""
           }
         ]
       }

@@ -2,7 +2,7 @@
 title: "Setup Guide"
 status: verified
 owner: core
-last_reviewed: "2026-04-13"
+last_reviewed: "2026-09-30"
 ---
 
 # Setup Guide
@@ -54,6 +54,32 @@ cd obsidian-connector
 
 Best if you use Claude Code / Claude CLI and want skills, hooks, and
 scheduled automation.
+
+### Idea guidance hook
+
+The plugin's `UserPromptSubmit` hook runs
+`cat "${CLAUDE_PLUGIN_ROOT}/hooks/idea_detect.md"`. Claude Code adds its
+successful plain-text stdout to the main session as context. The main
+session detects tangents and calls the existing capture tools; the hook
+itself reads only this shipped guide and performs no vault operation or
+separate model request. This uses the documented
+[UserPromptSubmit command-hook context contract](https://code.claude.com/docs/en/hooks#userpromptsubmit-decision-control).
+
+The prior file-path prompt and PR #119's inline prompt response both used the
+wrong transport. A prompt hook accepts an allow/block decision; it cannot
+inject the command hook's `hookSpecificOutput.additionalContext` fields.
+See the [prompt-hook response schema](https://code.claude.com/docs/en/hooks#response-schema).
+
+If the guide is missing, `cat` exits 1 and Claude reports a nonblocking hook
+error; exit 2 is the rejection signal. Quoting the plugin root preserves
+paths containing spaces or shell punctuation. `SessionStart` and `Stop`
+retain their existing declarations.
+
+Verify transport with `python3 -m pytest -q tests/test_user_prompt_hook.py`.
+Those tests use synthetic prompts and temporary plugin directories. A live
+ordinary-prompt check and a human-authorized synthetic capture in a designated
+test vault remain separate acceptance checks; a green source test does not
+prove the installed plugin or real capture behavior.
 
 ### Steps
 
