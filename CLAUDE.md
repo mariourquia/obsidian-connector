@@ -388,3 +388,16 @@ See `ARCHITECTURE.md` for the full module table (39 modules). Key entry points:
 5. If mutating, add `--dry-run` and call `log_action()` from `audit.py`
 6. Add a smoke test in `scripts/`
 7. Update `TOOLS_CONTRACT.md`
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in the Linear team **Projects** (`PRJ`) in workspace `mariourquia`, through the Linear
+MCP server. Every issue of this repo's family carries the label `family:vault`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The seven canonical triage roles (five states, two categories) map to Linear labels. See
+`docs/agents/triage-labels.md`.
