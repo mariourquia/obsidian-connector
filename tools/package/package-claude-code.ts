@@ -74,13 +74,13 @@ export async function validate(): Promise<ValidationResult> {
     else failed.push({ rule, message: msg });
   };
 
-  // All 17 skills present
+  // All 18 skills present
   const skillsDir = join(OUT, "skills");
   if (existsSync(skillsDir)) {
     const skills = readdirSync(skillsDir).filter(
       (d) => existsSync(join(skillsDir, d, "SKILL.md"))
     );
-    check("all_skills_present", skills.length === 17, `Expected 17 skills, found ${skills.length}`);
+    check("all_skills_present", skills.length === 18, `Expected 18 skills, found ${skills.length}`);
 
     // Frontmatter validation
     for (const s of skills) {

@@ -230,7 +230,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     assert_type("init result is dict", result, dict)
     assert_eq("init vault_path exists", vault_path.is_dir(), True)
     assert_in("init has repos_tracked", "repos_tracked", result)
-    assert_eq("init has 17 default repos", result["repos_tracked"], 17)
+    assert_eq("init has no default repos", result["repos_tracked"], 0)
 
     # Check scaffold
     assert_eq("projects/ exists", (vault_path / "projects").is_dir(), True)
@@ -244,17 +244,32 @@ with tempfile.TemporaryDirectory() as tmpdir:
     # Check config is valid JSON
     config_data = json.loads((vault_path / "sync_config.json").read_text())
     assert_type("config repos is list", config_data["repos"], list)
-    assert_eq("config has 17 repos", len(config_data["repos"]), 17)
+    assert_eq("config has no default repos", len(config_data["repos"]), 0)
 
     # Check group files
-    assert_eq("AMOS group exists", (vault_path / "groups" / "AMOS.md").is_file(), True)
-    assert_eq("Keiki group exists", (vault_path / "groups" / "Keiki.md").is_file(), True)
+    assert_eq("no default group files", list((vault_path / "groups").iterdir()), [])
 
     # Check idempotency (init again should not overwrite)
     dashboard_content = (vault_path / "Dashboard.md").read_text()
     result2 = init_vault(vault_path=vault_path, use_defaults=True)
     dashboard_content2 = (vault_path / "Dashboard.md").read_text()
     assert_eq("init is idempotent (dashboard unchanged)", dashboard_content, dashboard_content2)
+
+with tempfile.TemporaryDirectory() as tmpdir:
+    vault_path = Path(tmpdir) / "explicit-repos-vault"
+    repos = [
+        RepoEntry("synthetic-a", "Synthetic A", group="Synthetic Group"),
+        RepoEntry("synthetic-b", "Synthetic B", group="Synthetic Group"),
+    ]
+    result = init_vault(vault_path=vault_path, repos=repos, use_defaults=True)
+    assert_eq("explicit repos override empty defaults", result["repos_tracked"], 2)
+    config_data = json.loads((vault_path / "sync_config.json").read_text())
+    assert_eq("explicit repos preserved in config", len(config_data["repos"]), 2)
+    assert_eq(
+        "explicit group file exists",
+        (vault_path / "groups" / "Synthetic Group.md").is_file(),
+        True,
+    )
 
 # ---------------------------------------------------------------------------
 # Test discover_repos

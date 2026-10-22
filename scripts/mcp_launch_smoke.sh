@@ -22,7 +22,8 @@ RESPONSE=$(printf '%s\n%s\n%s\n' \
     | "$SERVER" 2>/dev/null)
 
 # 3. Check initialize response
-if echo "$RESPONSE" | grep -q '"serverInfo"'; then
+# Avoid an upstream SIGPIPE when grep exits before a large tools response drains.
+if grep -q '"serverInfo"' <<< "$RESPONSE"; then
     echo "PASS: initialize response contains serverInfo"
 else
     echo "FAIL: no serverInfo in response"

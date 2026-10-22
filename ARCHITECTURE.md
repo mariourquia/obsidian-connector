@@ -2,7 +2,7 @@
 title: "Architecture Map"
 status: verified
 owner: "mariourquia"
-last_reviewed: "2026-04-13"
+last_reviewed: "2026-09-30"
 review_cycle_days: 30
 sources_of_truth:
   - "obsidian_connector/"
@@ -32,7 +32,7 @@ persisted to SQLite for fast incremental updates.
 |-----------|---------|
 | `obsidian_connector/` | Core Python package -- stays at root for PyPI |
 | `src/` | Human-authored plugin content (skills, hooks, manifest, MCP config, bin wrappers) |
-| `src/skills/` | 17 Claude Code skill definitions (12 workflow + 5 knowledge) |
+| `src/skills/` | 18 Claude Code skill definitions (13 workflow + 5 knowledge) |
 | `src/hooks/` | hooks.json + session_start.sh, session_stop.sh, idea_detect.md |
 | `src/plugin/` | Plugin manifest (plugin.json) and MCP server config (.mcp.json) |
 | `src/bin/` | Shell wrappers (`obsx`, `obsx-mcp`) that work without venv activation |
@@ -154,6 +154,10 @@ uninstall.py uses: platform.py, config.py
 ```
 
 ## Build system
+
+`UserPromptSubmit` uses a command hook to print the shipped `idea_detect.md`
+guide as context. Idea classification and capture remain in the main session;
+the hook adapter reads no vault content and makes no model request.
 
 Plugin artifacts are authored in `src/` and built to `builds/` by the TypeScript
 pipeline in `tools/`. The Python package (`obsidian_connector/`) stays at the
