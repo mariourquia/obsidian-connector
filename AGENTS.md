@@ -114,3 +114,6 @@ Full test catalog in `CONTRIBUTING.md`.
 - Skills: `skills/`
 - Hook: `hooks/session_start.sh`
 - Scheduling: `scheduling/run_scheduled.py`
+
+Issue tracker and triage labels: Linear team **Projects** (`PRJ`) in workspace `mariourquia`. See
+`docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`.
